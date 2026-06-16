@@ -1,0 +1,83 @@
+import 'dotenv/config'
+import express from 'express'
+import cors from 'cors'
+import helmet from 'helmet'
+import morgan from 'morgan'
+import rateLimit from 'express-rate-limit'
+
+import catalogoRoutes   from './routes/catalogo.js'
+import recetasRoutes    from './routes/recetas.js'
+import costeosRoutes    from './routes/costeos.js'
+import inventarioRoutes from './routes/inventario.js'
+import comprasRoutes    from './routes/compras.js'
+import exportarRoutes   from './routes/exportar.js'
+import aiRouterRoutes   from './routes/ai-router.js'
+import whatsappRoutes   from './routes/whatsapp.js'
+import fiscalRoutes     from './routes/fiscal.js'
+import ventasRoutes     from './routes/ventas.js'
+
+const app = express()
+const PORT = process.env.PORT || 3001
+
+app.use(helmet())
+app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }))
+app.use(morgan('dev'))
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ extended: true }))
+
+// Rate limiting global
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 500 }))
+
+// Rate limiting IA
+const aiLimiter = rateLimit({ windowMs: 60 * 1000, max: 30,
+  message: { error: 'Demasiadas consultas. Espera un minuto.' } })
+
+// Rutas
+app.use('/api/catalogo',   catalogoRoutes)
+app.use('/api/recetas',    recetasRoutes)
+app.use('/api/costeos',    costeosRoutes)
+app.use('/api/inventario', inventarioRoutes)
+app.use('/api/compras',    comprasRoutes)
+app.use('/api/exportar',   exportarRoutes)
+app.use('/api/ai',         aiLimiter, aiRouterRoutes)
+app.use('/api/whatsapp',   whatsappRoutes)
+app.use('/api/fiscal',     fiscalRoutes)
+app.use('/api/ventas',     ventasRoutes)
+
+// Health check
+app.get('/api/health', (_, res) => res.json({
+  status: 'ok', version: '2.7',
+  negocio: 'Marquéz Panadería & Repostería',
+  ia: {
+    openai:    !!process.env.OPENAI_API_KEY,
+    anthropic: !!process.env.ANTHROPIC_API_KEY,
+    deepseek:  !!process.env.DEEPSEEK_API_KEY,
+    gemini:    !!process.env.GEMINI_API_KEY,
+  },
+  whatsapp: {
+    activo:   !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID,
+    phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
+  },
+  timestamp: new Date().toISOString(),
+}))
+
+// Errores
+app.use((err, req, res, _next) => {
+  console.error('[Error]', err.message)
+  res.status(err.status || 500).json({ error: err.message || 'Error interno' })
+})
+
+app.listen(PORT, () => {
+  console.log(`\n🥐 Maestro Panadero IA — Marquéz v2.7`)
+  console.log(`   Servidor:    http://localhost:${PORT}`)
+  console.log(`   Rutas:       catalogo | recetas | costeos | inventario | compras | ventas | fiscal | ai | whatsapp`)
+  console.log(`   IA activas:`)
+  console.log(`   - GPT-4 mini:       ${process.env.OPENAI_API_KEY    ? '✅' : '⏳ pendiente'}`)
+  console.log(`   - Claude 3.5:       ${process.env.ANTHROPIC_API_KEY ? '✅' : '⏳ pendiente'}`)
+  console.log(`   - DeepSeek V3/R1:   ${process.env.DEEPSEEK_API_KEY  ? '✅' : '⏳ pendiente'}`)
+  console.log(`   - Gemini 1.5 Flash: ${process.env.GEMINI_API_KEY    ? '✅' : '⏳ pendiente'}`)
+  console.log(`   WhatsApp Bot:       ${process.env.WHATSAPP_TOKEN     ? '✅ activo' : '⏳ pendiente'}`)
+  console.log(`   Webhook URL:        http://localhost:${PORT}/api/whatsapp/webhook\n`)
+})
+
+export default app

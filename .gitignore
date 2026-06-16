@@ -1,0 +1,30 @@
+# Dependencias
+node_modules/
+.pnp
+.pnp.js
+
+# Variables de entorno (NUNCA subir al repo)
+.env
+.env.local
+.env.production
+
+# Build
+dist/
+build/
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# Vercel / Railway
+.vercel
+.railway
