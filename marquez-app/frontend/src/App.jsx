@@ -11,6 +11,7 @@ import Ventas from './pages/Ventas'
 import IAChat from './pages/IAChat'
 import Exportar from './pages/Exportar'
 import ConfigFiscal from './pages/ConfigFiscal'
+import Ayuda from './pages/Ayuda'
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="ia"           element={<IAChat />} />
         <Route path="exportar"     element={<Exportar />} />
         <Route path="fiscal"       element={<ConfigFiscal />} />
+        <Route path="ayuda"        element={<Ayuda />} />
       </Route>
     </Routes>
   )

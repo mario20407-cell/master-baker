@@ -7,9 +7,9 @@ const router = Router()
 router.get('/', async (req, res, next) => {
   try {
     const { producto, limit = 50 } = req.query
-    const params = []
-    let where = ''
-    if (producto) { params.push(producto); where = 'WHERE producto = $1' }
+    const params = [req.tenantId]
+    let where = 'WHERE tenant_id = $1'
+    if (producto) { params.push(producto); where += ` AND producto = $${params.length}` }
     params.push(parseInt(limit))
     const { rows } = await query(
       `SELECT * FROM costeos ${where} ORDER BY creado_en DESC LIMIT $${params.length}`,
@@ -22,15 +22,17 @@ router.get('/', async (req, res, next) => {
 // POST /api/costeos
 router.post('/', async (req, res, next) => {
   const { producto, piezas_obj, piezas_reales, costo_directo, costo_indirecto,
-    costo_total, costo_unitario, precio_venta, margen_pct, utilidad_neta, factor_escala } = req.body
+    costo_total, costo_unitario, precio_venta, margen_pct, margen_fiscal_pct,
+    costo_fiscal_unitario, utilidad_neta, aprobado_fiscal, factor_escala } = req.body
   try {
     const { rows } = await query(`
-      INSERT INTO costeos (producto, piezas_obj, piezas_reales, costo_directo, costo_indirecto,
-        costo_total, costo_unitario, precio_venta, margen_pct, utilidad_neta, aprobado, factor_escala)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *
-    `, [producto, piezas_obj, piezas_reales, costo_directo, costo_indirecto,
-        costo_total, costo_unitario, precio_venta, margen_pct, utilidad_neta,
-        margen_pct >= 57, factor_escala || 1])
+      INSERT INTO costeos (tenant_id, producto, piezas_obj, piezas_reales, costo_directo, costo_indirecto,
+        costo_total, costo_unitario, precio_venta, margen_pct, margen_fiscal_pct, costo_fiscal_unitario,
+        utilidad_neta, aprobado, aprobado_fiscal, factor_escala)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *
+    `, [req.tenantId, producto, piezas_obj, piezas_reales, costo_directo, costo_indirecto,
+        costo_total, costo_unitario, precio_venta, margen_pct, margen_fiscal_pct || null,
+        costo_fiscal_unitario || null, utilidad_neta, margen_pct >= 57, aprobado_fiscal ?? null, factor_escala || 1])
     res.status(201).json(rows[0])
   } catch (e) { next(e) }
 })

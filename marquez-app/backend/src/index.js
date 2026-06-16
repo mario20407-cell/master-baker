@@ -15,6 +15,7 @@ import aiRouterRoutes   from './routes/ai-router.js'
 import whatsappRoutes   from './routes/whatsapp.js'
 import fiscalRoutes     from './routes/fiscal.js'
 import ventasRoutes     from './routes/ventas.js'
+import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -27,6 +28,10 @@ app.use(express.urlencoded({ extended: true }))
 
 // Rate limiting global
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 500 }))
+
+// Resuelve req.tenantId en cada request — DEBE ir antes de las rutas /api
+app.use(tenantMiddleware)
+
 
 // Rate limiting IA
 const aiLimiter = rateLimit({ windowMs: 60 * 1000, max: 30,

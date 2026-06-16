@@ -7,10 +7,15 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Interceptor: adjunta JWT si existe
+// Tenant activo — fijo a Marquéz mientras no exista sistema de login.
+// Cuando se agregue auth, esto se reemplaza por el tenant_id de la sesión.
+const TENANT_ID_ACTUAL = '00000000-0000-0000-0000-000000000001'
+
+// Interceptor: adjunta JWT si existe, y el tenant activo en cada request
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('marquez_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
+  config.headers['x-tenant-id'] = TENANT_ID_ACTUAL
   return config
 })
 

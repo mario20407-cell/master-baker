@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
-  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield
+  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle
 } from 'lucide-react'
 
 const NAV = [
@@ -16,6 +16,7 @@ const NAV = [
   { to: '/compras',    icon: Receipt,          label: 'Compras' },
   { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
   { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI' },
+  { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
   { to: '/exportar',   icon: Download,         label: 'Exportar' },
 ]
 

@@ -14,11 +14,12 @@ router.get('/', async (req, res, next) => {
           'variacion_pct', fi.variacion_pct, 'alerta', fi.alerta
         )) AS items
       FROM facturas f
-      LEFT JOIN factura_items fi ON fi.factura_id = f.id
+      LEFT JOIN factura_items fi ON fi.factura_id = f.id AND fi.tenant_id = f.tenant_id
+      WHERE f.tenant_id = $1
       GROUP BY f.id
       ORDER BY f.fecha DESC, f.creado_en DESC
       LIMIT 100
-    `)
+    `, [req.tenantId])
     res.json(rows)
   } catch (e) { next(e) }
 })
@@ -26,15 +27,16 @@ router.get('/', async (req, res, next) => {
 // POST /api/compras
 router.post('/', async (req, res, next) => {
   const { proveedor, fecha, items = [], notas } = req.body
+  const tenantId = req.tenantId
   if (!items.length) return res.status(400).json({ error: 'items es requerido' })
 
   try {
     const factura = await transaction(async (client) => {
       const total = items.reduce((s, i) => s + (i.cantidad || 1) * (i.precio_actual || 0), 0)
       const { rows: [f] } = await client.query(`
-        INSERT INTO facturas (proveedor, fecha, total, notas)
-        VALUES ($1, $2, $3, $4) RETURNING *
-      `, [proveedor || 'Sin nombre', fecha || new Date().toISOString().split('T')[0], total, notas || ''])
+        INSERT INTO facturas (tenant_id, proveedor, fecha, total, notas)
+        VALUES ($1, $2, $3, $4, $5) RETURNING *
+      `, [tenantId, proveedor || 'Sin nombre', fecha || new Date().toISOString().split('T')[0], total, notas || ''])
 
       for (const item of items) {
         const variacion = item.precio_anterior > 0
@@ -44,25 +46,24 @@ router.post('/', async (req, res, next) => {
 
         await client.query(`
           INSERT INTO factura_items
-            (factura_id, producto, cantidad, precio_actual, precio_anterior, variacion_pct, alerta)
-          VALUES ($1,$2,$3,$4,$5,$6,$7)
-        `, [f.id, item.producto, item.cantidad || 1,
+            (tenant_id, factura_id, producto, cantidad, precio_actual, precio_anterior, variacion_pct, alerta)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        `, [tenantId, f.id, item.producto, item.cantidad || 1,
             item.precio_actual || 0, item.precio_anterior || 0,
             variacion ? parseFloat(variacion.toFixed(2)) : null, alerta])
       }
       return f
     })
 
-    // Retornar con items
     const { rows } = await query(`
       SELECT f.*, json_agg(json_build_object(
         'producto', fi.producto, 'cantidad', fi.cantidad,
         'precio_actual', fi.precio_actual, 'variacion_pct', fi.variacion_pct, 'alerta', fi.alerta
       )) AS items
       FROM facturas f
-      LEFT JOIN factura_items fi ON fi.factura_id = f.id
-      WHERE f.id = $1 GROUP BY f.id
-    `, [factura.id])
+      LEFT JOIN factura_items fi ON fi.factura_id = f.id AND fi.tenant_id = f.tenant_id
+      WHERE f.id = $1 AND f.tenant_id = $2 GROUP BY f.id
+    `, [factura.id, tenantId])
 
     res.status(201).json(rows[0])
   } catch (e) { next(e) }
