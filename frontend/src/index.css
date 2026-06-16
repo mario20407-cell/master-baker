@@ -98,3 +98,11 @@
 @supports (padding: env(safe-area-inset-bottom)) {
   .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 }
+
+/* ── Impresión — usado por el módulo Ayuda al exportar el manual ── */
+@media print {
+  aside, header { display: none !important; }
+  main { padding: 0 !important; overflow: visible !important; }
+  body, html { height: auto !important; overflow: visible !important; }
+  .card { box-shadow: none !important; border: 0.5px solid #ddd !important; break-inside: avoid; }
+}
