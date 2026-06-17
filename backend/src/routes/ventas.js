@@ -1,15 +1,6 @@
 /**
  * /api/ventas — Registro y consulta de ventas
- *
- * POST /api/ventas              → crear venta con sus items
- * GET  /api/ventas              → listar ventas (filtros: fecha, canal, metodo_pago)
- * GET  /api/ventas/resumen      → KPIs del día: total, ticket promedio, top productos
- * GET  /api/ventas/cierre?fecha → cierre de caja de una fecha (default: hoy)
- * GET  /api/ventas/:id          → venta individual con items
- * DELETE /api/ventas/:id        → anular venta (soft: marca como anulada)
- *
- * El motor de costeo corre en el frontend; el backend solo persiste y agrega.
- * Los items se guardan en venta_items (subtotal es columna generada en DB).
+ * v2.8 — Multi-tenant: toda query filtra y escribe con tenant_id.
  */
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
@@ -19,11 +10,11 @@ const router = Router()
 // ── POST /api/ventas ──────────────────────────────────────────────────────────
 router.post('/', async (req, res, next) => {
   const { items, total, metodo_pago = 'efectivo', canal = 'tienda', cliente = 'Sin nombre', fecha, hora } = req.body
+  const tenantId = req.tenantId
 
   if (!items?.length)          return res.status(400).json({ error: 'La venta debe tener al menos un item' })
   if (!total || total <= 0)    return res.status(400).json({ error: 'El total debe ser mayor a 0' })
 
-  // Validar que el total declarado coincide con la suma de items (tolerancia C$ 0.01)
   const sumaItems = items.reduce((s, i) => s + (parseFloat(i.precio_unit) * parseInt(i.cantidad)), 0)
   if (Math.abs(sumaItems - parseFloat(total)) > 0.01) {
     return res.status(400).json({ error: `Total declarado (${total}) no coincide con suma de items (${sumaItems.toFixed(2)})` })
@@ -31,30 +22,25 @@ router.post('/', async (req, res, next) => {
 
   try {
     const venta = await transaction(async (client) => {
-      // Insertar cabecera
-      const fechaSQL = fecha || 'CURRENT_DATE'
-      const horaSQL  = hora  ? `'${hora}'::TIME` : "NOW()::TIME"
-
       const { rows: [v] } = await client.query(`
-        INSERT INTO ventas (fecha, hora, cliente, canal, metodo_pago, total)
-        VALUES (${fecha ? '$1' : 'CURRENT_DATE'}, ${hora ? `'${hora}'::TIME` : 'NOW()::TIME'}, $${fecha ? 2 : 1}, $${fecha ? 3 : 2}, $${fecha ? 4 : 3}, $${fecha ? 5 : 4})
+        INSERT INTO ventas (tenant_id, fecha, hora, cliente, canal, metodo_pago, total)
+        VALUES ($1, ${fecha ? '$2' : 'CURRENT_DATE'}, ${hora ? `'${hora}'::TIME` : 'NOW()::TIME'}, $${fecha ? 3 : 2}, $${fecha ? 4 : 3}, $${fecha ? 5 : 4}, $${fecha ? 6 : 5})
         RETURNING *
-      `, fecha ? [fecha, cliente, canal, metodo_pago, total] : [cliente, canal, metodo_pago, total])
+      `, fecha ? [tenantId, fecha, cliente, canal, metodo_pago, total] : [tenantId, cliente, canal, metodo_pago, total])
 
-      // Insertar items
       if (items.length > 0) {
-        const vals   = items.map((_, i) => `($1, $${i * 3 + 2}, $${i * 3 + 3}, $${i * 3 + 4})`)
-        const params = [v.id, ...items.flatMap(i => [i.producto || i.n, parseInt(i.cantidad || i.qty || 1), parseFloat(i.precio_unit || i.p)])]
+        // Cada fila de items lleva también tenant_id — 4 params por item ahora.
+        const vals   = items.map((_, i) => `($1, $2, $${i * 3 + 3}, $${i * 3 + 4}, $${i * 3 + 5})`)
+        const params = [tenantId, v.id, ...items.flatMap(i => [i.producto || i.n, parseInt(i.cantidad || i.qty || 1), parseFloat(i.precio_unit || i.p)])]
         await client.query(
-          `INSERT INTO venta_items (venta_id, producto, cantidad, precio_unit) VALUES ${vals}`,
+          `INSERT INTO venta_items (tenant_id, venta_id, producto, cantidad, precio_unit) VALUES ${vals}`,
           params
         )
       }
 
-      // Retornar venta con items
       const { rows: itemsRows } = await client.query(
-        'SELECT * FROM venta_items WHERE venta_id = $1 ORDER BY id',
-        [v.id]
+        'SELECT * FROM venta_items WHERE venta_id = $1 AND tenant_id = $2 ORDER BY id',
+        [v.id, tenantId]
       )
       return { ...v, items: itemsRows }
     })
@@ -67,14 +53,13 @@ router.post('/', async (req, res, next) => {
 router.get('/', async (req, res, next) => {
   try {
     const { fecha, canal, metodo_pago, limit = 100 } = req.query
-    const conds  = []
-    const params = []
+    const conds  = ['v.tenant_id = $1']
+    const params = [req.tenantId]
 
     if (fecha)       { params.push(fecha);       conds.push(`v.fecha = $${params.length}`) }
     if (canal)       { params.push(canal);        conds.push(`v.canal = $${params.length}`) }
     if (metodo_pago) { params.push(metodo_pago);  conds.push(`v.metodo_pago = $${params.length}`) }
 
-    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : ''
     params.push(parseInt(limit))
 
     const { rows } = await query(`
@@ -83,18 +68,15 @@ router.get('/', async (req, res, next) => {
         COALESCE(
           json_agg(
             json_build_object(
-              'id',          vi.id,
-              'producto',    vi.producto,
-              'cantidad',    vi.cantidad,
-              'precio_unit', vi.precio_unit,
-              'subtotal',    vi.subtotal
+              'id', vi.id, 'producto', vi.producto, 'cantidad', vi.cantidad,
+              'precio_unit', vi.precio_unit, 'subtotal', vi.subtotal
             ) ORDER BY vi.id
           ) FILTER (WHERE vi.id IS NOT NULL),
           '[]'
         ) AS items
       FROM ventas v
-      LEFT JOIN venta_items vi ON vi.venta_id = v.id
-      ${where}
+      LEFT JOIN venta_items vi ON vi.venta_id = v.id AND vi.tenant_id = v.tenant_id
+      WHERE ${conds.join(' AND ')}
       GROUP BY v.id
       ORDER BY v.creado_en DESC
       LIMIT $${params.length}
@@ -105,11 +87,12 @@ router.get('/', async (req, res, next) => {
 })
 
 // ── GET /api/ventas/resumen ───────────────────────────────────────────────────
-// KPIs del día para el Dashboard. Llamada liviana con una sola query agregada.
 router.get('/resumen', async (req, res, next) => {
   try {
     const { fecha } = req.query
-    const fechaSQL  = fecha || 'CURRENT_DATE'
+    const tenantId  = req.tenantId
+    const params    = fecha ? [tenantId, fecha] : [tenantId]
+    const fechaCond = fecha ? 'v.fecha = $2' : 'v.fecha = CURRENT_DATE'
 
     const { rows: [resumen] } = await query(`
       SELECT
@@ -123,19 +106,18 @@ router.get('/resumen', async (req, res, next) => {
         COALESCE(SUM(CASE WHEN v.canal = 'whatsapp'  THEN v.total ELSE 0 END), 0) AS ing_whatsapp,
         COALESCE(SUM(CASE WHEN v.canal = 'encargo'   THEN v.total ELSE 0 END), 0) AS ing_encargo
       FROM ventas v
-      WHERE v.fecha = ${fecha ? '$1' : 'CURRENT_DATE'}
-    `, fecha ? [fecha] : [])
+      WHERE v.tenant_id = $1 AND ${fechaCond}
+    `, params)
 
-    // Top 8 productos del día
     const { rows: topProds } = await query(`
       SELECT vi.producto, SUM(vi.cantidad)::INT AS piezas, SUM(vi.subtotal) AS ingresos
       FROM venta_items vi
-      JOIN ventas v ON v.id = vi.venta_id
-      WHERE v.fecha = ${fecha ? '$1' : 'CURRENT_DATE'}
+      JOIN ventas v ON v.id = vi.venta_id AND v.tenant_id = vi.tenant_id
+      WHERE v.tenant_id = $1 AND ${fechaCond}
       GROUP BY vi.producto
       ORDER BY piezas DESC
       LIMIT 8
-    `, fecha ? [fecha] : [])
+    `, params)
 
     res.json({ ...resumen, top_productos: topProds, fecha: fecha || new Date().toISOString().slice(0,10) })
   } catch (e) { next(e) }
@@ -145,31 +127,31 @@ router.get('/resumen', async (req, res, next) => {
 router.get('/cierre', async (req, res, next) => {
   try {
     const { fecha } = req.query
+    const tenantId  = req.tenantId
+    const params    = fecha ? [tenantId, fecha] : [tenantId]
+    const fechaCond = fecha ? 'v.fecha = $2' : 'v.fecha = CURRENT_DATE'
+
     const { rows: ventas } = await query(`
       SELECT v.id, v.hora, v.cliente, v.canal, v.metodo_pago, v.total,
         COALESCE(json_agg(json_build_object(
           'producto', vi.producto, 'cantidad', vi.cantidad, 'subtotal', vi.subtotal
         ) ORDER BY vi.id) FILTER (WHERE vi.id IS NOT NULL), '[]') AS items
       FROM ventas v
-      LEFT JOIN venta_items vi ON vi.venta_id = v.id
-      WHERE v.fecha = ${fecha ? '$1' : 'CURRENT_DATE'}
+      LEFT JOIN venta_items vi ON vi.venta_id = v.id AND vi.tenant_id = v.tenant_id
+      WHERE v.tenant_id = $1 AND ${fechaCond}
       GROUP BY v.id
       ORDER BY v.hora
-    `, fecha ? [fecha] : [])
+    `, params)
 
-    const total     = ventas.reduce((s, v) => s + parseFloat(v.total), 0)
-    const efectivo  = ventas.filter(v => v.metodo_pago === 'efectivo').reduce((s, v) => s + parseFloat(v.total), 0)
-    const tarjeta   = ventas.filter(v => v.metodo_pago === 'tarjeta').reduce((s, v) => s + parseFloat(v.total), 0)
+    const total         = ventas.reduce((s, v) => s + parseFloat(v.total), 0)
+    const efectivo      = ventas.filter(v => v.metodo_pago === 'efectivo').reduce((s, v) => s + parseFloat(v.total), 0)
+    const tarjeta       = ventas.filter(v => v.metodo_pago === 'tarjeta').reduce((s, v) => s + parseFloat(v.total), 0)
     const transferencia = ventas.filter(v => v.metodo_pago === 'transferencia').reduce((s, v) => s + parseFloat(v.total), 0)
 
     res.json({
       fecha: fecha || new Date().toISOString().slice(0, 10),
       total_ventas: ventas.length,
-      ingresos: total,
-      efectivo,
-      tarjeta,
-      transferencia,
-      ventas,
+      ingresos: total, efectivo, tarjeta, transferencia, ventas,
     })
   } catch (e) { next(e) }
 })
@@ -184,10 +166,10 @@ router.get('/:id', async (req, res, next) => {
           'precio_unit', vi.precio_unit, 'subtotal', vi.subtotal
         ) ORDER BY vi.id) FILTER (WHERE vi.id IS NOT NULL), '[]') AS items
       FROM ventas v
-      LEFT JOIN venta_items vi ON vi.venta_id = v.id
-      WHERE v.id = $1
+      LEFT JOIN venta_items vi ON vi.venta_id = v.id AND vi.tenant_id = v.tenant_id
+      WHERE v.id = $1 AND v.tenant_id = $2
       GROUP BY v.id
-    `, [req.params.id])
+    `, [req.params.id, req.tenantId])
 
     if (!rows.length) return res.status(404).json({ error: 'Venta no encontrada' })
     res.json(rows[0])
@@ -195,12 +177,12 @@ router.get('/:id', async (req, res, next) => {
 })
 
 // ── DELETE /api/ventas/:id ─────────────────────────────────────────────────────
-// Anulación: no borramos físicamente — cascade en venta_items sí elimina los items.
-// En un sistema real habría un campo `anulada BOOLEAN` y auditoría.
-// Por ahora eliminamos la venta (los items se van por CASCADE en la FK).
 router.delete('/:id', async (req, res, next) => {
   try {
-    const { rowCount } = await query('DELETE FROM ventas WHERE id = $1', [req.params.id])
+    const { rowCount } = await query(
+      'DELETE FROM ventas WHERE id = $1 AND tenant_id = $2',
+      [req.params.id, req.tenantId]
+    )
     if (!rowCount) return res.status(404).json({ error: 'Venta no encontrada' })
     res.json({ ok: true, id: req.params.id })
   } catch (e) { next(e) }

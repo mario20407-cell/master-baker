@@ -1,11 +1,7 @@
 /**
  * /api/fiscal — Configuración fiscal DGI
- *
- * Tabla: config_fiscal (fila única, id = 1).
- * GET  /api/fiscal       → devuelve la configuración actual
- * PUT  /api/fiscal       → upsert (crea o actualiza)
- * GET  /api/fiscal/prorrateo?cuota=300&produccion=1350
- *                        → calcula prorrateo sin persistir
+ * v2.8 — Multi-tenant: la PK de config_fiscal ahora es tenant_id,
+ * cada panadería tiene su propia fila en lugar de una global con id=1.
  */
 import { Router } from 'express'
 import { query } from '../db/client.js'
@@ -15,7 +11,7 @@ const router = Router()
 // ── GET /api/fiscal ───────────────────────────────────────────────────────────
 router.get('/', async (req, res, next) => {
   try {
-    const { rows } = await query('SELECT * FROM config_fiscal WHERE id = 1')
+    const { rows } = await query('SELECT * FROM config_fiscal WHERE tenant_id = $1', [req.tenantId])
     if (!rows.length) return res.json({ configurado: false })
     res.json(rows[0])
   } catch (e) { next(e) }
@@ -33,7 +29,6 @@ router.put('/', async (req, res, next) => {
     ruc = '',
   } = req.body
 
-  // Validaciones
   if (!regimen || !['cuota_fija', 'reg_general'].includes(regimen)) {
     return res.status(400).json({ error: 'regimen debe ser cuota_fija o reg_general' })
   }
@@ -45,28 +40,30 @@ router.put('/', async (req, res, next) => {
   }
 
   try {
+    // Upsert por tenant_id: inserta si no existe, actualiza si ya existe.
     const { rows } = await query(`
-      UPDATE config_fiscal SET
-        regimen            = $1,
-        cuota_fija         = $2,
-        ir_anual           = $3,
-        iva_aplica         = $4,
-        produccion_mensual = $5,
-        nombre_negocio     = $6,
-        ruc                = $7,
+      INSERT INTO config_fiscal
+        (tenant_id, regimen, cuota_fija, ir_anual, iva_aplica, produccion_mensual, nombre_negocio, ruc, configurado, actualizado_en)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, NOW())
+      ON CONFLICT (tenant_id) DO UPDATE SET
+        regimen            = EXCLUDED.regimen,
+        cuota_fija         = EXCLUDED.cuota_fija,
+        ir_anual           = EXCLUDED.ir_anual,
+        iva_aplica         = EXCLUDED.iva_aplica,
+        produccion_mensual = EXCLUDED.produccion_mensual,
+        nombre_negocio     = EXCLUDED.nombre_negocio,
+        ruc                = EXCLUDED.ruc,
         configurado        = true,
         actualizado_en     = NOW()
-      WHERE id = 1
       RETURNING *
-    `, [regimen, cuota_fija, ir_anual, iva_aplica, produccion_mensual, nombre_negocio, ruc])
+    `, [req.tenantId, regimen, cuota_fija, ir_anual, iva_aplica, produccion_mensual, nombre_negocio, ruc])
 
     res.json(rows[0])
   } catch (e) { next(e) }
 })
 
 // ── GET /api/fiscal/prorrateo ─────────────────────────────────────────────────
-// Util sin estado: calcula el prorrateo a partir de query params.
-// Úsalo desde el frontend para preview en tiempo real sin guardar.
+// Util sin estado — no necesita tenant_id porque no toca la DB.
 router.get('/prorrateo', async (req, res) => {
   const cuota      = parseFloat(req.query.cuota) || 0
   const produccion = parseInt(req.query.produccion) || 1
@@ -78,13 +75,8 @@ router.get('/prorrateo', async (req, res) => {
   const precio_min_con_fiscal  = costo_con_fiscal > 0 ? costo_con_fiscal / 0.43 : 0
 
   res.json({
-    cuota,
-    produccion,
-    prorrateo_unitario,
-    costo_base,
-    costo_con_fiscal,
-    precio_min_sin_fiscal,
-    precio_min_con_fiscal,
+    cuota, produccion, prorrateo_unitario, costo_base,
+    costo_con_fiscal, precio_min_sin_fiscal, precio_min_con_fiscal,
   })
 })
 

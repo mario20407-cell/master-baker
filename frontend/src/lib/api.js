@@ -7,10 +7,15 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Interceptor: adjunta JWT si existe
+// Tenant activo — fijo a Marquéz mientras no exista sistema de login.
+// Cuando se agregue auth, esto se reemplaza por el tenant_id de la sesión.
+const TENANT_ID_ACTUAL = '00000000-0000-0000-0000-000000000001'
+
+// Interceptor: adjunta JWT si existe, y el tenant activo en cada request
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('marquez_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
+  config.headers['x-tenant-id'] = TENANT_ID_ACTUAL
   return config
 })
 
@@ -30,8 +35,16 @@ api.interceptors.response.use(
 )
 
 // ── Catálogo ─────────────────────────────────────────────────────────────────
+// Las funciones de escritura aceptan `pin` y lo mandan en el header
+// x-admin-pin — el backend lo valida contra ADMIN_PIN antes de aplicar el cambio.
 export const getCatalogo = () => api.get('/catalogo')
-export const updateProducto = (id, data) => api.put(`/catalogo/${id}`, data)
+export const getAuditoriaProductos = (limit) => api.get('/catalogo/auditoria', { params: { limit } })
+export const updateProducto = (id, data, pin) =>
+  api.put(`/catalogo/${id}`, data, { headers: { 'x-admin-pin': pin } })
+export const updateProductosMasivo = (productos, pin) =>
+  api.put('/catalogo/masivo/lista', { productos }, { headers: { 'x-admin-pin': pin } })
+export const updateProductosPorCategoria = (categoria, porcentaje, pin) =>
+  api.put('/catalogo/masivo/categoria', { categoria, porcentaje }, { headers: { 'x-admin-pin': pin } })
 
 // ── Recetas ──────────────────────────────────────────────────────────────────
 export const getRecetas = () => api.get('/recetas')
@@ -47,8 +60,14 @@ export const getCosteos = (params) => api.get('/costeos', { params })
 
 // ── Inventario ───────────────────────────────────────────────────────────────
 export const getInventario = () => api.get('/inventario')
+export const getAuditoriaInsumos = (limit) => api.get('/inventario/auditoria', { params: { limit } })
 export const saveInsumo = (data) => api.post('/inventario', data)
-export const updateInsumo = (id, data) => api.put(`/inventario/${id}`, data)
+export const updateInsumo = (id, data, pin) =>
+  api.put(`/inventario/${id}`, data, { headers: { 'x-admin-pin': pin } })
+export const updateInsumosMasivo = (insumos, pin) =>
+  api.put('/inventario/masivo/lista', { insumos }, { headers: { 'x-admin-pin': pin } })
+export const updateInsumosPorcentaje = (porcentaje, pin) =>
+  api.put('/inventario/masivo/porcentaje', { porcentaje }, { headers: { 'x-admin-pin': pin } })
 export const deleteInsumo = (id) => api.delete(`/inventario/${id}`)
 
 // ── Compras ──────────────────────────────────────────────────────────────────
