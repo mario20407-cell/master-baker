@@ -62,7 +62,9 @@ app.get('/api/health', (_, res) => res.json({
   whatsapp: {
     activo:   !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID,
     phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
+    
   },
+  admin_pin_configurado: !!process.env.ADMIN_PIN,
   timestamp: new Date().toISOString(),
 }))
 
