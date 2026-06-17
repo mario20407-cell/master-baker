@@ -19,6 +19,8 @@ export function Catalogo() {
   const [cat, setCat]             = useState('Todos')
   const [editando, setEditando]   = useState(null)
   const [precioTmp, setPrecioTmp] = useState('')
+  const [nombreTmp, setNombreTmp] = useState('')
+  const [categoriaTmp, setCategoriaTmp] = useState('')
   const [panelMasivo, setPanelMasivo] = useState(false)
   const [catMasivo, setCatMasivo] = useState('Todos')
   const [pctMasivo, setPctMasivo] = useState('')
@@ -48,22 +50,36 @@ export function Catalogo() {
   )
 
   // ── Edición individual — requiere PIN ───────────────────────────────────
+  const [categoriaNueva, setCategoriaNueva] = useState(false)
+
   const empezarEdicion = (p) => {
     setEditando(p.id)
     setPrecioTmp(String(p.precio))
+    setNombreTmp(p.nombre)
+    setCategoriaTmp(p.categoria)
+    setCategoriaNueva(false)
   }
 
   const confirmarEdicion = (p) => {
     const nuevoPrecio = parseFloat(precioTmp)
     if (!nuevoPrecio || nuevoPrecio <= 0) { toast.error('Precio inválido'); return }
+    const nuevoNombre = nombreTmp.trim()
+    if (!nuevoNombre) { toast.error('El nombre no puede quedar vacío'); return }
+    const nuevaCategoria = categoriaTmp.trim()
+    if (!nuevaCategoria) { toast.error('La categoría no puede quedar vacía'); return }
 
     setPinAccion(() => async (pin) => {
       try {
-        await updateProducto(p.id, { precio: nuevoPrecio, presentacion: p.presentacion }, pin)
-        setProductos(prev => prev.map(x => x.id === p.id ? { ...x, precio: nuevoPrecio } : x))
-        toast.success(`${p.nombre} actualizado a ${fmt(nuevoPrecio)}`)
+        await updateProducto(p.id, {
+          precio: nuevoPrecio, presentacion: p.presentacion,
+          nombre: nuevoNombre, categoria: nuevaCategoria,
+        }, pin)
+        setProductos(prev => prev.map(x => x.id === p.id
+          ? { ...x, precio: nuevoPrecio, nombre: nuevoNombre, categoria: nuevaCategoria }
+          : x))
+        toast.success(`${nuevoNombre} actualizado`)
       } catch (e) {
-        toast.error(e.response?.data?.error || 'No se pudo guardar el precio')
+        toast.error(e.response?.data?.error || 'No se pudo guardar el producto')
       } finally {
         setEditando(null)
       }
@@ -152,7 +168,7 @@ export function Catalogo() {
       {panelAuditoria && (
         <div className="card mb-4">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-medium text-gray-700">Últimos cambios de precio</h3>
+            <h3 className="text-sm font-medium text-gray-700">Últimos cambios al catálogo</h3>
             <button onClick={() => setPanelAuditoria(false)} className="text-gray-400 hover:text-gray-600">
               <X size={15} />
             </button>
@@ -162,17 +178,21 @@ export function Catalogo() {
           ) : (
             <div className="overflow-x-auto">
               <table className="table-base text-xs">
-                <thead><tr><th>Fecha</th><th>Producto</th><th className="text-right">Antes</th><th className="text-right">Ahora</th><th>Método</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Producto</th><th>Campo</th><th className="text-right">Antes</th><th className="text-right">Ahora</th><th>Método</th></tr></thead>
                 <tbody>
-                  {auditoria.map(a => (
-                    <tr key={a.id}>
-                      <td className="text-gray-500">{new Date(a.creado_en).toLocaleString('es-NI', { dateStyle: 'short', timeStyle: 'short' })}</td>
-                      <td>{a.entidad_nombre}</td>
-                      <td className="text-right text-gray-400">{fmt(a.valor_anterior)}</td>
-                      <td className="text-right font-medium" style={{ color: '#C29C53' }}>{fmt(a.valor_nuevo)}</td>
-                      <td><span className="badge-gray">{a.metodo === 'individual' ? 'Individual' : a.metodo === 'masivo_lista' ? 'Masivo' : `${a.porcentaje_aplicado > 0 ? '+' : ''}${a.porcentaje_aplicado}%`}</span></td>
-                    </tr>
-                  ))}
+                  {auditoria.map(a => {
+                    const esPrecio = a.campo === 'precio' || !a.campo
+                    return (
+                      <tr key={a.id}>
+                        <td className="text-gray-500">{new Date(a.creado_en).toLocaleString('es-NI', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                        <td>{a.entidad_nombre}</td>
+                        <td className="text-gray-500 capitalize">{a.campo || 'precio'}</td>
+                        <td className="text-right text-gray-400">{esPrecio ? fmt(a.valor_anterior) : (a.valor_anterior_texto || '—')}</td>
+                        <td className="text-right font-medium" style={{ color: '#C29C53' }}>{esPrecio ? fmt(a.valor_nuevo) : (a.valor_nuevo_texto || '—')}</td>
+                        <td><span className="badge-gray">{a.metodo === 'individual' ? 'Individual' : a.metodo === 'masivo_lista' ? 'Masivo' : `${a.porcentaje_aplicado > 0 ? '+' : ''}${a.porcentaje_aplicado}%`}</span></td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -207,12 +227,46 @@ export function Catalogo() {
                     style={{ background: color.bg, color: color.text }}>{p.categoria}</span>
                   {p.tiene_receta && <span className="badge-ok text-[10px]">Receta ✓</span>}
                 </div>
-                <div className="text-sm font-medium text-gray-900 mb-1 leading-tight">{p.nombre}</div>
+                <div className="text-sm font-medium text-gray-900 mb-1 leading-tight">
+                  {estaEditando ? (
+                    <input
+                      autoFocus value={nombreTmp} onChange={e => setNombreTmp(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Escape') cancelarEdicion() }}
+                      className="text-sm font-medium w-full py-0.5 mb-1"
+                      placeholder="Nombre del producto"
+                    />
+                  ) : p.nombre}
+                </div>
+
+                {estaEditando && (
+                  <div className="mb-1">
+                    {categoriaNueva ? (
+                      <input
+                        autoFocus value={categoriaTmp} onChange={e => setCategoriaTmp(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Escape') cancelarEdicion() }}
+                        className="text-xs w-full py-0.5"
+                        placeholder="Nombre de la nueva categoría"
+                      />
+                    ) : (
+                      <select
+                        value={categoriaTmp}
+                        onChange={e => {
+                          if (e.target.value === '__nueva__') { setCategoriaNueva(true); setCategoriaTmp('') }
+                          else setCategoriaTmp(e.target.value)
+                        }}
+                        className="text-xs w-full py-0.5"
+                      >
+                        {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+                        <option value="__nueva__">+ Nueva categoría...</option>
+                      </select>
+                    )}
+                  </div>
+                )}
 
                 {estaEditando ? (
                   <div className="flex items-center gap-1 mb-1">
                     <input
-                      type="number" autoFocus value={precioTmp}
+                      type="number" value={precioTmp}
                       onChange={e => setPrecioTmp(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === 'Enter') confirmarEdicion(p)
