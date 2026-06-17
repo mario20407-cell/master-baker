@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import OpenAI from 'openai'
+import { verificarYRegistrarUso } from '../middleware/planMiddleware.js'
 
 const router = Router()
 
@@ -18,68 +19,68 @@ const CATALOGO = `
 🥐 *MENÚ MARQUÉZ PANADERÍA & REPOSTERÍA*
 
 🧆 *SALADOS*
-• Pico de queso - C$20
-• Maleta de carne - C$35
-• Maleta de pollo - C$30
-• Empanada de queso - C$20
-• Churro de queso - C$20
-• Pan pizza - C$40
-• Choripán - C$30
+- Pico de queso - C$20
+- Maleta de carne - C$35
+- Maleta de pollo - C$30
+- Empanada de queso - C$20
+- Churro de queso - C$20
+- Pan pizza - C$40
+- Choripán - C$30
 
 🍩 *PAN DULCE*
-• Prisionero - C$25
-• Quesadilla - C$30
-• Trenza frita - C$20
-• Repollito - C$20
-• Repodona - C$35
-• Berlinesa - C$35
-• Rol de canela - C$35
-• Chemi - C$25
+- Prisionero - C$25
+- Quesadilla - C$30
+- Trenza frita - C$20
+- Repollito - C$20
+- Repodona - C$35
+- Berlinesa - C$35
+- Rol de canela - C$35
+- Chemi - C$25
 
 🍩 *DONAS*
-• Dona azucarada - C$20
-• Dona de chocolate - C$35
-• Dona glaseada - C$35
+- Dona azucarada - C$20
+- Dona de chocolate - C$35
+- Dona glaseada - C$35
 
 🥐 *HOJALDRE*
-• Pañuelo de piña - C$30
-• Pañuelo dulce de leche - C$35
-• Bolovan - C$50
-• Croissant - C$50
-• Flor de hojaldre - C$40
-• Mil hojas - C$120
-• Palmeritas - C$60
+- Pañuelo de piña - C$30
+- Pañuelo dulce de leche - C$35
+- Bolovan - C$50
+- Croissant - C$50
+- Flor de hojaldre - C$40
+- Mil hojas - C$120
+- Palmeritas - C$60
 
 🍰 *TORTAS*
-• Torta de naranja - C$35
-• Torta de vainilla - C$30
-• Torta de chocolate - C$40
+- Torta de naranja - C$35
+- Torta de vainilla - C$30
+- Torta de chocolate - C$40
 
 🎂 *RINES*
-• Rin de vainilla - C$150
-• Rin de naranja - C$160
-• Rin de chocolate - C$190
+- Rin de vainilla - C$150
+- Rin de naranja - C$160
+- Rin de chocolate - C$190
 
 🍮 *POSTRES*
-• Volteado de piña 2oz - C$75
-• Volteado de piña 4oz - C$170
-• Volteado de piña ½lb - C$320
+- Volteado de piña 2oz - C$75
+- Volteado de piña 4oz - C$170
+- Volteado de piña ½lb - C$320
 
 🍰 *CHEESECAKES*
-• Maracuyá (porción) - C$120 | (libra) - C$1,250
-• Fresa (porción) - C$140 | (libra) - C$1,300
-• Oreo (porción) - C$120 | (libra) - C$1,250
+- Maracuyá (porción) - C$120 | (libra) - C$1,250
+- Fresa (porción) - C$140 | (libra) - C$1,300
+- Oreo (porción) - C$120 | (libra) - C$1,250
 
 🧁 *CUPCAKES*
-• Vainilla - C$25
-• Chocolate - C$30
+- Vainilla - C$25
+- Chocolate - C$30
 
 🍪 *GALLETAS*
-• Avena - C$20
-• Mantequilla - C$20
-• Margarita - C$20
-• Coco - C$35
-• Chocochips - C$40
+- Avena - C$20
+- Mantequilla - C$20
+- Margarita - C$20
+- Coco - C$35
+- Chocochips - C$40
 `
 
 const SYSTEM_BOT = `Eres el asistente virtual de Marquéz Panadería & Repostería en Nicaragua.
@@ -215,6 +216,17 @@ router.post('/webhook', async (req, res) => {
   try {
     const body = req.body
     if (body.object !== 'whatsapp_business_account') return
+
+    // PENDIENTE: req.tenantId aquí siempre resuelve al default (Marquéz),
+    // porque Meta no manda header x-tenant-id ni subdominio — este webhook
+    // no distingue todavía entre números de WhatsApp de distintos tenants.
+    // Ver nota en tenantMiddleware.js. Hoy no es un problema porque solo
+    // existe un tenant real operando.
+    const chequeoPlan = await verificarYRegistrarUso(req.tenantId, 'whatsapp_bot')
+    if (!chequeoPlan.permitido) {
+      console.warn(`[WhatsApp] Tenant ${req.tenantId} sin acceso al bot según su plan — mensajes ignorados`)
+      return
+    }
 
     for (const entry of body.entry || []) {
       for (const change of entry.changes || []) {

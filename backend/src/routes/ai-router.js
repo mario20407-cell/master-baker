@@ -8,6 +8,7 @@ import {
   getProvidersStatus,
   AI_CONFIG,
 } from '../services/ai/aiProvider.js'
+import { verificarYRegistrarUso, requierePlan } from '../middleware/planMiddleware.js'
 
 const router = Router()
 
@@ -18,6 +19,15 @@ const TASK_TYPES = {
   COSTEO_MASIVO:   'costeo_masivo',   // DeepSeek V3
   ANALISIS_RAZON:  'analisis_razon',  // DeepSeek R1
   MULTIMEDIA:      'multimedia',      // Gemini 2.5 Flash
+}
+
+// Mapea cada taskType a la columna correspondiente en la tabla `planes`.
+const TASK_TO_FUNCION_PLAN = {
+  [TASK_TYPES.CHAT_CLIENTE]:   'asesor_negocio',   // chat directo desde el dashboard, no WhatsApp
+  [TASK_TYPES.LOGICA_NEGOCIO]: 'asesor_negocio',
+  [TASK_TYPES.COSTEO_MASIVO]:  'costeo_masivo',
+  [TASK_TYPES.ANALISIS_RAZON]: 'analisis_profundo',
+  [TASK_TYPES.MULTIMEDIA]:     'leer_documentos',
 }
 
 function clasificarTarea(tipo) {
@@ -93,6 +103,13 @@ router.post('/chat', async (req, res, next) => {
   const taskType = clasificarTarea(tipo)
   const system = SYSTEM_PROMPTS[taskType]
 
+  // Verificar plan ANTES de gastar tokens en el proveedor de IA real.
+  const funcionPlan = TASK_TO_FUNCION_PLAN[taskType] || 'asesor_negocio'
+  const chequeoPlan = await verificarYRegistrarUso(req.tenantId, funcionPlan)
+  if (!chequeoPlan.permitido) {
+    return res.status(chequeoPlan.status).json(chequeoPlan.body)
+  }
+
   try {
     let resultado
     switch (taskType) {
@@ -127,7 +144,7 @@ router.post('/chat', async (req, res, next) => {
 })
 
 // POST /api/ai/costeo-masivo — costear múltiples recetas de una vez
-router.post('/costeo-masivo', async (req, res, next) => {
+router.post('/costeo-masivo', requierePlan('costeo_masivo'), async (req, res, next) => {
   const { recetas = [], margenObjetivo = 57 } = req.body
   if (!recetas.length) return res.status(400).json({ error: 'recetas requeridas' })
 
@@ -150,7 +167,7 @@ Devuelve SOLO un array JSON, sin explicaciones adicionales.`
 })
 
 // POST /api/ai/analizar-pdf — extraer datos de PDF o imagen con Gemini
-router.post('/analizar-pdf', async (req, res, next) => {
+router.post('/analizar-pdf', requierePlan('leer_documentos'), async (req, res, next) => {
   const { fileBase64, mimeType, tipo = 'receta' } = req.body
   if (!fileBase64) return res.status(400).json({ error: 'fileBase64 requerido' })
 
@@ -181,7 +198,10 @@ Solo JSON, sin texto adicional.`,
 })
 
 // POST /api/ai/whatsapp — endpoint específico para el bot de WhatsApp
-router.post('/whatsapp', async (req, res, next) => {
+// NOTA: el bot real (routes/whatsapp.js) todavía no llama a este endpoint —
+// tiene su propia integración standalone con OpenAI. Este queda listo para
+// cuando se unifique esa lógica con aiProvider.js.
+router.post('/whatsapp', requierePlan('whatsapp_bot'), async (req, res, next) => {
   const { mensaje, historial = [] } = req.body
   if (!mensaje) return res.status(400).json({ error: 'mensaje requerido' })
 
