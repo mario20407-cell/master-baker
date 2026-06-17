@@ -20,6 +20,11 @@ import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 const app = express()
 const PORT = process.env.PORT || 3001
 
+// Railway corre la app detrás de un proxy/load balancer. Sin esto,
+// express-rate-limit lanza un error (ERR_ERL_UNEXPECTED_X_FORWARDED_FOR)
+// en cada request porque no confía en el header X-Forwarded-For.
+app.set('trust proxy', 1)
+
 app.use(helmet())
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }))
 app.use(morgan('dev'))
@@ -62,10 +67,19 @@ app.get('/api/health', (_, res) => res.json({
   whatsapp: {
     activo:   !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID,
     phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
-    
   },
   admin_pin_configurado: !!process.env.ADMIN_PIN,
   timestamp: new Date().toISOString(),
+}))
+
+// Diagnóstico temporal — confirmar qué nombres de env vars ve el proceso.
+// TODO: quitar este endpoint una vez resuelto el problema de ADMIN_PIN.
+app.get('/api/diag', (_, res) => res.json({
+  node_env: process.env.NODE_ENV || null,
+  admin_pin_in_process_env: 'ADMIN_PIN' in process.env,
+  admin_pin_truthy: !!process.env.ADMIN_PIN,
+  total_env_vars: Object.keys(process.env).length,
+  nombres_que_contienen_admin_o_pin: Object.keys(process.env).filter(k => /ADMIN|PIN/i.test(k)),
 }))
 
 // Errores
