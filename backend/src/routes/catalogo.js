@@ -11,8 +11,8 @@ async function registrarAuditoria(client, { tenantId, tipo, entidadId, entidadNo
     await client.query(`
       INSERT INTO auditoria_precios
         (tenant_id, tipo, entidad_id, entidad_nombre, campo, valor_anterior, valor_nuevo, metodo, porcentaje_aplicado, ip_origen)
-      VALUES ($1,'precio',$2,$3,'precio',$4,$5,$6,$7,$8)
-    `, [tenantId, entidadId, entidadNombre, valorAnterior, valorNuevo, metodo, porcentaje || null, ip || null])
+      VALUES ($1,$2,$3,$4,'precio',$5,$6,$7,$8,$9)
+    `, [tenantId, tipo, entidadId, entidadNombre, valorAnterior, valorNuevo, metodo, porcentaje || null, ip || null])
   } catch (e) {
     console.error('No se pudo registrar auditoría de precio:', e.message)
   }
