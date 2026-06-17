@@ -72,15 +72,7 @@ app.get('/api/health', (_, res) => res.json({
   timestamp: new Date().toISOString(),
 }))
 
-// Diagnóstico temporal — confirmar qué nombres de env vars ve el proceso.
-// TODO: quitar este endpoint una vez resuelto el problema de ADMIN_PIN.
-app.get('/api/diag', (_, res) => res.json({
-  node_env: process.env.NODE_ENV || null,
-  admin_pin_in_process_env: 'ADMIN_PIN' in process.env,
-  admin_pin_truthy: !!process.env.ADMIN_PIN,
-  total_env_vars: Object.keys(process.env).length,
-  nombres_que_contienen_admin_o_pin: Object.keys(process.env).filter(k => /ADMIN|PIN/i.test(k)),
-}))
+
 
 // Errores
 app.use((err, req, res, _next) => {
