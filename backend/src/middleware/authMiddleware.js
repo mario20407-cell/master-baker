@@ -12,12 +12,16 @@ export function requireAuth(req, res, next) {
   }
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET)
+    req.usuarioId = payload.usuarioId
+    req.tenantId  = payload.tenantId
     req.rol       = payload.rol
     req.email     = payload.email
     req.nombre    = payload.nombre
     next()
   } catch (e) {
     if (e.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Sesion expirada' })
+    }
     return res.status(401).json({ error: 'Token invalido' })
   }
 }
