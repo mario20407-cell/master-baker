@@ -1,5 +1,7 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+﻿import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
+import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Catalogo from './pages/Catalogo'
 import Recetas from './pages/Recetas'
@@ -13,10 +15,29 @@ import Exportar from './pages/Exportar'
 import ConfigFiscal from './pages/ConfigFiscal'
 import Ayuda from './pages/Ayuda'
 
+function RutaProtegida({ children }) {
+  const { usuario, cargando } = useAuth()
+  if (cargando) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#FAF8F4' }}>
+      <div className="text-center">
+        <div className="text-3xl mb-3">🥐</div>
+        <p className="text-sm text-gray-400">Cargando...</p>
+      </div>
+    </div>
+  )
+  if (!usuario) return <Navigate to="/login" replace />
+  return children
+}
+
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Layout />}>
+      <Route path="/login" element={<Login />} />
+      <Route path="/" element={
+        <RutaProtegida>
+          <Layout />
+        </RutaProtegida>
+      }>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard"    element={<Dashboard />} />
         <Route path="catalogo"     element={<Catalogo />} />
