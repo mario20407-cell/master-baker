@@ -46,6 +46,7 @@ app.get('/api/health', (_, res) => res.json({
   whatsapp: { activo: !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID, phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado' },
   admin_pin_configurado: !!process.env.ADMIN_PIN,
   jwt_configurado: !!process.env.JWT_SECRET,
+  test_var: process.env.TEST_VAR || 'no llegó',
   timestamp: new Date().toISOString(),
 }))
 app.use((err, req, res, _next) => {
@@ -56,3 +57,4 @@ app.listen(PORT, () => {
   console.log('Marquez v3.0 corriendo en puerto ' + PORT)
 })
 export default app
+
