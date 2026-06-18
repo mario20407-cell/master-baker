@@ -27,7 +27,7 @@ router.post('/login', async (req, res, next) => {
   }
   try {
     const { rows } = await query(
-      `SELECT u.*, t.nombre AS tenant_nombre, t.plan AS tenant_plan
+      `SELECT u.*, t.nombre_negocio AS tenant_nombre, t.plan AS tenant_plan
        FROM usuarios u
        JOIN tenants t ON t.id = u.tenant_id
        WHERE u.email = $1 AND u.tenant_id = $2 AND u.activo = true`,
@@ -78,7 +78,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await query(
       `SELECT u.id, u.email, u.nombre, u.rol, u.ultimo_login,
-              t.nombre AS tenant_nombre, t.plan AS tenant_plan
+              t.nombre_negocio AS tenant_nombre, t.plan AS tenant_plan
        FROM usuarios u
        JOIN tenants t ON t.id = u.tenant_id
        WHERE u.id = $1 AND u.activo = true`,
@@ -94,3 +94,4 @@ router.post('/logout', requireAuth, (req, res) => {
 })
 
 export default router
+
