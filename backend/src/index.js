@@ -16,6 +16,8 @@ import fiscalRoutes     from './routes/fiscal.js'
 import ventasRoutes     from './routes/ventas.js'
 import authRoutes       from './routes/auth.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
+// Fallback temporal mientras se resuelve inyeccion de variables en Railway
+if (!process.env.JWT_SECRET) process.env.JWT_SECRET = '796a61c00f1b4456aa40fec70c3349a9'
 const app = express()
 const PORT = process.env.PORT || 3001
 app.set('trust proxy', 1)
@@ -57,4 +59,7 @@ app.listen(PORT, () => {
   console.log('Marquez v3.0 corriendo en puerto ' + PORT)
 })
 export default app
+
+
+
 
