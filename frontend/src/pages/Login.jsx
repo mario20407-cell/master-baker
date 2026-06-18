@@ -12,7 +12,7 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!email || !password) { toast.error('Ingresa tu email y contrasena'); return }
+    if (!email || !password) { toast.error('Ingresa tu email y Contraseña'); return }
     setCargando(true)
     try {
       await login(email.trim(), password)
@@ -42,7 +42,7 @@ export default function Login() {
                 placeholder="admin@marquez.com" autoComplete="email" autoFocus disabled={cargando} />
             </div>
             <div className="form-group">
-              <label className="form-label">Contrasena</label>
+              <label className="form-label">Contraseña</label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••" autoComplete="current-password" disabled={cargando} />
             </div>
@@ -55,6 +55,7 @@ export default function Login() {
                 </>
               ) : 'Entrar'}
             </button>
+            <button type="button" onClick={() => toast('Para restablecer tu contraseña, contacta al administrador del sistema')} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 mt-2">Olvidé mi contraseña</button>
           </form>
         </div>
         <p className="text-center text-xs text-gray-400 mt-6">
@@ -64,3 +65,7 @@ export default function Login() {
     </div>
   )
 }
+
+
+
+
