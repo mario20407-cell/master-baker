@@ -1,21 +1,22 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
-  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle
+  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, LogOut, User
 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
-const NAV = [
+const NAV_TODOS = [
   { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',      badge: 'NEW' },
-  { to: '/catalogo',   icon: BookOpen,         label: 'Catálogo' },
+  { to: '/catalogo',   icon: BookOpen,         label: 'Catalogo' },
   { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE' },
   { to: '/costeo',     icon: Calculator,       label: 'Costeo' },
   { to: '/escalado',   icon: Scale,            label: 'Escalado' },
   { to: '/inventario', icon: Package,          label: 'Inventario' },
   { to: '/compras',    icon: Receipt,          label: 'Compras' },
   { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
-  { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI' },
+  { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI', soloAdmin: true },
   { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
   { to: '/exportar',   icon: Download,         label: 'Exportar' },
 ]
@@ -23,7 +24,11 @@ const NAV = [
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
-  const currentPage = NAV.find(n => location.pathname.startsWith(n.to))?.label || 'Master Baker'
+  const { usuario, logout } = useAuth()
+
+  const esAdmin = usuario?.rol === 'admin'
+  const NAV = NAV_TODOS.filter(n => !n.soloAdmin || esAdmin)
+  const currentPage = NAV_TODOS.find(n => location.pathname.startsWith(n.to))?.label || 'Master Baker'
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -37,7 +42,7 @@ export default function Layout() {
           </div>
           <div>
             <div className="text-sm font-semibold leading-tight tracking-wide" style={{ color: '#263D4F' }}>MASTER BAKER</div>
-            <div className="text-[10px] text-gray-400 leading-tight">Gestión Inteligente de Panadería</div>
+            <div className="text-[10px] text-gray-400 leading-tight">Gestion Inteligente de Panaderia</div>
           </div>
           <button className="ml-auto lg:hidden text-gray-400" onClick={() => setSidebarOpen(false)}>
             <X size={16} />
@@ -61,8 +66,26 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="px-4 py-3 border-t border-gray-100">
-          <div className="text-xs text-gray-400">v2.7 · Margen objetivo ≥57%</div>
+        <div className="px-4 py-3 border-t border-gray-100 space-y-2">
+          {usuario && (
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#EAF3DE' }}>
+                <User size={12} style={{ color: '#27500A' }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-medium text-gray-700 truncate">{usuario.nombre}</div>
+                <div className="text-[10px] text-gray-400 capitalize">{usuario.rol}</div>
+              </div>
+              <button
+                onClick={logout}
+                title="Cerrar sesion"
+                className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          )}
+          <div className="text-xs text-gray-400">v3.0 · Margen objetivo 57%+</div>
         </div>
       </aside>
 
@@ -72,9 +95,14 @@ export default function Layout() {
             <Menu size={20} />
           </button>
           <h1 className="text-sm font-semibold text-gray-900">{currentPage}</h1>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {!esAdmin && (
+              <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ background: '#F3F4F6', color: '#6B7280' }}>
+                Operario
+              </span>
+            )}
             <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ background: '#EAF3DE', color: '#27500A' }}>
-              Margen objetivo: ≥57%
+              Margen objetivo: 57%+
             </span>
           </div>
         </header>
