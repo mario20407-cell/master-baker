@@ -1,5 +1,5 @@
 import 'dotenv/config'
-if (!process.env.JWT_SECRET) process.env.JWT_SECRET = '796a61c00f1b4456aa40fec70c3349a9'
+if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET no configurado')
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
