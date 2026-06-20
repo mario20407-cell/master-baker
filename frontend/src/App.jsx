@@ -15,6 +15,7 @@ import Exportar from './pages/Exportar'
 import ConfigFiscal from './pages/ConfigFiscal'
 import Ayuda from './pages/Ayuda'
 import Usuarios from './pages/Usuarios'
+import Produccion from './pages/Produccion'
 
 function RutaProtegida({ children }) {
   const { usuario, cargando } = useAuth()
@@ -47,19 +48,20 @@ export default function App() {
         </RutaProtegida>
       }>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard"    element={<Dashboard />} />
-        <Route path="catalogo"     element={<Catalogo />} />
-        <Route path="recetas"      element={<Recetas />} />
-        <Route path="costeo"       element={<Costeo />} />
-        <Route path="escalado"     element={<Escalado />} />
-        <Route path="inventario"   element={<Inventario />} />
-        <Route path="compras"      element={<Compras />} />
-        <Route path="ventas"       element={<Ventas />} />
-        <Route path="ia"           element={<IAChat />} />
-        <Route path="exportar"     element={<Exportar />} />
-        <Route path="fiscal"       element={<SoloAdmin><ConfigFiscal /></SoloAdmin>} />
-        <Route path="usuarios"     element={<SoloAdmin><Usuarios /></SoloAdmin>} />
-        <Route path="ayuda"        element={<Ayuda />} />
+        <Route path="dashboard"   element={<Dashboard />} />
+        <Route path="catalogo"    element={<Catalogo />} />
+        <Route path="recetas"     element={<Recetas />} />
+        <Route path="costeo"      element={<Costeo />} />
+        <Route path="escalado"    element={<Escalado />} />
+        <Route path="inventario"  element={<Inventario />} />
+        <Route path="compras"     element={<Compras />} />
+        <Route path="ventas"      element={<Ventas />} />
+        <Route path="produccion"  element={<Produccion />} />
+        <Route path="ia"          element={<IAChat />} />
+        <Route path="exportar"    element={<Exportar />} />
+        <Route path="fiscal"      element={<SoloAdmin><ConfigFiscal /></SoloAdmin>} />
+        <Route path="usuarios"    element={<SoloAdmin><Usuarios /></SoloAdmin>} />
+        <Route path="ayuda"       element={<Ayuda />} />
       </Route>
     </Routes>
   )

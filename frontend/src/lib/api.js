@@ -99,3 +99,8 @@ export const deleteVenta     = (id)     => api.delete(`/ventas/${id}`)
 export const getUsuarios     = ()           => api.get('/auth/usuarios')
 export const registrarUsuario = (data)      => api.post('/auth/registrar', data)
 export const toggleUsuario   = (id, activo) => api.patch(`/auth/usuarios/${id}`, { activo })
+
+// -- Produccion -------------------------------------------------------------
+export const verificarProduccion  = (producto, piezas) => api.get('/produccion/verificar', { params: { producto, piezas } })
+export const crearOrdenProduccion = (data)             => api.post('/produccion', data)
+export const getHistorialProduccion = ()               => api.get('/produccion')
