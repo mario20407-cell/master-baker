@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Modo oscuro ──────────────────────────────────────────────── */
+:root {
+  --color-bg:              #F9FAFB;
+  --color-surface:         #FFFFFF;
+  --color-surface-2:       #F3F4F6;
+  --color-border:          #E5E7EB;
+  --color-border-tertiary: #D1D5DB;
+  --color-text:            #111827;
+  --color-text-secondary:  #6B7280;
+  --color-text-tertiary:   #9CA3AF;
+}
+
+html.dark {
+  --color-bg:              #0F1117;
+  --color-surface:         #1A1D27;
+  --color-surface-2:       #22263A;
+  --color-border:          #2D3148;
+  --color-border-tertiary: #3A3F5C;
+  --color-text:            #F1F5F9;
+  --color-text-secondary:  #94A3B8;
+  --color-text-tertiary:   #64748B;
+}
+
+
 @layer base {
   :root {
     --brand: #C29C53;
@@ -15,14 +39,22 @@
   * { box-sizing: border-box; }
 
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    background: var(--color-bg);
+    color: var(--color-text);
+    @apply antialiased;
     font-family: 'Inter', system-ui, sans-serif;
   }
 
   input, select, textarea {
-    @apply text-sm rounded-lg border border-gray-200 bg-white px-3 py-2
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    color: var(--color-text);
+    @apply text-sm rounded-lg border px-3 py-2
            focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent
-           placeholder:text-gray-400 transition-shadow;
+           transition-shadow;
+  }
+  input::placeholder, textarea::placeholder {
+    color: var(--color-text-tertiary);
   }
 
   button { @apply transition-all duration-150 active:scale-95; }
@@ -30,7 +62,9 @@
 
 @layer components {
   .card {
-    @apply bg-white rounded-card border border-gray-100 shadow-card p-4;
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    @apply rounded-card shadow-card p-4 border;
   }
 
   .btn-primary {
@@ -63,12 +97,18 @@
   .form-group { @apply flex flex-col; }
 
   .kpi-card {
-    @apply bg-gray-50 rounded-xl p-3 border border-gray-100;
+    background: var(--color-surface-2);
+    border-color: var(--color-border);
+    @apply rounded-xl p-3 border;
   }
 
   .nav-item {
-    @apply flex items-center gap-2 px-3 py-2 text-sm rounded-lg text-gray-600
-           hover:bg-gray-100 cursor-pointer transition-colors whitespace-nowrap;
+    color: var(--color-text-secondary);
+    @apply flex items-center gap-2 px-3 py-2 text-sm rounded-lg
+           cursor-pointer transition-colors whitespace-nowrap;
+  }
+  .nav-item:hover {
+    background: var(--color-surface-2);
   }
 
   .nav-item.active {
