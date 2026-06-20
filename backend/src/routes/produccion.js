@@ -1,6 +1,6 @@
 /**
  * /api/produccion — Ordenes de produccion con merma automatica de inventario
- * v3.0 — Verifica stock, descuenta ingredientes en transaccion atomica.
+ * v3.1 — Filtra ingredientes indirectos, incluye tipo en query.
  */
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
@@ -9,7 +9,6 @@ import { requireAuth } from '../middleware/authMiddleware.js'
 const router = Router()
 
 // ── GET /api/produccion/verificar?producto=X&piezas=Y ─────────────────────
-// Pre-verifica stock sin descontar. Util para mostrar alertas antes de confirmar.
 router.get('/verificar', requireAuth, async (req, res, next) => {
   const { producto, piezas } = req.query
   if (!producto || !piezas) return res.status(400).json({ error: 'producto y piezas son requeridos' })
@@ -17,11 +16,10 @@ router.get('/verificar', requireAuth, async (req, res, next) => {
   if (cantidadPiezas < 1) return res.status(400).json({ error: 'piezas debe ser mayor a 0' })
 
   try {
-    // Buscar receta base
     const { rows: recetas } = await query(
       `SELECT r.piezas AS piezas_base, r.merma_pct,
               json_agg(json_build_object(
-                'nombre', i.nombre, 'cantidad', i.cantidad, 'unidad', i.unidad
+                'nombre', i.nombre, 'cantidad', i.cantidad, 'unidad', i.unidad, 'tipo', i.tipo
               )) AS ingredientes
        FROM recetas r
        JOIN ingredientes i ON i.receta_id = r.id
@@ -34,14 +32,15 @@ router.get('/verificar', requireAuth, async (req, res, next) => {
     const receta = recetas[0]
     const factor = cantidadPiezas / receta.piezas_base
 
-    // Calcular ingredientes necesarios escalados
-    const necesarios = receta.ingredientes.map(ing => ({
-      nombre: ing.nombre,
-      unidad: ing.unidad,
-      necesario: parseFloat((ing.cantidad * factor).toFixed(4)),
-    }))
+    // Solo ingredientes directos — indirectos (gas, mano de obra) no tienen stock fisico
+    const necesarios = receta.ingredientes
+      .filter(ing => ing.tipo === 'directo')
+      .map(ing => ({
+        nombre: ing.nombre,
+        unidad: ing.unidad,
+        necesario: parseFloat((ing.cantidad * factor).toFixed(4)),
+      }))
 
-    // Verificar stock actual
     const nombres = necesarios.map(n => n.nombre)
     const { rows: stocks } = await query(
       `SELECT nombre, existencia, unidad FROM inventario
@@ -73,7 +72,6 @@ router.get('/verificar', requireAuth, async (req, res, next) => {
 })
 
 // ── GET /api/produccion ────────────────────────────────────────────────────
-// Historial de ordenes del tenant
 router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await query(
@@ -90,7 +88,6 @@ router.get('/', requireAuth, async (req, res, next) => {
 })
 
 // ── POST /api/produccion ───────────────────────────────────────────────────
-// Crea orden y descuenta inventario en transaccion atomica
 router.post('/', requireAuth, async (req, res, next) => {
   const { producto, piezas, notas = '', forzar = false } = req.body
   if (!producto || !piezas) return res.status(400).json({ error: 'producto y piezas son requeridos' })
@@ -99,11 +96,10 @@ router.post('/', requireAuth, async (req, res, next) => {
 
   try {
     const result = await transaction(async (client) => {
-      // 1. Obtener receta con ingredientes
       const { rows: recetas } = await client.query(
         `SELECT r.id, r.piezas AS piezas_base, r.merma_pct,
                 json_agg(json_build_object(
-                  'nombre', i.nombre, 'cantidad', i.cantidad, 'unidad', i.unidad
+                  'nombre', i.nombre, 'cantidad', i.cantidad, 'unidad', i.unidad, 'tipo', i.tipo
                 )) AS ingredientes
          FROM recetas r
          JOIN ingredientes i ON i.receta_id = r.id
@@ -116,13 +112,15 @@ router.post('/', requireAuth, async (req, res, next) => {
       const receta = recetas[0]
       const factor = cantidadPiezas / receta.piezas_base
 
-      const necesarios = receta.ingredientes.map(ing => ({
-        nombre: ing.nombre,
-        unidad: ing.unidad,
-        necesario: parseFloat((ing.cantidad * factor).toFixed(4)),
-      }))
+      // Solo ingredientes directos
+      const necesarios = receta.ingredientes
+        .filter(ing => ing.tipo === 'directo')
+        .map(ing => ({
+          nombre: ing.nombre,
+          unidad: ing.unidad,
+          necesario: parseFloat((ing.cantidad * factor).toFixed(4)),
+        }))
 
-      // 2. Verificar stock (con FOR UPDATE para evitar race conditions)
       const nombres = necesarios.map(n => n.nombre)
       const { rows: stocks } = await client.query(
         `SELECT nombre, existencia FROM inventario
@@ -139,7 +137,6 @@ router.post('/', requireAuth, async (req, res, next) => {
         return disp < n.necesario
       })
 
-      // 3. Si hay faltantes y no se fuerza, rechazar
       if (faltantes.length > 0 && !forzar) {
         const detalle = faltantes.map(f => ({
           nombre: f.nombre,
@@ -148,13 +145,9 @@ router.post('/', requireAuth, async (req, res, next) => {
           faltante: parseFloat((f.necesario - (stockMap[f.nombre] ?? 0)).toFixed(4)),
           unidad: f.unidad,
         }))
-        throw Object.assign(
-          new Error('Stock insuficiente'),
-          { status: 409, faltantes: detalle }
-        )
+        throw Object.assign(new Error('Stock insuficiente'), { status: 409, faltantes: detalle })
       }
 
-      // 4. Descontar inventario
       for (const ing of necesarios) {
         await client.query(
           `UPDATE inventario
@@ -164,7 +157,6 @@ router.post('/', requireAuth, async (req, res, next) => {
         )
       }
 
-      // 5. Registrar orden
       const { rows: [orden] } = await client.query(
         `INSERT INTO ordenes_produccion (tenant_id, producto, piezas, notas, creado_por, estado)
          VALUES ($1, $2, $3, $4, $5, 'completada')
