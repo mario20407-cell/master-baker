@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { CAT_COLORS } from '../lib/catalogo'
 import { useCatalogo } from '../hooks/useCatalogo'
