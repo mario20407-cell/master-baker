@@ -1,20 +1,61 @@
-import { useState } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { PRODUCTOS, CAT_COLORS } from '../lib/catalogo'
 import { ChefHat, Plus, Search, Upload, Edit2, Trash2, Calculator, CheckCircle, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { getInventario } from '../lib/api'
+import { getInventario } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 
 const UNIDADES = ['kg', 'g', 'L', 'ml', 'unidad', 'porción']
 
-function IngredienteRow({ ing, onChange, onDelete }) {
+function IngredienteRow({ ing, onChange, onDelete, insumos = [] }) {
+  const [sugerencias, setSugerencias] = useState([])
+  const [mostrarSug, setMostrarSug] = useState(false)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setMostrarSug(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const handleNombre = (val) => {
+    onChange({ ...ing, nombre: val })
+    const filtrados = val.length > 0 ? insumos.filter(i => i.nombre.toLowerCase().includes(val.toLowerCase())) : insumos
+    setSugerencias(filtrados)
+    setMostrarSug(filtrados.length > 0)
+  }
+
+  const seleccionar = (insumo) => {
+    onChange({ ...ing, nombre: insumo.nombre, unidad: insumo.unidad || 'kg', precio: parseFloat(insumo.costo_unitario) || 0 })
+    setMostrarSug(false)
+  }
+
   return (
-    <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-2 items-center mb-2">
-      <input
-        value={ing.nombre} placeholder="Ingrediente"
-        onChange={e => onChange({ ...ing, nombre: e.target.value })}
-        className={ing.tipo === 'indirecto' ? 'bg-blue-50' : ''}
-      />
+    <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-2 items-start mb-2" ref={wrapRef}>
+      <div style={{ position: 'relative' }}>
+        <input
+          value={ing.nombre} placeholder="Ingrediente"
+          onChange={e => handleNombre(e.target.value)}
+          onFocus={() => { setSugerencias(insumos); setMostrarSug(insumos.length > 0) }}
+          className={ing.tipo === 'indirecto' ? 'bg-blue-50 w-full' : 'w-full'}
+        />
+        {mostrarSug && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--color-surface,#fff)', border: '1px solid var(--color-border,#e5e7eb)', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: '160px', overflowY: 'auto', marginTop: '2px' }}>
+            {sugerencias.length === 0
+              ? <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--color-text-secondary,#6b7280)' }}>Sin resultados</div>
+              : sugerencias.map(s => (
+                <div key={s.id} onClick={() => seleccionar(s)} style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: 'var(--color-text,#111827)' }} onMouseEnter={e => e.currentTarget.style.background='var(--color-surface-2,#f3f4f6)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                  <span style={{ fontWeight: 500 }}>{s.nombre}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-secondary,#6b7280)', marginLeft: '6px' }}>{s.unidad} · C$ {parseFloat(s.costo_unitario||0).toFixed(2)}</span>
+                </div>
+              ))
+            }
+          </div>
+        )}
       <input type="number" value={ing.cantidad} placeholder="0" step="0.001" min="0"
         onChange={e => onChange({ ...ing, cantidad: parseFloat(e.target.value) || 0 })} />
       <select value={ing.unidad} onChange={e => onChange({ ...ing, unidad: e.target.value })}>
@@ -29,7 +70,9 @@ function IngredienteRow({ ing, onChange, onDelete }) {
   )
 }
 
-function FormReceta({ inicial, onGuardar, onCancelar }) {
+function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
+  const [insumos, setInsumos] = useState([])
+  useEffect(() => { getInventario().then(r => setInsumos(r.data || [])).catch(() => {}) }, [])
   const prodIdx = PRODUCTOS.findIndex(p => p.n === inicial?.producto)
   const [prodSel, setProdSel] = useState(prodIdx >= 0 ? prodIdx : '')
   const [piezas, setPiezas] = useState(inicial?.piezas || '')
@@ -125,7 +168,7 @@ function FormReceta({ inicial, onGuardar, onCancelar }) {
 
         {ings.map((ing, i) => (
           <IngredienteRow key={i} ing={ing}
-            onChange={val => updateIng(i, val)}
+            onChange={val => updateIng(i, val)} insumos={insumos}
             onDelete={() => removeIng(i)} />
         ))}
 
