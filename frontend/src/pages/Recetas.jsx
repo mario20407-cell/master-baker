@@ -1,9 +1,9 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
-import { PRODUCTOS, CAT_COLORS } from '../lib/catalogo'
+import { CAT_COLORS } from '../lib/catalogo'
+import { useCatalogo } from '../hooks/useCatalogo'
 import { ChefHat, Plus, Search, Upload, Edit2, Trash2, Calculator, CheckCircle, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { getInventario } from '../lib/api'
 import { getInventario } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 
@@ -73,8 +73,8 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [] }) {
 function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
   const [insumos, setInsumos] = useState([])
   useEffect(() => { getInventario().then(r => setInsumos(r.data || [])).catch(() => {}) }, [])
-  const prodIdx = PRODUCTOS.findIndex(p => p.n === inicial?.producto)
-  const [prodSel, setProdSel] = useState(prodIdx >= 0 ? prodIdx : '')
+  const prodNombre0 = inicial?.producto || ''
+  const [prodSel, setProdSel] = useState(prodNombre0)
   const [piezas, setPiezas] = useState(inicial?.piezas || '')
   const [peso, setPeso] = useState(inicial?.peso || '')
   const [merma, setMerma] = useState(inicial?.merma || '')
@@ -100,9 +100,9 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
     if (!piezas) { toast.error('Ingresa las piezas que rinde'); return }
     const ingsValidos = ings.filter(i => i.nombre && parseFloat(i.cantidad) > 0)
     if (!ingsValidos.length) { toast.error('Agrega al menos un ingrediente con cantidad'); return }
-    const prod = PRODUCTOS[parseInt(prodSel)]
+    const prod = productos?.find(p => p.nombre === prodSel)
     onGuardar({
-      producto: prod.n, categoria: prod.cat, pventa: prod.p, presentacion: prod.pr,
+      producto: prod?.nombre || prodSel, categoria: prod?.categoria || '', pventa: prod?.precio || 0, presentacion: prod?.presentacion || 'unidad',
       piezas: parseInt(piezas), peso: parseFloat(peso) || 0,
       merma: parseFloat(merma) || 0, notas,
       ingredientes: ingsValidos.map(i => ({
@@ -120,8 +120,8 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
             <label className="form-label">Producto del catálogo</label>
             <select value={prodSel} onChange={e => setProdSel(e.target.value)}>
               <option value="">— Seleccionar —</option>
-              {PRODUCTOS.map((p, i) => (
-                <option key={i} value={i}>{p.n} — C$ {p.p}</option>
+              {(productos || []).map(p => (
+                <option key={p.nombre} value={p.nombre}>{p.nombre} — C$ {p.precio}</option>
               ))}
             </select>
           </div>
@@ -194,6 +194,7 @@ export default function Recetas() {
   const { usuario } = useAuth()
   const esAdmin = usuario?.rol === 'admin'
   const { recetas, loading, guardar, eliminar } = useRecetas()
+  const { productos } = useCatalogo()
   const [vista, setVista] = useState('lista') // lista | nueva | editar | pegar
   const [editando, setEditando] = useState(null)
   const [busqueda, setBusqueda] = useState('')
@@ -235,8 +236,8 @@ export default function Recetas() {
       }
     })
     if (!ings.length) { toast.error('No se encontraron ingredientes válidos'); return }
-    const prod = PRODUCTOS[parseInt(pegProd)]
-    await guardar({ producto: prod.n, categoria: prod.cat, pventa: prod.p, presentacion: prod.pr,
+    const prod = productos?.find(p => p.nombre === pegProd)
+    await guardar({ producto: prod?.nombre || pegProd, categoria: prod?.categoria || '', pventa: prod?.precio || 0, presentacion: prod?.presentacion || 'unidad',
       piezas: parseInt(pegPiezas), peso: 0, merma: 0, notas: '', ingredientes: ings })
     setPegado(''); setPegProd(''); setPegPiezas(''); setVista('lista')
   }
@@ -378,6 +379,7 @@ export default function Recetas() {
       {(vista === 'nueva' || vista === 'editar') && esAdmin && (
         <FormReceta
           inicial={editando}
+          productos={productos}
           onGuardar={handleGuardar}
           onCancelar={() => { setVista('lista'); setEditando(null) }}
         />
@@ -393,7 +395,7 @@ export default function Recetas() {
               <label className="form-label">Producto</label>
               <select value={pegProd} onChange={e => setPegProd(e.target.value)}>
                 <option value="">— Seleccionar —</option>
-                {PRODUCTOS.map((p, i) => <option key={i} value={i}>{p.n}</option>)}
+                {(productos || []).map(p => <option key={p.nombre} value={p.nombre}>{p.nombre}</option>)}
               </select>
             </div>
             <div className="form-group">
