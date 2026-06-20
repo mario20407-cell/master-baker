@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Modo oscuro ──────────────────────────────────────────────── */
+:root {
+  --color-bg:              #F9FAFB;
+  --color-surface:         #FFFFFF;
+  --color-surface-2:       #F3F4F6;
+  --color-border:          #E5E7EB;
+  --color-border-tertiary: #D1D5DB;
+  --color-text:            #111827;
+  --color-text-secondary:  #6B7280;
+  --color-text-tertiary:   #9CA3AF;
+}
+
+html.dark {
+  --color-bg:              #0F1117;
+  --color-surface:         #1A1D27;
+  --color-surface-2:       #22263A;
+  --color-border:          #2D3148;
+  --color-border-tertiary: #3A3F5C;
+  --color-text:            #F1F5F9;
+  --color-text-secondary:  #94A3B8;
+  --color-text-tertiary:   #64748B;
+}
+
+
+@layer base {
+  :root {
+    --brand: #C29C53;
+    --brand-light: #FBF6EC;
+    --brand-dark: #A8813E;
+    --navy: #263D4F;
+    --navy-light: #EEF1F3;
+    --navy-dark: #1B2C39;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    @apply antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  input, select, textarea {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    color: var(--color-text);
+    @apply text-sm rounded-lg border px-3 py-2
+           focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent
+           transition-shadow;
+  }
+  input::placeholder, textarea::placeholder {
+    color: var(--color-text-tertiary);
+  }
+
+  button { @apply transition-all duration-150 active:scale-95; }
+}
+
+@layer components {
+  .card {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    @apply rounded-card shadow-card p-4 border;
+  }
+
+  .btn-primary {
+    @apply bg-brand-400 text-white text-sm font-medium px-4 py-2 rounded-lg
+           hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-gray-700 text-sm font-medium px-4 py-2 rounded-lg
+           border border-gray-200 hover:bg-gray-50;
+  }
+
+  .btn-danger {
+    @apply bg-danger-light text-danger text-sm font-medium px-3 py-1.5 rounded-lg
+           border border-red-200 hover:bg-red-100;
+  }
+
+  .badge-ok   { @apply inline-flex items-center text-xs px-2 py-0.5 rounded-md bg-success-light text-success-dark font-medium; }
+  .badge-warn { @apply inline-flex items-center text-xs px-2 py-0.5 rounded-md bg-warn-light text-warn-dark font-medium; }
+  .badge-bad  { @apply inline-flex items-center text-xs px-2 py-0.5 rounded-md bg-danger-light text-danger-dark font-medium; }
+  .badge-info { @apply inline-flex items-center text-xs px-2 py-0.5 rounded-md bg-info-light text-info-dark font-medium; }
+  .badge-gray { @apply inline-flex items-center text-xs px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 font-medium; }
+
+  .alert-ok   { @apply flex gap-3 p-3 rounded-lg bg-success-light border border-green-200 text-sm; }
+  .alert-warn { @apply flex gap-3 p-3 rounded-lg bg-warn-light border border-amber-200 text-sm; }
+  .alert-bad  { @apply flex gap-3 p-3 rounded-lg bg-danger-light border border-red-200 text-sm; }
+  .alert-info { @apply flex gap-3 p-3 rounded-lg bg-info-light border border-blue-200 text-sm; }
+
+  .form-label { @apply block text-xs text-gray-500 mb-1 font-medium; }
+  .form-group { @apply flex flex-col; }
+
+  .kpi-card {
+    background: var(--color-surface-2);
+    border-color: var(--color-border);
+    @apply rounded-xl p-3 border;
+  }
+
+  .nav-item {
+    color: var(--color-text-secondary);
+    @apply flex items-center gap-2 px-3 py-2 text-sm rounded-lg
+           cursor-pointer transition-colors whitespace-nowrap;
+  }
+  .nav-item:hover {
+    background: var(--color-surface-2);
+  }
+
+  .nav-item.active {
+    @apply bg-brand-400 text-white hover:bg-brand-600;
+  }
+
+  .table-base {
+    @apply w-full text-sm border-collapse;
+  }
+  .table-base th {
+    @apply text-left text-xs text-gray-500 font-medium py-2 px-3 border-b border-gray-100;
+  }
+  .table-base td {
+    @apply py-2 px-3 border-b border-gray-50 text-gray-800;
+  }
+  .table-base tr:last-child td { @apply border-b-0; }
+  .table-base tr:hover td { @apply bg-gray-50; }
+}
+
+/* Scrollbar sutil */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* PWA safe area */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* ── Impresión — usado por el módulo Ayuda al exportar el manual ── */
+@media print {
+  aside, header { display: none !important; }
+  main { padding: 0 !important; overflow: visible !important; }
+  body, html { height: auto !important; overflow: visible !important; }
+  .card { box-shadow: none !important; border: 0.5px solid #ddd !important; break-inside: avoid; }
+}
