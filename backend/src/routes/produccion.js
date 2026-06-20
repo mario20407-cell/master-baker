@@ -1,6 +1,6 @@
 /**
  * /api/produccion — Ordenes de produccion con merma automatica de inventario
- * v3.1 — Filtra ingredientes indirectos, incluye tipo en query.
+ * v3.2 — Busqueda de ingredientes insensible a tildes y mayusculas.
  */
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
@@ -8,7 +8,8 @@ import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
 
-// ── GET /api/produccion/verificar?producto=X&piezas=Y ─────────────────────
+const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+
 router.get('/verificar', requireAuth, async (req, res, next) => {
   const { producto, piezas } = req.query
   if (!producto || !piezas) return res.status(400).json({ error: 'producto y piezas son requeridos' })
@@ -32,7 +33,6 @@ router.get('/verificar', requireAuth, async (req, res, next) => {
     const receta = recetas[0]
     const factor = cantidadPiezas / receta.piezas_base
 
-    // Solo ingredientes directos — indirectos (gas, mano de obra) no tienen stock fisico
     const necesarios = receta.ingredientes
       .filter(ing => ing.tipo === 'directo')
       .map(ing => ({
@@ -41,18 +41,17 @@ router.get('/verificar', requireAuth, async (req, res, next) => {
         necesario: parseFloat((ing.cantidad * factor).toFixed(4)),
       }))
 
-    const nombres = necesarios.map(n => n.nombre)
     const { rows: stocks } = await query(
-      `SELECT nombre, existencia, unidad FROM inventario
-       WHERE tenant_id = $1 AND nombre = ANY($2)`,
-      [req.tenantId, nombres]
+      `SELECT nombre, existencia, unidad FROM inventario WHERE tenant_id = $1`,
+      [req.tenantId]
     )
 
     const stockMap = {}
-    stocks.forEach(s => { stockMap[s.nombre] = parseFloat(s.existencia) })
+    stocks.forEach(s => { stockMap[norm(s.nombre)] = { existencia: parseFloat(s.existencia), unidad: s.unidad, nombre: s.nombre } })
 
     const resultado = necesarios.map(n => {
-      const disponible = stockMap[n.nombre] ?? null
+      const stock = stockMap[norm(n.nombre)] ?? null
+      const disponible = stock ? stock.existencia : null
       const suficiente = disponible !== null && disponible >= n.necesario
       const faltante = disponible !== null ? Math.max(0, n.necesario - disponible) : n.necesario
       return { ...n, disponible, suficiente, faltante, sin_inventario: disponible === null }
@@ -71,7 +70,6 @@ router.get('/verificar', requireAuth, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// ── GET /api/produccion ────────────────────────────────────────────────────
 router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await query(
@@ -87,7 +85,6 @@ router.get('/', requireAuth, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// ── POST /api/produccion ───────────────────────────────────────────────────
 router.post('/', requireAuth, async (req, res, next) => {
   const { producto, piezas, notas = '', forzar = false } = req.body
   if (!producto || !piezas) return res.status(400).json({ error: 'producto y piezas son requeridos' })
@@ -112,7 +109,6 @@ router.post('/', requireAuth, async (req, res, next) => {
       const receta = recetas[0]
       const factor = cantidadPiezas / receta.piezas_base
 
-      // Solo ingredientes directos
       const necesarios = receta.ingredientes
         .filter(ing => ing.tipo === 'directo')
         .map(ing => ({
@@ -121,40 +117,42 @@ router.post('/', requireAuth, async (req, res, next) => {
           necesario: parseFloat((ing.cantidad * factor).toFixed(4)),
         }))
 
-      const nombres = necesarios.map(n => n.nombre)
       const { rows: stocks } = await client.query(
-        `SELECT nombre, existencia FROM inventario
-         WHERE tenant_id = $1 AND nombre = ANY($2)
-         FOR UPDATE`,
-        [req.tenantId, nombres]
+        `SELECT id, nombre, existencia FROM inventario WHERE tenant_id = $1 FOR UPDATE`,
+        [req.tenantId]
       )
 
       const stockMap = {}
-      stocks.forEach(s => { stockMap[s.nombre] = parseFloat(s.existencia) })
+      stocks.forEach(s => { stockMap[norm(s.nombre)] = { id: s.id, nombre: s.nombre, existencia: parseFloat(s.existencia) } })
 
       const faltantes = necesarios.filter(n => {
-        const disp = stockMap[n.nombre] ?? 0
-        return disp < n.necesario
+        const stock = stockMap[norm(n.nombre)]
+        return !stock || stock.existencia < n.necesario
       })
 
       if (faltantes.length > 0 && !forzar) {
-        const detalle = faltantes.map(f => ({
-          nombre: f.nombre,
-          necesario: f.necesario,
-          disponible: stockMap[f.nombre] ?? 0,
-          faltante: parseFloat((f.necesario - (stockMap[f.nombre] ?? 0)).toFixed(4)),
-          unidad: f.unidad,
-        }))
+        const detalle = faltantes.map(f => {
+          const stock = stockMap[norm(f.nombre)]
+          return {
+            nombre: f.nombre,
+            necesario: f.necesario,
+            disponible: stock ? stock.existencia : 0,
+            faltante: parseFloat((f.necesario - (stock ? stock.existencia : 0)).toFixed(4)),
+            unidad: f.unidad,
+          }
+        })
         throw Object.assign(new Error('Stock insuficiente'), { status: 409, faltantes: detalle })
       }
 
       for (const ing of necesarios) {
-        await client.query(
-          `UPDATE inventario
-           SET existencia = GREATEST(0, existencia - $1), actualizado_en = NOW()
-           WHERE tenant_id = $2 AND nombre = $3`,
-          [ing.necesario, req.tenantId, ing.nombre]
-        )
+        const stock = stockMap[norm(ing.nombre)]
+        if (stock) {
+          await client.query(
+            `UPDATE inventario SET existencia = GREATEST(0, existencia - $1), actualizado_en = NOW()
+             WHERE id = $2 AND tenant_id = $3`,
+            [ing.necesario, stock.id, req.tenantId]
+          )
+        }
       }
 
       const { rows: [orden] } = await client.query(
