@@ -1,4 +1,4 @@
-// ─── pages/Compras.jsx ────────────────────────────────────────────────────────
+﻿// ─── pages/Compras.jsx ────────────────────────────────────────────────────────
 import { useState, useEffect, useRef } from 'react'
 import { getCompras, saveFactura } from '../lib/api'
 import { Receipt, Plus, Trash2, AlertTriangle, Camera, Loader2, X } from 'lucide-react'
@@ -217,7 +217,7 @@ export function Compras() {
           <h3 className="text-sm font-medium mb-3" style={{ color: 'var(--color-text-secondary)' }}>Historial de facturas</h3>
           {historial.slice(0, 5).map((f, i) => (
             <div key={i} className="flex justify-between text-sm py-2 border-b border-gray-50 last:border-0">
-              <span style={{ color: 'var(--color-text)' }}>{f.proveedor} — {f.fecha}</span>
+              <span style={{ color: 'var(--color-text)' }}>{f.proveedor} — {f.fecha ? new Date(f.fecha).toLocaleDateString('es-NI') : '-'}</span>
               <span className="font-medium">C$ {parseFloat(f.total).toFixed(2)}</span>
             </div>
           ))}
