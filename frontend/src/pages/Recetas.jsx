@@ -3,6 +3,7 @@ import { useRecetas } from '../hooks/useRecetas'
 import { PRODUCTOS, CAT_COLORS } from '../lib/catalogo'
 import { ChefHat, Plus, Search, Upload, Edit2, Trash2, Calculator, CheckCircle, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAuth } from '../context/AuthContext'
 
 const UNIDADES = ['kg', 'g', 'L', 'ml', 'unidad', 'porción']
 
@@ -147,6 +148,8 @@ function FormReceta({ inicial, onGuardar, onCancelar }) {
 }
 
 export default function Recetas() {
+  const { usuario } = useAuth()
+  const esAdmin = usuario?.rol === 'admin'
   const { recetas, loading, guardar, eliminar } = useRecetas()
   const [vista, setVista] = useState('lista') // lista | nueva | editar | pegar
   const [editando, setEditando] = useState(null)
@@ -208,7 +211,7 @@ export default function Recetas() {
     <div className="max-w-4xl">
       {/* Tabs */}
       <div className="flex gap-1 mb-4 bg-gray-100 rounded-xl p-1 w-fit">
-        {[['lista','Mis recetas'],['nueva','Nueva'],['pegar','Pegar tabla']].map(([v, l]) => (
+        {[['lista','Mis recetas'], ...(esAdmin ? [['nueva','Nueva'],['pegar','Pegar tabla']] : [])].map(([v, l]) => (
           <button key={v} onClick={() => setVista(v)}
             className={`px-4 py-1.5 text-sm rounded-lg transition-all ${vista === v ? 'bg-white font-medium shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
             {l}
@@ -224,9 +227,11 @@ export default function Recetas() {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input className="pl-8" value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar receta..." />
             </div>
-            <button onClick={() => setVista('nueva')} className="btn-primary flex items-center gap-2">
-              <Plus size={14} /> Nueva receta
-            </button>
+            {esAdmin && (
+              <button onClick={() => setVista('nueva')} className="btn-primary flex items-center gap-2">
+                <Plus size={14} /> Nueva receta
+              </button>
+            )}
           </div>
 
           {lista.length === 0 ? (
@@ -235,9 +240,11 @@ export default function Recetas() {
               <p className="text-sm text-gray-500 mb-4">
                 {busqueda ? `Sin resultados para "${busqueda}"` : 'Aún no tienes recetas guardadas.'}
               </p>
+              {esAdmin && (
               <button onClick={() => setVista('nueva')} className="btn-primary inline-flex items-center gap-2">
                 <Plus size={14} /> Crear primera receta
               </button>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
@@ -264,14 +271,18 @@ export default function Recetas() {
                             </span>
                           )}
                           <span className="badge-info">{r.ingredientes?.length || 0} ing.</span>
+                          {esAdmin && (
                           <button onClick={e => { e.stopPropagation(); handleEditar(r) }}
                             className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
                             <Edit2 size={13} />
                           </button>
+                          )}
+                          {esAdmin && (
                           <button onClick={e => { e.stopPropagation(); handleEliminar(r.producto) }}
                             className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
                             <Trash2 size={13} />
                           </button>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-4 mt-1 text-xs text-gray-400">

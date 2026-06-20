@@ -6,10 +6,14 @@ import {
 import { Package, Plus, Trash2, AlertTriangle, Pencil, Check, X, Percent, RefreshCw, History } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AdminPinModal from '../components/AdminPinModal'
+import { useAuth } from '../context/AuthContext'
 
 const fmtC = v => `C$ ${(parseFloat(v) || 0).toFixed(2)}`
 
 export default function Inventario() {
+  const { usuario } = useAuth()
+  const esAdmin = usuario?.rol === 'admin'
+
   const [insumos, setInsumos] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ nombre: '', existencia: '', unidad: 'kg', consumo_diario: '', punto_reposicion: '', costo_unitario: '' })
@@ -154,55 +158,59 @@ export default function Inventario() {
         </div>
       )}
 
-      <div className="card">
-        <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2"><Plus size={14} /> Registrar insumo</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
-          <div className="form-group">
-            <label className="form-label">Insumo</label>
-            <input value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Harina" />
+      {esAdmin && (
+        <div className="card">
+          <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2"><Plus size={14} /> Registrar insumo</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+            <div className="form-group">
+              <label className="form-label">Insumo</label>
+              <input value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Harina" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Existencia actual</label>
+              <input type="number" value={form.existencia} onChange={e => setForm(p => ({ ...p, existencia: e.target.value }))} placeholder="50" step="0.1" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Unidad</label>
+              <select value={form.unidad} onChange={e => setForm(p => ({ ...p, unidad: e.target.value }))}>
+                {['kg','g','L','ml','unidad'].map(u => <option key={u}>{u}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Consumo diario</label>
+              <input type="number" value={form.consumo_diario} onChange={e => setForm(p => ({ ...p, consumo_diario: e.target.value }))} placeholder="5" step="0.1" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Punto de reposición</label>
+              <input type="number" value={form.punto_reposicion} onChange={e => setForm(p => ({ ...p, punto_reposicion: e.target.value }))} placeholder="10" step="0.1" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Costo unitario (C$)</label>
+              <input type="number" value={form.costo_unitario} onChange={e => setForm(p => ({ ...p, costo_unitario: e.target.value }))} placeholder="0" step="0.01" />
+            </div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Existencia actual</label>
-            <input type="number" value={form.existencia} onChange={e => setForm(p => ({ ...p, existencia: e.target.value }))} placeholder="50" step="0.1" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Unidad</label>
-            <select value={form.unidad} onChange={e => setForm(p => ({ ...p, unidad: e.target.value }))}>
-              {['kg','g','L','ml','unidad'].map(u => <option key={u}>{u}</option>)}
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Consumo diario</label>
-            <input type="number" value={form.consumo_diario} onChange={e => setForm(p => ({ ...p, consumo_diario: e.target.value }))} placeholder="5" step="0.1" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Punto de reposición</label>
-            <input type="number" value={form.punto_reposicion} onChange={e => setForm(p => ({ ...p, punto_reposicion: e.target.value }))} placeholder="10" step="0.1" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Costo unitario (C$)</label>
-            <input type="number" value={form.costo_unitario} onChange={e => setForm(p => ({ ...p, costo_unitario: e.target.value }))} placeholder="0" step="0.01" />
-          </div>
+          <button onClick={handleGuardar} className="btn-primary flex items-center gap-2">
+            <Plus size={14} /> Guardar insumo
+          </button>
         </div>
-        <button onClick={handleGuardar} className="btn-primary flex items-center gap-2">
-          <Plus size={14} /> Guardar insumo
-        </button>
-      </div>
+      )}
 
       <div className="card">
         <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
           <h3 className="text-sm font-medium text-gray-600 flex items-center gap-2"><Package size={14} /> Estado del inventario ({insumos.length} insumos)</h3>
-          <div className="flex gap-2">
-            <button onClick={verAuditoria} className="btn-secondary flex items-center gap-1.5 text-xs whitespace-nowrap">
-              <History size={13} /> Historial de cambios
-            </button>
-            <button onClick={() => setPanelMasivo(p => !p)} className="btn-secondary flex items-center gap-1.5 text-xs whitespace-nowrap">
-              <Percent size={13} /> Ajuste masivo
-            </button>
-          </div>
+          {esAdmin && (
+            <div className="flex gap-2">
+              <button onClick={verAuditoria} className="btn-secondary flex items-center gap-1.5 text-xs whitespace-nowrap">
+                <History size={13} /> Historial de cambios
+              </button>
+              <button onClick={() => setPanelMasivo(p => !p)} className="btn-secondary flex items-center gap-1.5 text-xs whitespace-nowrap">
+                <Percent size={13} /> Ajuste masivo
+              </button>
+            </div>
+          )}
         </div>
 
-        {panelMasivo && (
+        {esAdmin && panelMasivo && (
           <div className="rounded-xl p-3 mb-3" style={{ border: '0.5px solid #C29C53', background: '#FBF6EC' }}>
             <p className="text-xs font-medium text-gray-700 mb-2">Ajustar costo de TODOS los insumos por porcentaje</p>
             <div className="flex gap-2 items-end">
@@ -255,7 +263,7 @@ export default function Inventario() {
           <div className="overflow-x-auto">
             <table className="table-base">
               <thead>
-                <tr><th>Insumo</th><th>Existencia</th><th>Consumo/día</th><th>Días</th><th>Estado</th><th>Costo unit.</th><th></th></tr>
+                <tr><th>Insumo</th><th>Existencia</th><th>Consumo/día</th><th>Días</th><th>Estado</th><th>Costo unit.</th>{esAdmin && <th></th>}</tr>
               </thead>
               <tbody>
                 {insumos.map(inv => {
@@ -274,38 +282,44 @@ export default function Inventario() {
                       <td className="font-medium">{dias ?? '—'}</td>
                       <td>{estadoBadge(dias)}</td>
                       <td>
-                        {editandoId === inv.id ? (
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number" autoFocus value={costoTmp}
-                              onChange={e => setCostoTmp(e.target.value)}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') confirmarCosto(inv)
-                                if (e.key === 'Escape') cancelarEdicionCosto()
-                              }}
-                              className="w-20 py-0.5 text-xs"
-                              step="0.01"
-                            />
-                            <button onClick={() => confirmarCosto(inv)} className="p-1 rounded hover:bg-green-50 text-green-600">
-                              <Check size={12} />
+                        {esAdmin ? (
+                          editandoId === inv.id ? (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number" autoFocus value={costoTmp}
+                                onChange={e => setCostoTmp(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') confirmarCosto(inv)
+                                  if (e.key === 'Escape') cancelarEdicionCosto()
+                                }}
+                                className="w-20 py-0.5 text-xs"
+                                step="0.01"
+                              />
+                              <button onClick={() => confirmarCosto(inv)} className="p-1 rounded hover:bg-green-50 text-green-600">
+                                <Check size={12} />
+                              </button>
+                              <button onClick={cancelarEdicionCosto} className="p-1 rounded hover:bg-red-50 text-red-500">
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : (
+                            <button onClick={() => empezarEdicionCosto(inv)} className="flex items-center gap-1 group">
+                              <span>{inv.costo_unitario > 0 ? fmtC(inv.costo_unitario) : '—'}</span>
+                              <Pencil size={10} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
                             </button>
-                            <button onClick={cancelarEdicionCosto} className="p-1 rounded hover:bg-red-50 text-red-500">
-                              <X size={12} />
-                            </button>
-                          </div>
+                          )
                         ) : (
-                          <button onClick={() => empezarEdicionCosto(inv)} className="flex items-center gap-1 group">
-                            <span>{inv.costo_unitario > 0 ? fmtC(inv.costo_unitario) : '—'}</span>
-                            <Pencil size={10} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
-                          </button>
+                          <span>{inv.costo_unitario > 0 ? fmtC(inv.costo_unitario) : '—'}</span>
                         )}
                       </td>
-                      <td>
-                        <button onClick={() => handleEliminar(inv.id, inv.nombre)}
-                          className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
+                      {esAdmin && (
+                        <td>
+                          <button onClick={() => handleEliminar(inv.id, inv.nombre)}
+                            className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
+                            <Trash2 size={13} />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
