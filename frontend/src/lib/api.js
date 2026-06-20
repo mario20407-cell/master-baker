@@ -94,3 +94,8 @@ export const getVentaCierre  = (fecha)  => api.get('/ventas/cierre',  { params: 
 export const saveVenta       = (data)   => api.post('/ventas', data)
 export const deleteVenta     = (id)     => api.delete(`/ventas/${id}`)
 
+
+// -- Usuarios (solo admin) ---------------------------------------------------
+export const getUsuarios     = ()           => api.get('/auth/usuarios')
+export const registrarUsuario = (data)      => api.post('/auth/registrar', data)
+export const toggleUsuario   = (id, activo) => api.patch(`/auth/usuarios/${id}`, { activo })

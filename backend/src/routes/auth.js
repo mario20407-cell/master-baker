@@ -1,4 +1,4 @@
-﻿import { Router } from 'express'
+import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { query } from '../db/client.js'
@@ -23,7 +23,7 @@ function generarToken(usuario) {
 router.post('/login', async (req, res, next) => {
   const { email, password } = req.body
   if (!email || !password) {
-    return res.status(400).json({ error: 'Email y contraseña son requeridos' })
+    return res.status(400).json({ error: 'Email y contrasena son requeridos' })
   }
   try {
     const { rows } = await query(
@@ -56,9 +56,9 @@ router.post('/login', async (req, res, next) => {
 
 router.post('/registrar', requireAuth, requireRol('admin'), async (req, res, next) => {
   const { email, password, nombre, rol = 'operario' } = req.body
-  if (!email || !password || !nombre) return res.status(400).json({ error: 'Email, contraseña y nombre son requeridos' })
-  if (!['admin', 'operario'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' })
-  if (password.length < 8) return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' })
+  if (!email || !password || !nombre) return res.status(400).json({ error: 'Email, contrasena y nombre son requeridos' })
+  if (!['admin', 'operario'].includes(rol)) return res.status(400).json({ error: 'Rol invalido' })
+  if (password.length < 8) return res.status(400).json({ error: 'La contrasena debe tener al menos 8 caracteres' })
   try {
     const hash = await bcrypt.hash(password, 12)
     const { rows } = await query(
@@ -84,14 +84,45 @@ router.get('/me', requireAuth, async (req, res, next) => {
        WHERE u.id = $1 AND u.activo = true`,
       [req.usuarioId]
     )
-    if (!rows[0]) return res.status(401).json({ error: 'Sesión inválida' })
+    if (!rows[0]) return res.status(401).json({ error: 'Sesion invalida' })
+    res.json({ usuario: rows[0] })
+  } catch (e) { next(e) }
+})
+
+// GET /api/auth/usuarios — lista todos los usuarios del tenant (solo admin)
+router.get('/usuarios', requireAuth, requireRol('admin'), async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT id, email, nombre, rol, activo, ultimo_login, creado_en
+       FROM usuarios
+       WHERE tenant_id = $1
+       ORDER BY creado_en ASC`,
+      [req.tenantId]
+    )
+    res.json({ usuarios: rows })
+  } catch (e) { next(e) }
+})
+
+// PATCH /api/auth/usuarios/:id — activar o desactivar cuenta (solo admin)
+router.patch('/usuarios/:id', requireAuth, requireRol('admin'), async (req, res, next) => {
+  const { activo } = req.body
+  if (typeof activo !== 'boolean') return res.status(400).json({ error: 'activo debe ser true o false' })
+  // El admin no puede desactivarse a si mismo
+  if (req.params.id === req.usuarioId) return res.status(400).json({ error: 'No puedes desactivar tu propia cuenta' })
+  try {
+    const { rows } = await query(
+      `UPDATE usuarios SET activo = $1
+       WHERE id = $2 AND tenant_id = $3
+       RETURNING id, email, nombre, rol, activo`,
+      [activo, req.params.id, req.tenantId]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
     res.json({ usuario: rows[0] })
   } catch (e) { next(e) }
 })
 
 router.post('/logout', requireAuth, (req, res) => {
-  res.json({ ok: true, mensaje: 'Sesión cerrada' })
+  res.json({ ok: true, mensaje: 'Sesion cerrada' })
 })
 
 export default router
-

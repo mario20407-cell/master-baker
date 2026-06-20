@@ -1,22 +1,23 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
-  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, LogOut, User
+  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, LogOut, User, Users
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 const NAV_TODOS = [
   { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',      badge: 'NEW' },
+  { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',         badge: 'NEW' },
   { to: '/catalogo',   icon: BookOpen,         label: 'Catalogo' },
-  { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE' },
+  { to: '/recetas',    icon: ChefHat,          label: 'Recetas',        badge: 'CLAVE' },
   { to: '/costeo',     icon: Calculator,       label: 'Costeo' },
   { to: '/escalado',   icon: Scale,            label: 'Escalado' },
   { to: '/inventario', icon: Package,          label: 'Inventario' },
   { to: '/compras',    icon: Receipt,          label: 'Compras' },
   { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
   { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI', soloAdmin: true },
+  { to: '/usuarios',   icon: Users,            label: 'Usuarios',       soloAdmin: true },
   { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
   { to: '/exportar',   icon: Download,         label: 'Exportar' },
 ]
@@ -76,11 +77,8 @@ export default function Layout() {
                 <div className="text-xs font-medium text-gray-700 truncate">{usuario.nombre}</div>
                 <div className="text-[10px] text-gray-400 capitalize">{usuario.rol}</div>
               </div>
-              <button
-                onClick={logout}
-                title="Cerrar sesion"
-                className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
-              >
+              <button onClick={logout} title="Cerrar sesion"
+                className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0">
                 <LogOut size={14} />
               </button>
             </div>
