@@ -1,23 +1,109 @@
 // ─── pages/Compras.jsx ────────────────────────────────────────────────────────
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getCompras, saveFactura } from '../lib/api'
-import { Receipt, Plus, Trash2, AlertTriangle } from 'lucide-react'
+import { Receipt, Plus, Trash2, AlertTriangle, Camera, Loader2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+const API = import.meta.env.VITE_API_URL ?? ''
+
 export function Compras() {
-  const [historial, setHistorial] = useState([])
-  const [prov, setProv] = useState('')
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
-  const [items, setItems] = useState([{ producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
-  const [resultado, setResultado] = useState(null)
+  const [historial, setHistorial]   = useState([])
+  const [prov, setProv]             = useState('')
+  const [fecha, setFecha]           = useState(new Date().toISOString().split('T')[0])
+  const [items, setItems]           = useState([{ producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
+  const [resultado, setResultado]   = useState(null)
+  const [escaneando, setEscaneando] = useState(false)
+  const [preview, setPreview]       = useState(null)
+  const inputCamRef                 = useRef(null)
 
   useEffect(() => {
     getCompras().then(r => setHistorial(r.data)).catch(() => {})
   }, [])
 
-  const addItem = () => setItems(p => [...p, { producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
+  const addItem    = () => setItems(p => [...p, { producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
   const removeItem = (i) => setItems(p => p.filter((_, idx) => idx !== i))
   const updateItem = (i, f, v) => setItems(p => p.map((x, idx) => idx === i ? { ...x, [f]: v } : x))
+
+  const abrirCamara = () => inputCamRef.current?.click()
+
+  const procesarImagen = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+
+    const reader = new FileReader()
+    reader.onload = ev => setPreview(ev.target.result)
+    reader.readAsDataURL(file)
+
+    setEscaneando(true)
+    toast('Analizando factura con IA…', { icon: '📷' })
+
+    try {
+      const base64 = await new Promise((res, rej) => {
+        const r = new FileReader()
+        r.onload  = () => res(r.result.split(',')[1])
+        r.onerror = rej
+        r.readAsDataURL(file)
+      })
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 }
+              },
+              {
+                type: 'text',
+                text: `Analiza esta factura de compra de una panadería y extrae los datos en JSON.
+Responde SOLO con JSON válido, sin texto adicional ni backticks:
+{
+  "proveedor": "nombre del proveedor o empresa",
+  "fecha": "YYYY-MM-DD o null si no se ve",
+  "items": [
+    {
+      "producto": "nombre del producto",
+      "cantidad": número,
+      "precio_actual": número (precio unitario en córdobas)
+    }
+  ]
+}
+Si no puedes leer algún campo, usa null. Los precios deben ser numéricos sin símbolos de moneda.`
+              }
+            ]
+          }]
+        })
+      })
+
+      const data = await response.json()
+      const texto = data.content?.[0]?.text || ''
+      const parsed = JSON.parse(texto.replace(/```json|```/g, '').trim())
+
+      if (parsed.proveedor) setProv(parsed.proveedor)
+      if (parsed.fecha)     setFecha(parsed.fecha)
+      if (parsed.items?.length) {
+        setItems(parsed.items.map(it => ({
+          producto:        it.producto || '',
+          cantidad:        it.cantidad || 1,
+          precio_actual:   it.precio_actual || '',
+          precio_anterior: ''
+        })))
+      }
+
+      toast.success(`¡Factura escaneada! ${parsed.items?.length || 0} ítems detectados`)
+    } catch (err) {
+      console.error(err)
+      toast.error('No se pudo leer la factura. Ingresa los datos manualmente.')
+    } finally {
+      setEscaneando(false)
+    }
+  }
 
   const analizar = async () => {
     const itsValidos = items.filter(i => i.producto && parseFloat(i.precio_actual) > 0)
@@ -45,8 +131,48 @@ export function Compras() {
 
   return (
     <div className="max-w-3xl space-y-4">
+
+      {preview && (
+        <div className="card flex items-start gap-3">
+          <img src={preview} alt="Factura" className="w-24 h-24 object-cover rounded-lg border border-gray-200 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Factura escaneada</span>
+              {escaneando && <Loader2 size={14} className="animate-spin text-amber-500" />}
+            </div>
+            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+              {escaneando ? 'Extrayendo datos con IA…' : 'Datos extraídos. Revisa y ajusta si es necesario.'}
+            </p>
+          </div>
+          <button onClick={() => setPreview(null)} className="text-gray-400 hover:text-gray-600">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <div className="card">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Registrar factura de compra</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Registrar factura de compra</h3>
+          <input
+            ref={inputCamRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={procesarImagen}
+          />
+          <button
+            onClick={abrirCamara}
+            disabled={escaneando}
+            className="btn-secondary flex items-center gap-1.5 text-xs"
+            title="Escanear factura con cámara">
+            {escaneando
+              ? <><Loader2 size={13} className="animate-spin" /> Analizando…</>
+              : <><Camera size={13} /> Escanear factura</>
+            }
+          </button>
+        </div>
+
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="form-group"><label className="form-label">Proveedor</label><input value={prov} onChange={e => setProv(e.target.value)} placeholder="Distribuidora X" /></div>
           <div className="form-group"><label className="form-label">Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} /></div>
@@ -81,7 +207,7 @@ export function Compras() {
             )
           })}
           <div className="card">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Análisis — {prov || 'Sin proveedor'} ({fecha})</h3>
+            <h3 className="text-sm font-medium mb-3" style={{ color: 'var(--color-text)' }}>Análisis — {prov || 'Sin proveedor'} ({fecha})</h3>
             <table className="table-base">
               <thead><tr><th>Producto</th><th>Cant.</th><th className="text-right">Precio</th><th className="text-right">Subtotal</th><th>Variación</th></tr></thead>
               <tbody>
@@ -107,10 +233,10 @@ export function Compras() {
 
       {historial.length > 0 && (
         <div className="card">
-          <h3 className="text-sm font-medium text-gray-600 mb-3">Historial de facturas</h3>
+          <h3 className="text-sm font-medium mb-3" style={{ color: 'var(--color-text-secondary)' }}>Historial de facturas</h3>
           {historial.slice(0, 5).map((f, i) => (
             <div key={i} className="flex justify-between text-sm py-2 border-b border-gray-50 last:border-0">
-              <span className="text-gray-700">{f.proveedor} — {f.fecha}</span>
+              <span style={{ color: 'var(--color-text)' }}>{f.proveedor} — {f.fecha}</span>
               <span className="font-medium">C$ {parseFloat(f.total).toFixed(2)}</span>
             </div>
           ))}
