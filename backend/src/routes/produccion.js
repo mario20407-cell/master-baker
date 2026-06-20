@@ -8,8 +8,10 @@ import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
 
+// Normaliza texto: quita tildes y pasa a minusculas para comparacion flexible
 const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
 
+// ── GET /api/produccion/verificar?producto=X&piezas=Y ─────────────────────
 router.get('/verificar', requireAuth, async (req, res, next) => {
   const { producto, piezas } = req.query
   if (!producto || !piezas) return res.status(400).json({ error: 'producto y piezas son requeridos' })
@@ -33,6 +35,7 @@ router.get('/verificar', requireAuth, async (req, res, next) => {
     const receta = recetas[0]
     const factor = cantidadPiezas / receta.piezas_base
 
+    // Solo ingredientes directos
     const necesarios = receta.ingredientes
       .filter(ing => ing.tipo === 'directo')
       .map(ing => ({
@@ -41,11 +44,13 @@ router.get('/verificar', requireAuth, async (req, res, next) => {
         necesario: parseFloat((ing.cantidad * factor).toFixed(4)),
       }))
 
+    // Traer todo el inventario del tenant y matchear por nombre normalizado
     const { rows: stocks } = await query(
       `SELECT nombre, existencia, unidad FROM inventario WHERE tenant_id = $1`,
       [req.tenantId]
     )
 
+    // Map por nombre normalizado
     const stockMap = {}
     stocks.forEach(s => { stockMap[norm(s.nombre)] = { existencia: parseFloat(s.existencia), unidad: s.unidad, nombre: s.nombre } })
 
@@ -70,6 +75,7 @@ router.get('/verificar', requireAuth, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// ── GET /api/produccion ────────────────────────────────────────────────────
 router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await query(
@@ -85,6 +91,7 @@ router.get('/', requireAuth, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// ── POST /api/produccion ───────────────────────────────────────────────────
 router.post('/', requireAuth, async (req, res, next) => {
   const { producto, piezas, notas = '', forzar = false } = req.body
   if (!producto || !piezas) return res.status(400).json({ error: 'producto y piezas son requeridos' })
@@ -117,6 +124,7 @@ router.post('/', requireAuth, async (req, res, next) => {
           necesario: parseFloat((ing.cantidad * factor).toFixed(4)),
         }))
 
+      // Traer inventario completo y matchear por nombre normalizado
       const { rows: stocks } = await client.query(
         `SELECT id, nombre, existencia FROM inventario WHERE tenant_id = $1 FOR UPDATE`,
         [req.tenantId]
@@ -144,6 +152,7 @@ router.post('/', requireAuth, async (req, res, next) => {
         throw Object.assign(new Error('Stock insuficiente'), { status: 409, faltantes: detalle })
       }
 
+      // Descontar solo los que tienen registro en inventario
       for (const ing of necesarios) {
         const stock = stockMap[norm(ing.nombre)]
         if (stock) {
@@ -174,3 +183,43 @@ router.post('/', requireAuth, async (req, res, next) => {
 })
 
 export default router
+
+// ── GET /api/produccion/stock-hoy ─────────────────────────────────────────
+// Cruza produccion del dia vs ventas del dia por producto
+// Devuelve: producido, vendido, disponible estimado
+router.get('/stock-hoy', requireAuth, async (req, res, next) => {
+  try {
+    const fecha = req.query.fecha || new Date().toISOString().slice(0, 10)
+
+    // Produccion del dia
+    const { rows: producido } = await query(
+      `SELECT producto, SUM(piezas)::INT AS producido
+       FROM ordenes_produccion
+       WHERE tenant_id = $1 AND DATE(creado_en) = $2 AND estado = 'completada'
+       GROUP BY producto`,
+      [req.tenantId, fecha]
+    )
+
+    // Ventas del dia por producto
+    const { rows: vendido } = await query(
+      `SELECT vi.producto, SUM(vi.cantidad)::INT AS vendido
+       FROM venta_items vi
+       JOIN ventas v ON v.id = vi.venta_id
+       WHERE v.tenant_id = $1 AND v.fecha = $2
+       GROUP BY vi.producto`,
+      [req.tenantId, fecha]
+    )
+
+    const vendidoMap = {}
+    vendido.forEach(v => { vendidoMap[norm(v.producto)] = parseInt(v.vendido) })
+
+    const stock = producido.map(p => ({
+      producto: p.producto,
+      producido: p.producido,
+      vendido: vendidoMap[norm(p.producto)] || 0,
+      disponible: p.producido - (vendidoMap[norm(p.producto)] || 0),
+    }))
+
+    res.json({ fecha, stock })
+  } catch (e) { next(e) }
+})
