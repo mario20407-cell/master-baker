@@ -332,7 +332,7 @@ export default function Recetas() {
       )}
 
       {/* NUEVA / EDITAR */}
-      {(vista === 'nueva' || vista === 'editar') && (
+      {(vista === 'nueva' || vista === 'editar') && esAdmin && (
         <FormReceta
           inicial={editando}
           onGuardar={handleGuardar}
@@ -341,7 +341,7 @@ export default function Recetas() {
       )}
 
       {/* PEGAR TABLA */}
-      {vista === 'pegar' && (
+      {vista === 'pegar' && esAdmin && (
         <div className="card max-w-2xl">
           <h3 className="text-sm font-medium text-gray-700 mb-1">Pegar receta desde Excel</h3>
           <p className="text-xs text-gray-400 mb-3">Copia celdas de Excel. Columnas: Ingrediente | Cantidad | Unidad | Precio C$/u</p>

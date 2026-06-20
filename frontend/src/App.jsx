@@ -29,6 +29,13 @@ function RutaProtegida({ children }) {
   return children
 }
 
+function SoloAdmin({ children }) {
+  const { usuario, cargando } = useAuth()
+  if (cargando) return null
+  if (!usuario || usuario.rol !== 'admin') return <Navigate to="/dashboard" replace />
+  return children
+}
+
 export default function App() {
   return (
     <Routes>
@@ -49,7 +56,7 @@ export default function App() {
         <Route path="ventas"       element={<Ventas />} />
         <Route path="ia"           element={<IAChat />} />
         <Route path="exportar"     element={<Exportar />} />
-        <Route path="fiscal"       element={<ConfigFiscal />} />
+        <Route path="fiscal"       element={<SoloAdmin><ConfigFiscal /></SoloAdmin>} />
         <Route path="ayuda"        element={<Ayuda />} />
       </Route>
     </Routes>
