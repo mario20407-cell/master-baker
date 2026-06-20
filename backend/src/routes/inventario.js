@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { requireAdminPin } from '../middleware/adminPinMiddleware.js'
+import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
 
@@ -175,6 +176,23 @@ router.put('/:id', requireAdminPin, async (req, res, next) => {
 })
 
 // DELETE /api/inventario/:id — sin PIN (eliminar no es "editar precio")
+// PATCH /api/inventario/:id/existencia — actualizar existencia y unidad sin PIN
+router.patch('/:id/existencia', requireAuth, async (req, res, next) => {
+  const { existencia, unidad } = req.body
+  if (existencia === undefined || existencia === null) return res.status(400).json({ error: 'existencia es requerida' })
+  const nueva = parseFloat(existencia)
+  if (isNaN(nueva) || nueva < 0) return res.status(400).json({ error: 'existencia invalida' })
+  try {
+    const { rows } = await query(
+      `UPDATE inventario SET existencia=$1, unidad=COALESCE($2, unidad), actualizado_en=NOW()
+       WHERE id=$3 AND tenant_id=$4 RETURNING *`,
+      [nueva, unidad || null, req.params.id, req.tenantId]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Insumo no encontrado' })
+    res.json(rows[0])
+  } catch (e) { next(e) }
+})
+
 router.delete('/:id', async (req, res, next) => {
   try {
     const { rowCount } = await query('DELETE FROM inventario WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])

@@ -64,6 +64,8 @@ export const getAuditoriaInsumos = (limit) => api.get('/inventario/auditoria', {
 export const saveInsumo = (data) => api.post('/inventario', data)
 export const updateInsumo = (id, data, pin) =>
   api.put(`/inventario/${id}`, data, { headers: { 'x-admin-pin': pin } })
+export const updateExistencia = (id, existencia, unidad) =>
+  api.patch(`/inventario/${id}/existencia`, { existencia, unidad })
 export const updateInsumosMasivo = (insumos, pin) =>
   api.put('/inventario/masivo/lista', { insumos }, { headers: { 'x-admin-pin': pin } })
 export const updateInsumosPorcentaje = (porcentaje, pin) =>
