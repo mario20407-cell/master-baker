@@ -157,7 +157,7 @@ Si no puedes leer algún campo, usa null. Los precios deben ser numéricos sin s
             ref={inputCamRef}
             type="file"
             accept="image/*"
-            capture="environment"
+            
             className="hidden"
             onChange={procesarImagen}
           />
