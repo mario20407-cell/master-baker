@@ -24,6 +24,7 @@ export function Compras() {
   const removeItem = (i) => setItems(p => p.filter((_, idx) => idx !== i))
   const updateItem = (i, f, v) => setItems(p => p.map((x, idx) => idx === i ? { ...x, [f]: v } : x))
 
+  // ── Captura de factura con cámara ─────────────────────────────
   const abrirCamara = () => inputCamRef.current?.click()
 
   const procesarImagen = async (e) => {
@@ -31,6 +32,7 @@ export function Compras() {
     if (!file) return
     e.target.value = ''
 
+    // Mostrar preview
     const reader = new FileReader()
     reader.onload = ev => setPreview(ev.target.result)
     reader.readAsDataURL(file)
@@ -39,6 +41,7 @@ export function Compras() {
     toast('Analizando factura con IA…', { icon: '📷' })
 
     try {
+      // Convertir a base64
       const base64 = await new Promise((res, rej) => {
         const r = new FileReader()
         r.onload  = () => res(r.result.split(',')[1])
@@ -46,45 +49,21 @@ export function Compras() {
         r.readAsDataURL(file)
       })
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      // Llamar al backend — evita CORS y mantiene la API key segura
+      const token = localStorage.getItem('marquez_token')
+      const response = await fetch(`${API}/api/compras/escanear`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
-          messages: [{
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 }
-              },
-              {
-                type: 'text',
-                text: `Analiza esta factura de compra de una panadería y extrae los datos en JSON.
-Responde SOLO con JSON válido, sin texto adicional ni backticks:
-{
-  "proveedor": "nombre del proveedor o empresa",
-  "fecha": "YYYY-MM-DD o null si no se ve",
-  "items": [
-    {
-      "producto": "nombre del producto",
-      "cantidad": número,
-      "precio_actual": número (precio unitario en córdobas)
-    }
-  ]
-}
-Si no puedes leer algún campo, usa null. Los precios deben ser numéricos sin símbolos de moneda.`
-              }
-            ]
-          }]
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ imagen: base64, mediaType: file.type || 'image/jpeg' })
       })
 
-      const data = await response.json()
-      const texto = data.content?.[0]?.text || ''
-      const parsed = JSON.parse(texto.replace(/```json|```/g, '').trim())
+      if (!response.ok) throw new Error(`Error ${response.status}`)
+      const parsed = await response.json()
 
+      // Rellenar formulario con los datos extraídos
       if (parsed.proveedor) setProv(parsed.proveedor)
       if (parsed.fecha)     setFecha(parsed.fecha)
       if (parsed.items?.length) {
@@ -132,6 +111,7 @@ Si no puedes leer algún campo, usa null. Los precios deben ser numéricos sin s
   return (
     <div className="max-w-3xl space-y-4">
 
+      {/* Preview imagen escaneada */}
       {preview && (
         <div className="card flex items-start gap-3">
           <img src={preview} alt="Factura" className="w-24 h-24 object-cover rounded-lg border border-gray-200 flex-shrink-0" />
@@ -153,11 +133,12 @@ Si no puedes leer algún campo, usa null. Los precios deben ser numéricos sin s
       <div className="card">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Registrar factura de compra</h3>
+          {/* Input oculto para la cámara */}
           <input
             ref={inputCamRef}
             type="file"
             accept="image/*"
-            
+            capture="environment"
             className="hidden"
             onChange={procesarImagen}
           />
