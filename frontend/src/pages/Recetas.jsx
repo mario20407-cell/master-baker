@@ -30,7 +30,7 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [] }) {
   }
 
   const seleccionar = (insumo) => {
-    onChange({ ...ing, nombre: insumo.nombre, unidad: insumo.unidad || 'kg', precio: parseFloat(insumo.costo_unitario) || 0 })
+    onChange({ ...ing, nombre: insumo.nombre, unidad: 'g', unidadInventario: insumo.unidad || 'kg', precio: parseFloat(insumo.costo_unitario) || 0 })
     setMostrarSug(false)
   }
 
@@ -243,8 +243,25 @@ export default function Recetas() {
     setPegado(''); setPegProd(''); setPegPiezas(''); setVista('lista')
   }
 
+
+  const convertirUnidad = (cantidad, unidadReceta, unidadInventario) => {
+    if (!unidadReceta || !unidadInventario || unidadReceta === unidadInventario) return cantidad
+    const r = unidadReceta.toLowerCase()
+    const i = unidadInventario.toLowerCase()
+    if (r === 'g' && i === 'kg') return cantidad / 1000
+    if (r === 'ml' && i === 'l') return cantidad / 1000
+    if (r === 'kg' && i === 'g') return cantidad * 1000
+    if (r === 'l' && i === 'ml') return cantidad * 1000
+    if (r === 'libra' && i === 'kg') return cantidad * 0.454
+    if (r === 'arroba' && i === 'kg') return cantidad * 11.5
+    return cantidad
+  }
+
   const costoReceta = (r) => {
-    const ct = r.ingredientes?.reduce((s, i) => s + i.cantidad * i.precio, 0) || 0
+    const ct = r.ingredientes?.reduce((s, i) => {
+      const cantConvertida = convertirUnidad(i.cantidad, i.unidad, i.unidadInventario || i.unidad)
+      return s + cantConvertida * i.precio
+    }, 0) || 0
     const cu = r.piezas > 0 ? ct / r.piezas : 0
     const margen = r.pventa > 0 ? ((r.pventa - cu) / r.pventa) * 100 : null
     return { ct, cu, margen }
