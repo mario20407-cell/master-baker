@@ -46,7 +46,11 @@ router.get('/:producto', async (req, res, next) => {
       SELECT r.*,
         json_agg(json_build_object(
           'id', i.id, 'nombre', i.nombre, 'cantidad', i.cantidad,
-          'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo
+          'unidad', i.unidad,
+          'precio', COALESCE(inv.costo_unitario, i.precio, 0),
+          'precio_inventario', inv.costo_unitario,
+          'tipo', i.tipo,
+          'unidad_inventario', COALESCE(i.unidad_inventario, inv.unidad)
         ) ORDER BY i.orden) FILTER (WHERE i.id IS NOT NULL) AS ingredientes,
         p.precio AS pventa, p.presentacion, p.categoria
       FROM recetas r
