@@ -156,8 +156,8 @@ export default function Costeo() {
                             {ing.tipo}
                           </span>
                         </td>
-                        <td>{ing.cantidad} {ing.unidad}</td>
-                        <td className="font-medium">{(ing.cantidad * factor).toFixed(3)} {ing.unidad}</td>
+                        <td>{parseFloat(ing.cantidad)} {ing.unidad}</td>
+                        <td className="font-medium">{parseFloat((ing.cantidad * factor).toFixed(3))} {ing.unidad}</td>
                         <td>{ing.unidad}</td>
                       </tr>
                     )
