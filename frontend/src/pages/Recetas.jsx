@@ -259,7 +259,7 @@ export default function Recetas() {
 
   const costoReceta = (r) => {
     const ct = r.ingredientes?.reduce((s, i) => {
-      const cantConvertida = convertirUnidad(i.cantidad, i.unidad, i.unidadInventario || i.unidad)
+      const cantConvertida = convertirUnidad(i.cantidad, i.unidad, i.unidad_inventario || i.unidadInventario || i.unidad)
       return s + cantConvertida * i.precio
     }, 0) || 0
     const cu = r.piezas > 0 ? ct / r.piezas : 0
