@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useRecetas } from '../hooks/useRecetas'
 import { useFiscalConfig } from '../hooks/useFiscalConfig'
-import { PRODUCTOS } from '../lib/catalogo'
+import { useCatalogo } from '../hooks/useCatalogo'
 import { Calculator, AlertTriangle, CheckCircle, Shield } from 'lucide-react'
 import { calcularCosteoReceta } from '../lib/costeo'
 import { saveCosteo } from '../lib/api'
@@ -12,21 +13,29 @@ const fmt = (v) => 'C$ ' + (parseFloat(v) || 0).toFixed(2)
 export default function Costeo() {
   const { recetas }               = useRecetas()
   const { config: configFiscal }  = useFiscalConfig()
+  const { productos }             = useCatalogo()
+  const location                  = useLocation()
 
-  const [prodIdx,    setProdIdx]    = useState('')
+  const [prodNombre, setProdNombre] = useState('')
   const [piezas,     setPiezas]     = useState('')
   const [pventa,     setPventa]     = useState('')
   const [resultado,  setResultado]  = useState(null)
 
-  const prod   = prodIdx !== '' ? PRODUCTOS[parseInt(prodIdx)] : null
-  const receta = prod ? recetas[prod.n] : null
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const prod = params.get('producto')
+    if (prod && productos.length > 0) handleProdChange(prod)
+  }, [location.search, recetas, productos])
 
-  const handleProdChange = (idx) => {
-    setProdIdx(idx)
-    if (idx !== '') {
-      const p = PRODUCTOS[parseInt(idx)]
-      setPventa(p.p)
-      const r = recetas[p.n]
+  const prod   = prodNombre ? productos.find(p => p.nombre === prodNombre) : null
+  const receta = prod ? recetas[prod.nombre] : null
+
+  const handleProdChange = (nombre) => {
+    setProdNombre(nombre)
+    if (nombre) {
+      const p = productos.find(pr => pr.nombre === nombre)
+      if (p) setPventa(p.precio)
+      const r = recetas[nombre]
       if (r) setPiezas(r.piezas)
     }
     setResultado(null)
@@ -39,21 +48,21 @@ export default function Costeo() {
 
     const recetaConPventa = {
       ...receta,
-      pventa:      parseFloat(pventa) || prod.p,
+      pventa:      parseFloat(pventa) || prod.precio,
       ingredientes: receta.ingredientes || [],
     }
 
     const res = calcularCosteoReceta(
       recetaConPventa,
       parseInt(piezas),
-      configFiscal,       // null si no configurado → campos fiscales en null
+      configFiscal,
     )
 
-    setResultado({ ...res, producto: prod.n, piezasObj: parseInt(piezas) })
+    setResultado({ ...res, producto: prod.nombre, piezasObj: parseInt(piezas) })
 
     try {
       await saveCosteo({
-        producto:              prod.n,
+        producto:              prod.nombre,
         piezas_obj:            parseInt(piezas),
         piezas_reales:         res.piezasReales,
         costo_directo:         res.costoDirecto,
@@ -82,11 +91,11 @@ export default function Costeo() {
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="form-group">
             <label className="form-label">Producto con receta</label>
-            <select value={prodIdx} onChange={e => handleProdChange(e.target.value)}>
+            <select value={prodNombre} onChange={e => handleProdChange(e.target.value)}>
               <option value="">— Seleccionar —</option>
-              {PRODUCTOS.map((p, i) => (
-                <option key={i} value={i}>
-                  {recetas[p.n] ? '✓ ' : '○ '}{p.n} — C$ {p.p}
+              {productos.map(p => (
+                <option key={p.nombre} value={p.nombre}>
+                  {recetas[p.nombre] ? '✓ ' : '○ '}{p.nombre}
                 </option>
               ))}
             </select>
@@ -120,7 +129,6 @@ export default function Costeo() {
           </div>
         </div>
 
-        {/* Indicador fiscal activo */}
         {configFiscal?.configurado && (
           <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-xs"
             style={{ background: '#EEF1F3', color: '#263D4F' }}>
@@ -167,7 +175,6 @@ export default function Costeo() {
 
       {r && (
         <>
-          {/* Alerta de margen — sin fiscal */}
           {r.pventa > 0 && (
             r.aprobado ? (
               <div className="alert-ok">
@@ -193,7 +200,6 @@ export default function Costeo() {
             )
           )}
 
-          {/* Alerta fiscal adicional si el margen base pasa pero el fiscal no */}
           {r.fiscalActivo && r.aprobado && r.aprobadoFiscal === false && (
             <div className="alert-warn">
               <Shield size={16} className="flex-shrink-0 mt-0.5" style={{ color: '#A8813E' }} />
@@ -213,8 +219,7 @@ export default function Costeo() {
               Resultado — {r.producto} ({r.piezasObj} piezas)
             </h3>
 
-            {/* KPIs — con columna fiscal si está activo */}
-            <div className={`grid gap-3 mb-4 ${r.fiscalActivo ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-4'}`}>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               {[
                 ['Costo total lote',   fmt(r.costoTotal)],
                 ['Costo unitario',     fmt(r.costoUnitario)],

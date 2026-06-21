@@ -6,6 +6,7 @@ import { ChefHat, Plus, Search, Upload, Edit2, Trash2, Calculator, CheckCircle, 
 import toast from 'react-hot-toast'
 import { getInventario } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 
 const UNIDADES = ['kg', 'g', 'L', 'ml', 'unidad', 'porción']
 
@@ -194,6 +195,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
 export default function Recetas() {
   const { usuario } = useAuth()
   const esAdmin = usuario?.rol === 'admin'
+  const navigate = useNavigate()
   const { recetas, loading, guardar, eliminar } = useRecetas()
   const { productos } = useCatalogo()
   const [vista, setVista] = useState('lista') // lista | nueva | editar | pegar
@@ -379,7 +381,7 @@ export default function Recetas() {
                           <button onClick={() => handleEditar(r)} className="btn-secondary flex items-center gap-1 text-xs">
                             <Edit2 size={12} /> Editar
                           </button>
-                          <button onClick={() => {}} className="btn-primary flex items-center gap-1 text-xs">
+                          <button onClick={() => navigate('/costeo?producto='+encodeURIComponent(r.producto))} className="btn-primary flex items-center gap-1 text-xs">
                             <Calculator size={12} /> Costear ahora
                           </button>
                         </div>
