@@ -19,6 +19,7 @@ function round4(n) {
 
 // ── Helpers básicos ──────────────────────────────────────────────────────────
 
+const convertirUnidad=(cantidad,uR,uI)=>{if(!uR||!uI||uR===uI)return cantidad;const r=uR.toLowerCase(),i=uI.toLowerCase();if(r==="g"&&i==="kg")return cantidad/1000;if(r==="ml"&&(i==="l"||i==="litro"))return cantidad/1000;if(r==="libra"&&i==="kg")return cantidad*0.454;if(r==="arroba"&&i==="kg")return cantidad*11.5;return cantidad};
 export function calcMargen(pventa, costoUnitario) {
   const p = num(pventa)
   const c = num(costoUnitario)
@@ -69,7 +70,7 @@ export function sumarCostosIngredientes(ingredientes = [], factor = 1) {
   let costoIndirecto = 0
 
   for (const ing of ingredientes) {
-    const subtotal = num(ing?.cantidad) * f * num(ing?.precio)
+    const cantConv=convertirUnidad(num(ing?.cantidad),ing?.unidad,ing?.unidad_inventario||ing?.unidad);const subtotal=cantConv*f*num(ing?.precio)
     if (ing?.tipo === 'indirecto') costoIndirecto += subtotal
     else costoDirecto += subtotal
   }
