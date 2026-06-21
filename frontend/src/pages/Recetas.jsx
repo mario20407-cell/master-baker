@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom'
 
 const UNIDADES = ['kg', 'g', 'L', 'ml', 'unidad', 'porción']
 
-function IngredienteRow({ ing, onChange, onDelete, insumos = [] }) {
+function IngredienteRow({ ing, onChange, onDelete, insumos = [], recetasLista = [] }) {
   const [sugerencias, setSugerencias] = useState([])
   const [mostrarSug, setMostrarSug] = useState(false)
   const wrapRef = useRef(null)
@@ -28,6 +28,11 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [] }) {
     const filtrados = val.length > 0 ? insumos.filter(i => i.nombre.toLowerCase().includes(val.toLowerCase())) : insumos
     setSugerencias(filtrados)
     setMostrarSug(filtrados.length > 0)
+  }
+
+  const seleccionarSubReceta = (receta) => {
+    onChange({ ...ing, nombre: receta.producto, unidad: 'porcion', unidad_inventario: null, precio: 0, tipo: 'subreceta', subreceta_nombre: receta.producto })
+    setMostrarSug(false)
   }
 
   const seleccionar = (insumo) => {
@@ -55,6 +60,15 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [] }) {
                 </div>
               ))
             }
+            {recetasLista.filter(r => r.producto !== ing.nombre && (ing.nombre||'').length > 0 && r.producto.toLowerCase().includes((ing.nombre||'').toLowerCase())).map(r => (
+              <div key={'sub-'+r.producto} onClick={() => seleccionarSubReceta(r)}
+                style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, borderTop: '0.5px solid var(--color-border-tertiary)' }}
+                onMouseEnter={e => e.currentTarget.style.background='var(--color-background-secondary)'}
+                onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                <span style={{ fontSize: 11, background: '#E6F1FB', color: '#185FA5', padding: '1px 6px', borderRadius: 4 }}>sub-receta</span>
+                <span style={{ fontWeight: 500, color: '#185FA5' }}>{r.producto}</span>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -153,6 +167,9 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-sm font-medium text-gray-700">Ingredientes</h3>
           <div className="flex gap-2">
+            <button onClick={() => addIng('subreceta')} className="btn-secondary text-xs px-2 py-1 flex items-center gap-1" style={{ color: '#185FA5' }}>
+              <Plus size={12} /> Sub-receta
+            </button>
             <button onClick={() => addIng('directo')} className="btn-secondary text-xs px-2 py-1 flex items-center gap-1">
               <Plus size={12} /> Directo
             </button>
@@ -170,7 +187,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
 
         {ings.map((ing, i) => (
           <IngredienteRow key={i} ing={ing}
-            onChange={val => updateIng(i, val)} insumos={insumos}
+            onChange={val => updateIng(i, val)} insumos={insumos} recetasLista={recetasLista}
             onDelete={() => removeIng(i)} />
         ))}
 
@@ -198,6 +215,7 @@ export default function Recetas() {
   const navigate = useNavigate()
   const { recetas, loading, guardar, eliminar } = useRecetas()
   const { productos } = useCatalogo()
+  const recetasLista = Object.values(recetas)
   const [vista, setVista] = useState('lista') // lista | nueva | editar | pegar
   const [editando, setEditando] = useState(null)
   const [busqueda, setBusqueda] = useState('')
