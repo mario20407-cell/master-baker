@@ -56,6 +56,7 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [] }) {
             }
           </div>
         )}
+      </div>
       <input type="number" value={ing.cantidad} placeholder="0" step="0.001" min="0"
         onChange={e => onChange({ ...ing, cantidad: parseFloat(e.target.value) || 0 })} />
       <select value={ing.unidad} onChange={e => onChange({ ...ing, unidad: e.target.value })}>
