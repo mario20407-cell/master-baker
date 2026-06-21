@@ -19,7 +19,7 @@ router.get('/', async (req, res, next) => {
         json_agg(
           json_build_object(
             'id', i.id, 'nombre', i.nombre, 'cantidad', i.cantidad,
-            'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo
+            'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo, 'unidad_inventario', i.unidad_inventario
           ) ORDER BY i.orden
         ) FILTER (WHERE i.id IS NOT NULL) AS ingredientes,
         p.precio AS pventa, p.presentacion, p.categoria
@@ -79,10 +79,9 @@ router.post('/', async (req, res, next) => {
 
       await client.query('DELETE FROM ingredientes WHERE receta_id = $1', [r.id])
       if (ingredientes.length) {
-        // 7 columnas por fila ahora: tenant_id + receta_id + 5 campos del ingrediente
-        const vals = ingredientes.map((ing, idx) => `($${idx * 7 + 1}, $${idx * 7 + 2}, $${idx * 7 + 3}, $${idx * 7 + 4}, $${idx * 7 + 5}, $${idx * 7 + 6}, $${idx * 7 + 7})`)
-        const params = ingredientes.flatMap(ing => [tenantId, r.id, ing.nombre, ing.cantidad, ing.unidad, ing.precio || 0, ing.tipo || 'directo'])
-        await client.query(`INSERT INTO ingredientes (tenant_id, receta_id, nombre, cantidad, unidad, precio, tipo) VALUES ${vals}`, params)
+        const vals = ingredientes.map((ing, idx) => `(${idx * 8 + 1}, ${idx * 8 + 2}, ${idx * 8 + 3}, ${idx * 8 + 4}, ${idx * 8 + 5}, ${idx * 8 + 6}, ${idx * 8 + 7}, ${idx * 8 + 8})`)
+        const params = ingredientes.flatMap(ing => [tenantId, r.id, ing.nombre, ing.cantidad, ing.unidad, ing.precio || 0, ing.tipo || 'directo', ing.unidad_inventario || null])
+        await client.query(`INSERT INTO ingredientes (tenant_id, receta_id, nombre, cantidad, unidad, precio, tipo, unidad_inventario) VALUES ${vals}`, params)
       }
       return r
     })
@@ -119,8 +118,8 @@ router.put('/:id', async (req, res, next) => {
       if (ingredientes.length) {
         const vals = ingredientes.map((_, i) => `($${i*7+1},$${i*7+2},$${i*7+3},$${i*7+4},$${i*7+5},$${i*7+6},$${i*7+7})`)
         await client.query(
-          `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo) VALUES ${vals}`,
-          ingredientes.flatMap(i => [tenantId, req.params.id, i.nombre, i.cantidad, i.unidad, i.precio||0, i.tipo||'directo'])
+          `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo,unidad_inventario) VALUES ${vals}`,
+          ingredientes.flatMap(i => [tenantId, req.params.id, i.nombre, i.cantidad, i.unidad, i.precio||0, i.tipo||'directo', i.unidad_inventario||null])
         )
       }
       return true
@@ -171,8 +170,8 @@ router.post('/import-csv', async (req, res, next) => {
         await client.query('DELETE FROM ingredientes WHERE receta_id=$1', [r.id])
         const vals = ingredientes.map((_, i) => `($${i*7+1},$${i*7+2},$${i*7+3},$${i*7+4},$${i*7+5},$${i*7+6},$${i*7+7})`)
         await client.query(
-          `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo) VALUES ${vals}`,
-          ingredientes.flatMap(i => [tenantId, r.id, i.nombre, i.cantidad, i.unidad, i.precio, i.tipo])
+          `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo,unidad_inventario) VALUES ${vals}`,
+          ingredientes.flatMap(i => [tenantId, r.id, i.nombre, i.cantidad, i.unidad, i.precio, i.tipo, i.unidad_inventario||null])
         )
       })
       importadas++
