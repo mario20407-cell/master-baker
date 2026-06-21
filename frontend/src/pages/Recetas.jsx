@@ -122,7 +122,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
             <select value={prodSel} onChange={e => setProdSel(e.target.value)}>
               <option value="">— Seleccionar —</option>
               {(productos || []).map(p => (
-                <option key={p.nombre} value={p.nombre}>{p.nombre} — C$ {p.precio}</option>
+                <option key={p.nombre}</option>
               ))}
             </select>
           </div>
