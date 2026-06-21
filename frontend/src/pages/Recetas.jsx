@@ -368,7 +368,7 @@ export default function Recetas() {
                                   <td>{ing.cantidad}</td>
                                   <td>{ing.unidad}</td>
                                   <td className="text-right">C$ {(ing.precio || 0).toFixed(2)}</td>
-                                  <td className="text-right">C$ {(ing.cantidad * ing.precio).toFixed(2)}</td>
+                                  <td className="text-right">C$ {(convertirUnidad(ing.cantidad, ing.unidad, ing.unidad_inventario || ing.unidad) * ing.precio).toFixed(2)}</td>
                                   <td><span className={ing.tipo === 'indirecto' ? 'badge-info' : 'badge-gray'}>{ing.tipo}</span></td>
                                 </tr>
                               ))}
