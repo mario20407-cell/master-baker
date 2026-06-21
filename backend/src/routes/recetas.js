@@ -89,7 +89,7 @@ router.post('/', async (req, res, next) => {
 
       await client.query('DELETE FROM ingredientes WHERE receta_id = $1', [r.id])
       if (ingredientes.length) {
-        const vals = ingredientes.map((ing, idx) => `($, $, $, $, $, $, $, $)`)
+        const vals = ingredientes.map((ing, idx) => `($${idx*8+1},$${idx*8+2},$${idx*8+3},$${idx*8+4},$${idx*8+5},$${idx*8+6},$${idx*8+7},$${idx*8+8})`)
         const params = ingredientes.flatMap(ing => [tenantId, r.id, ing.nombre, ing.cantidad, ing.unidad, ing.precio || 0, ing.tipo || 'directo', ing.unidad_inventario || null])
         await client.query(`INSERT INTO ingredientes (tenant_id, receta_id, nombre, cantidad, unidad, precio, tipo, unidad_inventario) VALUES ${vals}`, params)
       }
@@ -126,7 +126,7 @@ router.put('/:id', async (req, res, next) => {
 
       await client.query('DELETE FROM ingredientes WHERE receta_id=$1', [req.params.id])
       if (ingredientes.length) {
-        const vals = ingredientes.map((_, i) => `($${i*7+1},$${i*7+2},$${i*7+3},$${i*7+4},$${i*7+5},$${i*7+6},$${i*7+7})`)
+        const vals = ingredientes.map((_, i) => `($${i*8+1},$${i*8+2},$${i*8+3},$${i*8+4},$${i*8+5},$${i*8+6},$${i*8+7},$${i*8+8})`)
         await client.query(
           `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo,unidad_inventario) VALUES ${vals}`,
           ingredientes.flatMap(i => [tenantId, req.params.id, i.nombre, i.cantidad, i.unidad, i.precio||0, i.tipo||'directo', i.unidad_inventario||null])
@@ -178,7 +178,7 @@ router.post('/import-csv', async (req, res, next) => {
           ON CONFLICT (tenant_id, producto) DO UPDATE SET actualizado_en=NOW() RETURNING *
         `, [tenantId, producto])
         await client.query('DELETE FROM ingredientes WHERE receta_id=$1', [r.id])
-        const vals = ingredientes.map((_, i) => `($${i*7+1},$${i*7+2},$${i*7+3},$${i*7+4},$${i*7+5},$${i*7+6},$${i*7+7})`)
+        const vals = ingredientes.map((_, i) => `($${i*8+1},$${i*8+2},$${i*8+3},$${i*8+4},$${i*8+5},$${i*8+6},$${i*8+7},$${i*8+8})`)
         await client.query(
           `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo,unidad_inventario) VALUES ${vals}`,
           ingredientes.flatMap(i => [tenantId, r.id, i.nombre, i.cantidad, i.unidad, i.precio, i.tipo, i.unidad_inventario||null])
