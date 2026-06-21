@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext'
 const API = import.meta.env.VITE_API_URL ?? ''
 
 export function useCatalogo() {
-  const { token } = useAuth()
+  const { usuario } = useAuth()
+  const token = localStorage.getItem('marquez_token')
   const [productos, setProductos] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
