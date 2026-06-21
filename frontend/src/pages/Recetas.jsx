@@ -30,7 +30,7 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [] }) {
   }
 
   const seleccionar = (insumo) => {
-    onChange({ ...ing, nombre: insumo.nombre, unidad: 'g', unidadInventario: insumo.unidad || 'kg', precio: parseFloat(insumo.costo_unitario) || 0 })
+    onChange({ ...ing, nombre: insumo.nombre, unidad: insumo.unidad==='kg'?'g':insumo.unidad==='L'?'ml':insumo.unidad||'g', unidad_inventario: insumo.unidad || 'kg', precio: parseFloat(insumo.costo_unitario) || 0 })
     setMostrarSug(false)
   }
 
@@ -364,7 +364,7 @@ export default function Recetas() {
                             <tbody>
                               {r.ingredientes?.map((ing, i) => (
                                 <tr key={i}>
-                                  <td>{ing.nombre}</td>
+                                  <td>{ing.nombre}{!ing.unidad_inventario && <span title="Sin conversi?n de unidad" style={{marginLeft:4,fontSize:10,color:"#F59E0B"}}>?</span>}</td>
                                   <td>{ing.cantidad}</td>
                                   <td>{ing.unidad}</td>
                                   <td className="text-right">C$ {(ing.precio || 0).toFixed(2)}</td>
