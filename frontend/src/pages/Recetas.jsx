@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { CAT_COLORS } from '../lib/catalogo'
 import { useCatalogo } from '../hooks/useCatalogo'
@@ -133,13 +133,11 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
         <h3 className="text-sm font-medium text-gray-700 mb-3">Datos de la receta</h3>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="form-group">
-            <label className="form-label">Producto del catálogo</label>
-            <select value={prodSel} onChange={e => setProdSel(e.target.value)}>
-              <option value="">— Seleccionar —</option>
-              {(productos || []).map(p => (
-                <option key={p.nombre} value={p.nombre}>{p.nombre}</option>
-              ))}
-            </select>
+            <label className="form-label">Producto / Sub-receta</label>
+            <input list="prod-list" value={prodSel} onChange={e => setProdSel(e.target.value)} placeholder="Selecciona o escribe nombre libre" />
+            <datalist id="prod-list">
+              {(productos || []).map(p => <option key={p.nombre} value={p.nombre} />)}
+            </datalist>
           </div>
           <div className="form-group">
             <label className="form-label">Piezas que rinde la receta</label>
