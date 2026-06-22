@@ -86,7 +86,7 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [], recetasLista = 
   )
 }
 
-function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
+function FormReceta({ inicial, onGuardar, onCancelar, productos, recetasLista = [] }) {
   const [insumos, setInsumos] = useState([])
   useEffect(() => { getInventario().then(r => setInsumos(r.data || [])).catch(() => {}) }, [])
   const prodNombre0 = inicial?.producto || ''
@@ -413,6 +413,7 @@ export default function Recetas() {
         <FormReceta
           inicial={editando}
           productos={productos}
+          recetasLista={recetasLista}
           onGuardar={handleGuardar}
           onCancelar={() => { setVista('lista'); setEditando(null) }}
         />
