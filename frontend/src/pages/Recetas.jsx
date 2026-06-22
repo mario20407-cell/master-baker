@@ -182,7 +182,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
 
         {ings.map((ing, i) => (
           <IngredienteRow key={i} ing={ing}
-            onChange={val => updateIng(i, val)} insumos={insumos} recetasLista={recetasLista} recetasLista={recetasLista}
+            onChange={val => updateIng(i, val)} insumos={insumos} recetasLista={recetasLista}
             onDelete={() => removeIng(i)} />
         ))}
 
