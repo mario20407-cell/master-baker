@@ -134,10 +134,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="form-group">
             <label className="form-label">Producto / Sub-receta</label>
-            <input list="prod-list" value={prodSel} onChange={e => setProdSel(e.target.value)} placeholder="Selecciona o escribe nombre libre" />
-            <datalist id="prod-list">
-              {(productos || []).map(p => <option key={p.nombre} value={p.nombre} />)}
-            </datalist>
+            <input type="text" value={prodSel} onChange={e => setProdSel(e.target.value)} placeholder="Nombre del producto o sub-receta" />
           </div>
           <div className="form-group">
             <label className="form-label">Piezas que rinde la receta</label>
