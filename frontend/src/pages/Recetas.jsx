@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
+import { getReceta } from '../lib/api'
 import { CAT_COLORS } from '../lib/catalogo'
 import { useCatalogo } from '../hooks/useCatalogo'
 import { ChefHat, Plus, Search, Upload, Edit2, Trash2, Calculator, CheckCircle, AlertTriangle } from 'lucide-react'
@@ -219,6 +220,7 @@ export default function Recetas() {
   const [pegProd, setPegProd] = useState('')
   const [pegPiezas, setPegPiezas] = useState('')
   const [detalle, setDetalle] = useState(null)
+  const [detalleIngredientes, setDetalleIngredientes] = useState({})
 
   const lista = Object.values(recetas).filter(r =>
     !busqueda || r.producto.toLowerCase().includes(busqueda.toLowerCase())
@@ -233,6 +235,17 @@ export default function Recetas() {
   const handleEditar = (receta) => {
     setEditando(receta)
     setVista('editar')
+  }
+
+  const toggleDetalle = async (producto) => {
+    if (detalle === producto) { setDetalle(null); return }
+    setDetalle(producto)
+    if (!detalleIngredientes[producto]) {
+      try {
+        const res = await getReceta(encodeURIComponent(producto))
+        setDetalleIngredientes(prev => ({ ...prev, [producto]: res.data?.ingredientes || [] }))
+      } catch (e) { console.error('Error cargando detalle:', e) }
+    }
   }
 
   const handleEliminar = async (nombre) => {
@@ -334,7 +347,7 @@ export default function Recetas() {
                   <div key={r.producto}>
                     <div
                       className={`card cursor-pointer hover:border-amber-300 transition-all ${sel ? 'border-brand-400' : ''}`}
-                      onClick={() => setDetalle(sel ? null : r.producto)}
+                      onClick={() => toggleDetalle(r.producto)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -378,9 +391,9 @@ export default function Recetas() {
                               <tr><th>Ingrediente</th><th>Cantidad</th><th>Unidad</th><th className="text-right">C$/u</th><th className="text-right">Subtotal</th><th>Tipo</th></tr>
                             </thead>
                             <tbody>
-                              {r.ingredientes?.map((ing, i) => (
+                              {(detalleIngredientes[r.producto] || r.ingredientes)?.map((ing, i) => (
                                 <tr key={i}>
-                                  <td>{ing.nombre}{!ing.unidad_inventario && <span title="Sin conversi?n de unidad" style={{marginLeft:4,fontSize:10,color:"#F59E0B"}}>?</span>}</td>
+                                  <td>{ing.nombre}{(!ing.unidad_inventario && ing.tipo !== 'subreceta') && <span title="Sin conversi?n de unidad" style={{marginLeft:4,fontSize:10,color:"#F59E0B"}}>?</span>}</td>
                                   <td>{ing.cantidad}</td>
                                   <td>{ing.unidad}</td>
                                   <td className="text-right">C$ {(ing.precio || 0).toFixed(2)}</td>
