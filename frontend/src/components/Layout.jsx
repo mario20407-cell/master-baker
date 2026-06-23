@@ -1,7 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import {
-  import {
   FileText, LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, Moon, Sun, Factory, Users
 } from 'lucide-react'
