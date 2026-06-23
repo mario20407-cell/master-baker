@@ -1,7 +1,8 @@
 ﻿import { useState, useEffect } from 'react'
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import {
-  LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
+  FileText, Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, Moon, Sun, Factory, Users
+  Layout Dashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, Moon, Sun, Factory, Users
 } from 'lucide-react'
 
@@ -15,6 +16,7 @@ const NAV = [
   { to: '/inventario', icon: Package,          label: 'Inventario' },
   { to: '/produccion', icon: Factory,           label: 'Produccion',  badge: 'NEW' },
   { to: '/compras',    icon: Receipt,          label: 'Compras' },
+  { to: '/reportes', icon: FileText, label: 'Reportes' },
   { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
   { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI' },
   { to: '/usuarios',   icon: Users,            label: 'Usuarios' },
