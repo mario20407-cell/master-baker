@@ -27,7 +27,8 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [], recetasLista = 
     onChange({ ...ing, nombre: val })
     const filtrados = val.length > 0 ? insumos.filter(i => i.nombre.toLowerCase().includes(val.toLowerCase())) : insumos
     setSugerencias(filtrados)
-    setMostrarSug(filtrados.length > 0)
+    const haySubRecetas = val.length > 0 && recetasLista.some(r => r.producto.toLowerCase().includes(val.toLowerCase()))
+    setMostrarSug(filtrados.length > 0 || haySubRecetas)
   }
 
   const seleccionarSubReceta = (receta) => {
