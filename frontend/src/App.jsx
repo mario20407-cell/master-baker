@@ -17,6 +17,7 @@ import Ayuda from './pages/Ayuda'
 import Usuarios from './pages/Usuarios'
 import Produccion from './pages/Produccion'
 import Reportes from './pages/Reportes'
+import Precios from './pages/Precios'
 
 function RutaProtegida({ children }) {
   const { usuario, cargando } = useAuth()
@@ -43,6 +44,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/precios" element={<Precios />} />
       <Route path="/" element={
         <RutaProtegida>
           <Layout />
@@ -59,7 +61,7 @@ export default function App() {
         <Route path="ventas"      element={<Ventas />} />
         <Route path="produccion"  element={<Produccion />} />
         <Route path="ia"          element={<IAChat />} />
-        <Route path="reportes" element={<Reportes />} />
+        <Route path="reportes"    element={<Reportes />} />
         <Route path="exportar"    element={<Exportar />} />
         <Route path="fiscal"      element={<SoloAdmin><ConfigFiscal /></SoloAdmin>} />
         <Route path="usuarios"    element={<SoloAdmin><Usuarios /></SoloAdmin>} />
