@@ -47,7 +47,7 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [], recetasLista = 
         <input
           value={ing.nombre} placeholder="Ingrediente"
           onChange={e => handleNombre(e.target.value)}
-          onFocus={() => { setSugerencias(insumos); setMostrarSug(insumos.length > 0) }}
+          onFocus={() => { setSugerencias(insumos); setMostrarSug(insumos.length > 0 || recetasLista.length > 0) }}
           className={ing.tipo === 'indirecto' ? 'bg-blue-50 w-full' : 'w-full'}
         />
         {mostrarSug && (
