@@ -1,6 +1,6 @@
 // pages/Usuarios.jsx — v3.0 Panel de gestion de usuarios (solo admin)
 import { useState, useEffect } from 'react'
-import { Users, Plus, UserCheck, UserX, Mail, Shield, Clock } from 'lucide-react'
+import { Users, Plus, UserCheck, UserX, Mail, Shield, Clock, Eye, EyeOff } from 'lucide-react'
 import { getUsuarios, registrarUsuario, toggleUsuario } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
@@ -14,6 +14,7 @@ export default function Usuarios() {
   const [form, setForm] = useState({ nombre: '', email: '', password: '', rol: 'operario' })
   const [guardando, setGuardando] = useState(false)
   const [mostrarForm, setMostrarForm] = useState(false)
+  const [showPass, setShowPass] = useState(false)
 
   const cargar = async () => {
     try {
@@ -43,9 +44,9 @@ export default function Usuarios() {
       toast.success(`Cuenta de ${form.nombre} creada`)
       setForm({ nombre: '', email: '', password: '', rol: 'operario' })
       setMostrarForm(false)
+      setShowPass(false)
       await cargar()
     } catch (e) {
-      // el interceptor de api.js ya muestra el toast de error
     } finally {
       setGuardando(false)
     }
@@ -59,7 +60,6 @@ export default function Usuarios() {
       toast.success(`Cuenta ${u.activo ? 'desactivada' : 'activada'}`)
       await cargar()
     } catch {
-      // manejado por interceptor
     }
   }
 
@@ -89,7 +89,15 @@ export default function Usuarios() {
               </div>
               <div className="form-group">
                 <label className="form-label">Contrasena (min. 8 caracteres)</label>
-                <input type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="••••••••" />
+                <div className="relative">
+                  <input type={showPass ? 'text' : 'password'} value={form.password}
+                    onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                    placeholder="••••••••" className="pr-10 w-full" />
+                  <button type="button" onClick={() => setShowPass(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Rol</label>
@@ -135,12 +143,9 @@ export default function Usuarios() {
                   </div>
                 </div>
                 {u.id !== yo?.id && (
-                  <button
-                    onClick={() => handleToggle(u)}
+                  <button onClick={() => handleToggle(u)}
                     className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
-                      u.activo
-                        ? 'border-red-200 text-red-600 hover:bg-red-50'
-                        : 'border-green-200 text-green-600 hover:bg-green-50'
+                      u.activo ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-green-200 text-green-600 hover:bg-green-50'
                     }`}>
                     {u.activo ? <><UserX size={12} /> Desactivar</> : <><UserCheck size={12} /> Activar</>}
                   </button>

@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
   const { login } = useAuth()
@@ -9,6 +10,7 @@ export default function Login() {
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [cargando, setCargando] = useState(false)
+  const [showPass, setShowPass] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -43,8 +45,14 @@ export default function Login() {
             </div>
             <div className="form-group">
               <label className="form-label">Contraseña</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••" autoComplete="current-password" disabled={cargando} />
+              <div className="relative">
+                <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••" autoComplete="current-password" disabled={cargando} className="pr-10 w-full" />
+                <button type="button" onClick={() => setShowPass(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
             <button type="submit" disabled={cargando}
               className="btn-primary w-full py-2.5 mt-2 flex items-center justify-center gap-2">
@@ -65,7 +73,3 @@ export default function Login() {
     </div>
   )
 }
-
-
-
-
