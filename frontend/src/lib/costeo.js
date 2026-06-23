@@ -5,7 +5,7 @@
 // v2.7: incorpora prorrateo fiscal DGI como parámetro opcional.
 
 /** Margen mínimo objetivo del negocio, en porcentaje (0-100). */
-export const MARGEN_OBJETIVO = 57
+export const MARGEN_OBJETIVO = 40
 
 /**
  * Factor de costo máximo permitido sobre el precio de venta para cumplir

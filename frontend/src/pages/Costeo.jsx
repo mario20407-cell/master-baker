@@ -192,7 +192,7 @@ export default function Costeo() {
                 <div>
                   <div className="font-medium text-red-800">ALERTA CRÍTICA — Violación de margen</div>
                   <div className="text-xs text-red-700 mt-0.5">
-                    Margen: {r.margen.toFixed(1)}% (objetivo ≥57%).
+                    Margen: {r.margen.toFixed(1)}% (objetivo ≥40%).
                     Precio mínimo requerido: {fmt(r.precioMinimo)}
                   </div>
                 </div>
@@ -292,7 +292,7 @@ export default function Costeo() {
                       {r.fiscalActivo && <td className="text-right">{fmt(r.pventa)}</td>}
                     </tr>
                     <tr>
-                      <td>Precio mínimo (57%)</td>
+                      <td>Precio mínimo (40%)</td>
                       <td className="text-right">{fmt(r.precioMinimo)}</td>
                       {r.fiscalActivo && (
                         <td className="text-right" style={{ color: r.aprobadoFiscal ? '#27500A' : '#A32D2D' }}>
