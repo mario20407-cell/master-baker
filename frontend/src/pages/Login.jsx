@@ -31,15 +31,14 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#FAF8F4' }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-4xl mb-2">🥐</div>
-          <h1 className="text-2xl font-semibold text-gray-800">Master Baker</h1>
+          <img src="/branding/logo-completo.png" alt="Master Baker" className="h-32 mx-auto" style={{ mixBlendMode: 'multiply' }} />
           <p className="text-sm text-gray-500 mt-1">Sistema de gestión para panaderías</p>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <h2 className="text-base font-medium text-gray-700 mb-6">Iniciar sesión</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="form-group">
-              <label className="form-label">Correo electronico</label>
+              <label className="form-label">Correo electrónico</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="admin@marquez.com" autoComplete="email" autoFocus disabled={cargando} />
             </div>
@@ -67,7 +66,7 @@ export default function Login() {
           </form>
         </div>
         <p className="text-center text-xs text-gray-400 mt-6">
-          Marquez Panaderia and Reposteria · Chinandega, Nicaragua
+          Marquéz Panadería & Repostería · Chichigalpa, Nicaragua
         </p>
       </div>
     </div>
