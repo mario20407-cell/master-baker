@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+ï»¿import { useState, useEffect } from 'react'
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import {
   FileText, LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
@@ -8,7 +8,7 @@ import {
 const NAV = [
   { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',      badge: 'NEW' },
-  { to: '/catalogo',   icon: BookOpen,         label: 'Catálogo' },
+  { to: '/catalogo',   icon: BookOpen,         label: 'Catï¿½logo' },
   { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE' },
   { to: '/costeo',     icon: Calculator,       label: 'Costeo' },
   { to: '/escalado',   icon: Scale,            label: 'Escalado' },
@@ -67,7 +67,7 @@ export default function Layout() {
           ))}
         </nav>
         <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
-          <div className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>v3.2 · Margen objetivo =57%</div>
+          <div className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>v3.2 ï¿½ Margen objetivo =57%</div>
         </div>
       </aside>
 
@@ -76,7 +76,7 @@ export default function Layout() {
           <button className="lg:hidden text-gray-500 hover:text-gray-700" onClick={() => setSidebarOpen(true)}>
             <Menu size={20} />
           </button>
-          <div className="flex flex-col"><span className="text-xs font-bold tracking-widest uppercase" style={{ color: '#263D4F' }}>Master Baker</span><span className="text-[10px] tracking-wider" style={{ color: '#C29C53' }}>Sistema de Gestión Inteligente de Panadería</span></div>
+          <div className="flex flex-col"><span className="text-xs font-bold tracking-widest uppercase" style={{ color: '#263D4F' }}>Master Baker</span><span className="text-[10px] tracking-wider" style={{ color: '#C29C53' }}>Sistema de Gestiï¿½n Inteligente de Panaderï¿½a</span></div>
           <div className="ml-auto flex items-center gap-2">
             <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ background: '#EAF3DE', color: '#27500A' }}>
               Margen objetivo: =57%
@@ -97,6 +97,7 @@ export default function Layout() {
     </div>
   )
 }
+
 
 
 
