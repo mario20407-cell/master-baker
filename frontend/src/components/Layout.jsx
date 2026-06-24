@@ -42,7 +42,7 @@ export default function Layout() {
       <aside className={`fixed lg:static inset-y-0 left-0 z-30 w-56 border-r flex flex-col transition-transform duration-200 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
         <div className="flex items-center gap-3 px-4 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <Link to="/dashboard" className="flex items-center gap-3 flex-1 min-w-0" onClick={() => setSidebarOpen(false)}>
-            <img src="/branding/logo-completo.png" alt="Master Baker" className="h-10 w-40 object-contain" />
+            <img src="/branding/logo-completo.png" alt="Master Baker" className="w-16 h-16 object-contain mx-auto" />
           </Link>
           <button className="ml-auto lg:hidden text-gray-400" onClick={() => setSidebarOpen(false)}>
             <X size={16} />
