@@ -13,7 +13,7 @@ const NAV = [
   { to: '/costeo',     icon: Calculator,       label: 'Costeo' },
   { to: '/escalado',   icon: Scale,            label: 'Escalado' },
   { to: '/inventario', icon: Package,          label: 'Inventario' },
-  { to: '/produccion', icon: Factory,           label: 'Produccion',  badge: 'NEW' },
+  { to: '/produccion', icon: Factory,           label: 'Producción',  badge: 'NEW' },
   { to: '/compras',    icon: Receipt,          label: 'Compras' },
   { to: '/reportes', icon: FileText, label: 'Reportes' },
   { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
