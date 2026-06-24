@@ -76,7 +76,7 @@ export default function Layout() {
           <button className="lg:hidden text-gray-500 hover:text-gray-700" onClick={() => setSidebarOpen(true)}>
             <Menu size={20} />
           </button>
-          <h1 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{currentPage}</h1>
+          <div className="flex flex-col"><span className="text-xs font-bold tracking-widest uppercase" style={{ color: '#263D4F' }}>Master Baker</span><span className="text-[10px] tracking-wider" style={{ color: '#C29C53' }}>Sistema de Gestión Inteligente de Panadería</span></div>
           <div className="ml-auto flex items-center gap-2">
             <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ background: '#EAF3DE', color: '#27500A' }}>
               Margen objetivo: =57%
@@ -97,6 +97,7 @@ export default function Layout() {
     </div>
   )
 }
+
 
 
 
