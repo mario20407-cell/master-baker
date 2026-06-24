@@ -33,8 +33,10 @@ export default function Precios() {
 
   return (
     <div style={{ fontFamily: 'sans-serif', background: '#0F1117', minHeight: '100vh' }}>
-      <div style={{ background: '#1a1d27', borderBottom: '1px solid #2a2d3a', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <img src="/branding/logo-completo.png" alt="Master Baker" style={{ height: 44, objectFit: 'contain' }} />
+
+      <div style={{ background: '#1a1d27', borderBottom: '1px solid #2a2d3a', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+        <img src="/branding/logo-completo.png" alt="Master Baker" style={{ height: 90, objectFit: 'contain' }} />
+        <span style={{ color: '#F59E0B', fontSize: 12, fontWeight: 700, letterSpacing: 3, textTransform: 'uppercase' }}>Sistema de Gestion para Panaderias</span>
       </div>
 
       <div style={{ textAlign: 'center', padding: '56px 24px 36px' }}>
@@ -116,10 +118,11 @@ export default function Precios() {
         </div>
       </div>
 
-      <div style={{ background: '#1a1d27', borderTop: '1px solid #2a2d3a', padding: '28px', textAlign: 'center' }}>
-        <img src="/branding/logo-completo.png" alt="Master Baker" style={{ height: 36, objectFit: 'contain', marginBottom: 8 }} />
+      <div style={{ background: '#1a1d27', borderTop: '1px solid #2a2d3a', padding: '36px', textAlign: 'center' }}>
+        <img src="/branding/logo-completo.png" alt="Master Baker" style={{ height: 60, objectFit: 'contain', marginBottom: 12 }} />
         <div style={{ color: '#4B5563', fontSize: 12 }}>Chinandega, Nicaragua · mario20407@gmail.com · +505 7692-6316</div>
       </div>
+
     </div>
   )
 }
