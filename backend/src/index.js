@@ -23,7 +23,7 @@ const app = express()
 const PORT = process.env.PORT || 3001
 app.set('trust proxy', 1)
 app.use(helmet())
-const allowedOrigins = ['https://masterbaker.store', 'https://marquez-app-v27.vercel.app', 'http://localhost:5173']; app.use(cors({ origin: (origin, cb) => cb(null, allowedOrigins.includes(origin) || !origin), credentials: true }))
+const allowedOrigins = ['https://masterbaker.store', 'https://www.masterbaker.store', 'https://marquez-app-v27.vercel.app', 'http://localhost:5173']; app.use(cors({ origin: (origin, cb) => cb(null, allowedOrigins.includes(origin) || !origin), credentials: true }))
 app.use(morgan('dev'))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
