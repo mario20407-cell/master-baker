@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import {
   FileText, LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
@@ -8,7 +8,7 @@ import {
 const NAV = [
   { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',      badge: 'NEW' },
-  { to: '/catalogo',   icon: BookOpen,         label: 'Catálogo' },
+  { to: '/catalogo',   icon: BookOpen,         label: 'Cat�logo' },
   { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE' },
   { to: '/costeo',     icon: Calculator,       label: 'Costeo' },
   { to: '/escalado',   icon: Scale,            label: 'Escalado' },
@@ -42,13 +42,7 @@ export default function Layout() {
       <aside className={`fixed lg:static inset-y-0 left-0 z-30 w-56 border-r flex flex-col transition-transform duration-200 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
         <div className="flex items-center gap-3 px-4 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <Link to="/dashboard" className="flex items-center gap-3 flex-1 min-w-0" onClick={() => setSidebarOpen(false)}>
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#263D4F' }}>
-              <img src="/branding/logo-emblema.png" alt="Master Baker" className="w-9 h-9 object-contain" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold leading-tight tracking-wide" style={{ color: '#263D4F' }}>MASTER BAKER</div>
-              <div className="text-[10px] text-gray-400 leading-tight">Gestión Inteligente de Panadería</div>
-            </div>
+            <img src="/branding/logo-completo.png" alt="Master Baker" className="h-12 object-contain" />
           </Link>
           <button className="ml-auto lg:hidden text-gray-400" onClick={() => setSidebarOpen(false)}>
             <X size={16} />
@@ -73,7 +67,7 @@ export default function Layout() {
           ))}
         </nav>
         <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
-          <div className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>v3.2 · Margen objetivo ≥57%</div>
+          <div className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>v3.2 � Margen objetivo =57%</div>
         </div>
       </aside>
 
@@ -85,7 +79,7 @@ export default function Layout() {
           <h1 className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{currentPage}</h1>
           <div className="ml-auto flex items-center gap-2">
             <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ background: '#EAF3DE', color: '#27500A' }}>
-              Margen objetivo: ≥57%
+              Margen objetivo: =57%
             </span>
             <button
               onClick={() => setDarkMode(d => !d)}

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
-import { getReceta } from '../lib/api'
 import { CAT_COLORS } from '../lib/catalogo'
 import { useCatalogo } from '../hooks/useCatalogo'
 import { ChefHat, Plus, Search, Upload, Edit2, Trash2, Calculator, CheckCircle, AlertTriangle } from 'lucide-react'
@@ -9,7 +8,7 @@ import { getInventario } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
-const UNIDADES = ['kg', 'g', 'L', 'ml', 'unidad', 'porci�n']
+const UNIDADES = ['kg', 'g', 'L', 'ml', 'unidad', 'porción']
 
 function IngredienteRow({ ing, onChange, onDelete, insumos = [], recetasLista = [] }) {
   const [sugerencias, setSugerencias] = useState([])
@@ -28,8 +27,7 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [], recetasLista = 
     onChange({ ...ing, nombre: val })
     const filtrados = val.length > 0 ? insumos.filter(i => i.nombre.toLowerCase().includes(val.toLowerCase())) : insumos
     setSugerencias(filtrados)
-    const haySubRecetas = val.length > 0 && recetasLista.some(r => r.producto.toLowerCase().includes(val.toLowerCase()))
-    setMostrarSug(filtrados.length > 0 || haySubRecetas)
+    setMostrarSug(filtrados.length > 0)
   }
 
   const seleccionarSubReceta = (receta) => {
@@ -48,7 +46,7 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [], recetasLista = 
         <input
           value={ing.nombre} placeholder="Ingrediente"
           onChange={e => handleNombre(e.target.value)}
-          onFocus={() => { setSugerencias(insumos); setMostrarSug(insumos.length > 0 || recetasLista.length > 0) }}
+          onFocus={() => { setSugerencias(insumos); setMostrarSug(insumos.length > 0) }}
           className={ing.tipo === 'indirecto' ? 'bg-blue-50 w-full' : 'w-full'}
         />
         {mostrarSug && (
@@ -58,7 +56,7 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [], recetasLista = 
               : sugerencias.map(s => (
                 <div key={s.id} onClick={() => seleccionar(s)} style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: 'var(--color-text,#111827)' }} onMouseEnter={e => e.currentTarget.style.background='var(--color-surface-2,#f3f4f6)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
                   <span style={{ fontWeight: 500 }}>{s.nombre}</span>
-                  <span style={{ fontSize: '11px', color: 'var(--color-text-secondary,#6b7280)', marginLeft: '6px' }}>{s.unidad} � C$ {parseFloat(s.costo_unitario||0).toFixed(2)}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-secondary,#6b7280)', marginLeft: '6px' }}>{s.unidad} · C$ {parseFloat(s.costo_unitario||0).toFixed(2)}</span>
                 </div>
               ))
             }
@@ -88,7 +86,7 @@ function IngredienteRow({ ing, onChange, onDelete, insumos = [], recetasLista = 
   )
 }
 
-function FormReceta({ inicial, onGuardar, onCancelar, productos, recetasLista = [] }) {
+function FormReceta({ inicial, onGuardar, onCancelar, productos }) {
   const [insumos, setInsumos] = useState([])
   useEffect(() => { getInventario().then(r => setInsumos(r.data || [])).catch(() => {}) }, [])
   const prodNombre0 = inicial?.producto || ''
@@ -99,11 +97,11 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos, recetasLista = 
   const [notas, setNotas] = useState(inicial?.notas || '')
   const [ings, setIngs] = useState(inicial?.ingredientes || [
     { nombre: 'Harina',                 cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
-    { nombre: 'Az�car',                 cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
+    { nombre: 'Azúcar',                 cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
     { nombre: 'Huevos',                 cantidad: '', unidad: 'unidad', precio: '', tipo: 'directo' },
     { nombre: 'Margarina',              cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
-    { nombre: 'Gas (indirecto)',        cantidad: '', unidad: 'porci�n',precio: '', tipo: 'indirecto' },
-    { nombre: 'Mano de obra (indirecto)', cantidad: '', unidad: 'porci�n', precio: '', tipo: 'indirecto' },
+    { nombre: 'Gas (indirecto)',        cantidad: '', unidad: 'porción',precio: '', tipo: 'indirecto' },
+    { nombre: 'Mano de obra (indirecto)', cantidad: '', unidad: 'porción', precio: '', tipo: 'indirecto' },
     { nombre: 'Empaque',                cantidad: '', unidad: 'unidad', precio: '', tipo: 'directo' },
   ])
 
@@ -189,8 +187,8 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos, recetasLista = 
         ))}
 
         <div className="flex gap-2 mt-1 text-xs text-gray-400">
-          <span className="badge-gray">Directo</span> ingredientes f�sicos &nbsp;
-          <span className="badge-info">Indirecto</span> gas, energ�a, mano de obra
+          <span className="badge-gray">Directo</span> ingredientes físicos &nbsp;
+          <span className="badge-info">Indirecto</span> gas, energía, mano de obra
         </div>
       </div>
 
@@ -220,7 +218,6 @@ export default function Recetas() {
   const [pegProd, setPegProd] = useState('')
   const [pegPiezas, setPegPiezas] = useState('')
   const [detalle, setDetalle] = useState(null)
-  const [detalleIngredientes, setDetalleIngredientes] = useState({})
 
   const lista = Object.values(recetas).filter(r =>
     !busqueda || r.producto.toLowerCase().includes(busqueda.toLowerCase())
@@ -237,20 +234,8 @@ export default function Recetas() {
     setVista('editar')
   }
 
-  const toggleDetalle = async (producto) => {
-    if (detalle === producto) { setDetalle(null); return }
-    setDetalle(producto)
-    if (!detalleIngredientes[producto]) {
-      try {
-        const res = await getReceta(encodeURIComponent(producto))
-        setDetalleIngredientes(prev => ({ ...prev, [producto]: res.data?.ingredientes || [] }))
-      } catch (e) { console.error('Error cargando detalle:', e) }
-    }
-  
-  }
-
   const handleEliminar = async (nombre) => {
-    if (confirm(`�Eliminar receta de "${nombre}"?`)) await eliminar(nombre)
+    if (confirm(`¿Eliminar receta de "${nombre}"?`)) await eliminar(nombre)
   }
 
   const importarPegado = async () => {
@@ -266,7 +251,7 @@ export default function Recetas() {
           ings.push({ nombre, cantidad, unidad, precio, tipo: nombre.toLowerCase().includes('indirecto') ? 'indirecto' : 'directo' })
       }
     })
-    if (!ings.length) { toast.error('No se encontraron ingredientes v�lidos'); return }
+    if (!ings.length) { toast.error('No se encontraron ingredientes válidos'); return }
     const prod = productos?.find(p => p.nombre === pegProd)
     await guardar({ producto: prod?.nombre || pegProd, categoria: prod?.categoria || '', pventa: prod?.precio || 0, presentacion: prod?.presentacion || 'unidad',
       piezas: parseInt(pegPiezas), peso: 0, merma: 0, notas: '', ingredientes: ings })
@@ -330,7 +315,7 @@ export default function Recetas() {
             <div className="card text-center py-12">
               <ChefHat size={36} className="mx-auto text-gray-300 mb-3" />
               <p className="text-sm text-gray-500 mb-4">
-                {busqueda ? `Sin resultados para "${busqueda}"` : 'A�n no tienes recetas guardadas.'}
+                {busqueda ? `Sin resultados para "${busqueda}"` : 'Aún no tienes recetas guardadas.'}
               </p>
               {esAdmin && (
               <button onClick={() => setVista('nueva')} className="btn-primary inline-flex items-center gap-2">
@@ -348,7 +333,7 @@ export default function Recetas() {
                   <div key={r.producto}>
                     <div
                       className={`card cursor-pointer hover:border-amber-300 transition-all ${sel ? 'border-brand-400' : ''}`}
-                      onClick={() => toggleDetalle(r.producto)}
+                      onClick={() => setDetalle(sel ? null : r.producto)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -392,9 +377,9 @@ export default function Recetas() {
                               <tr><th>Ingrediente</th><th>Cantidad</th><th>Unidad</th><th className="text-right">C$/u</th><th className="text-right">Subtotal</th><th>Tipo</th></tr>
                             </thead>
                             <tbody>
-                              {(detalleIngredientes[r.producto] || r.ingredientes)?.map((ing, i) => (
+                              {r.ingredientes?.map((ing, i) => (
                                 <tr key={i}>
-                                  <td>{ing.nombre}{(!ing.unidad_inventario && ing.tipo !== 'subreceta') && <span title="Sin conversi?n de unidad" style={{marginLeft:4,fontSize:10,color:"#F59E0B"}}>?</span>}</td>
+                                  <td>{ing.nombre}{!ing.unidad_inventario && <span title="Sin conversi?n de unidad" style={{marginLeft:4,fontSize:10,color:"#F59E0B"}}>?</span>}</td>
                                   <td>{ing.cantidad}</td>
                                   <td>{ing.unidad}</td>
                                   <td className="text-right">C$ {(ing.precio || 0).toFixed(2)}</td>
@@ -443,7 +428,7 @@ export default function Recetas() {
             <div className="form-group">
               <label className="form-label">Producto</label>
               <select value={pegProd} onChange={e => setPegProd(e.target.value)}>
-                <option value="">� Seleccionar �</option>
+                <option value="">— Seleccionar —</option>
                 {(productos || []).map(p => <option key={p.nombre} value={p.nombre}>{p.nombre}</option>)}
               </select>
             </div>
@@ -453,9 +438,9 @@ export default function Recetas() {
             </div>
           </div>
           <div className="form-group mb-3">
-            <label className="form-label">Pegar tabla aqu�</label>
+            <label className="form-label">Pegar tabla aquí</label>
             <textarea rows={8} value={pegado} onChange={e => setPegado(e.target.value)}
-              placeholder={"Harina\t0.5\tkg\t28\nAz�car\t0.2\tkg\t18\nHuevos\t3\tunidad\t5\nGas (indirecto)\t1\tporci�n\t15"} />
+              placeholder={"Harina\t0.5\tkg\t28\nAzúcar\t0.2\tkg\t18\nHuevos\t3\tunidad\t5\nGas (indirecto)\t1\tporción\t15"} />
           </div>
           <div className="flex gap-2">
             <button onClick={importarPegado} className="btn-primary flex items-center gap-2">
