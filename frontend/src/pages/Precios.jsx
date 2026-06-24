@@ -34,9 +34,7 @@ export default function Precios() {
   return (
     <div style={{ fontFamily: 'sans-serif', background: '#0F1117', minHeight: '100vh' }}>
       <div style={{ background: '#1a1d27', borderBottom: '1px solid #2a2d3a', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontSize: 24 }}>🍞</span>
-        <span style={{ color: '#fff', fontWeight: 700, fontSize: 18 }}>Master Baker</span>
-        <span style={{ color: '#F59E0B', fontSize: 13, marginLeft: 4 }}>Sistema de gestion para panaderias</span>
+        <img src="/branding/logo-completo.png" alt="Master Baker" style={{ height: 44, objectFit: 'contain' }} />
       </div>
 
       <div style={{ textAlign: 'center', padding: '56px 24px 36px' }}>
@@ -51,7 +49,7 @@ export default function Precios() {
           const crd = Math.round(p.usd * TC)
           const sel = planSel?.id === p.id
           return (
-            <div key={p.id} style={{ background: p.destacado ? '#1E2030' : '#161824', borderRadius: 20, padding: 32, flex: '1 1 260px', maxWidth: 290, border: p.destacado ? `2px solid ${p.color}` : '1px solid #2a2d3a', boxShadow: p.destacado ? `0 0 40px ${p.color}30` : 'none', position: 'relative', transition: 'transform 0.2s' }}>
+            <div key={p.id} style={{ background: p.destacado ? '#1E2030' : '#161824', borderRadius: 20, padding: 32, flex: '1 1 260px', maxWidth: 290, border: p.destacado ? `2px solid ${p.color}` : '1px solid #2a2d3a', boxShadow: p.destacado ? `0 0 40px ${p.color}30` : 'none', position: 'relative' }}>
               {p.destacado && <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: p.color, color: '#000', fontSize: 11, fontWeight: 800, padding: '5px 16px', borderRadius: 20, whiteSpace: 'nowrap' }}>MAS POPULAR</div>}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                 <div style={{ background: p.color + '25', borderRadius: 12, padding: 10 }}><Icon size={22} color={p.color} /></div>
@@ -72,8 +70,8 @@ export default function Precios() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => seleccionar(p)} style={{ width: '100%', padding: '13px 0', borderRadius: 12, border: 'none', cursor: 'pointer', background: sel ? p.color : p.destacado ? p.color : '#2a2d3a', color: sel || p.destacado ? '#000' : '#fff', fontWeight: 800, fontSize: 14, transition: 'all 0.2s' }}>
-                {sel ? 'Seleccionado ✓' : 'Quiero este plan'}
+              <button onClick={() => seleccionar(p)} style={{ width: '100%', padding: '13px 0', borderRadius: 12, border: 'none', cursor: 'pointer', background: sel ? p.color : p.destacado ? p.color : '#2a2d3a', color: sel || p.destacado ? '#000' : '#fff', fontWeight: 800, fontSize: 14 }}>
+                {sel ? 'Seleccionado' : 'Quiero este plan'}
               </button>
             </div>
           )
@@ -119,7 +117,7 @@ export default function Precios() {
       </div>
 
       <div style={{ background: '#1a1d27', borderTop: '1px solid #2a2d3a', padding: '28px', textAlign: 'center' }}>
-        <div style={{ color: '#fff', fontWeight: 700, marginBottom: 6, fontSize: 15 }}>🍞 Master Baker</div>
+        <img src="/branding/logo-completo.png" alt="Master Baker" style={{ height: 36, objectFit: 'contain', marginBottom: 8 }} />
         <div style={{ color: '#4B5563', fontSize: 12 }}>Chinandega, Nicaragua · mario20407@gmail.com · +505 7692-6316</div>
       </div>
     </div>
