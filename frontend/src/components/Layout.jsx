@@ -8,7 +8,7 @@ import {
 const NAV = [
   { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',      badge: 'NEW' },
-  { to: '/catalogo',   icon: BookOpen,         label: 'Cat�logo' },
+  { to: '/catalogo',   icon: BookOpen,         label: 'Catálogo' },
   { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE' },
   { to: '/costeo',     icon: Calculator,       label: 'Costeo' },
   { to: '/escalado',   icon: Scale,            label: 'Escalado' },
@@ -76,7 +76,7 @@ export default function Layout() {
           <button className="lg:hidden text-gray-500 hover:text-gray-700" onClick={() => setSidebarOpen(true)}>
             <Menu size={20} />
           </button>
-          <div className="flex flex-col"><span className="text-xs font-bold tracking-widest uppercase" style={{ color: '#263D4F' }}>Master Baker</span><span className="text-[10px] tracking-wider" style={{ color: '#C29C53' }}>Sistema de Gesti�n Inteligente de Panader�a</span></div>
+          <div className="flex flex-col"><span className="text-xs font-bold tracking-widest uppercase" style={{ color: '#263D4F' }}>Master Baker</span><span className="text-[10px] tracking-wider" style={{ color: '#C29C53' }}>Sistema de Gestión Inteligente de Panader�a</span></div>
           <div className="ml-auto flex items-center gap-2">
             <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ background: '#EAF3DE', color: '#27500A' }}>
               Margen objetivo: =57%
