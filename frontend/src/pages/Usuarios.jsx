@@ -1,4 +1,4 @@
-// pages/Usuarios.jsx — v3.0 Panel de gestion de usuarios (solo admin)
+// pages/Usuarios.jsx — v3.0 Panel de gestión de usuarios (solo admin)
 import { useState, useEffect } from 'react'
 import { Users, Plus, UserCheck, UserX, Mail, Shield, Clock, Eye, EyeOff } from 'lucide-react'
 import { getUsuarios, registrarUsuario, toggleUsuario } from '../lib/api'
@@ -31,11 +31,11 @@ export default function Usuarios() {
 
   const handleCrear = async () => {
     if (!form.nombre || !form.email || !form.password) {
-      toast.error('Nombre, email y contrasena son requeridos')
+      toast.error('Nombre, email y contraseña son requeridos')
       return
     }
     if (form.password.length < 8) {
-      toast.error('La contrasena debe tener al menos 8 caracteres')
+      toast.error('La contraseña debe tener al menos 8 caracteres')
       return
     }
     setGuardando(true)
@@ -161,7 +161,7 @@ export default function Usuarios() {
           <Shield size={13} className="text-gray-400 mt-0.5 flex-shrink-0" />
           <p className="text-xs text-gray-500">
             Los operarios pueden registrar ventas, consultar inventario y usar la IA, pero no pueden editar precios, recetas ni configuracion fiscal.
-            Al desactivar una cuenta el usuario no puede iniciar sesion, pero sus registros se conservan.
+            Al desactivar una cuenta el usuario no puede iniciar sesión, pero sus registros se conservan.
           </p>
         </div>
       </div>

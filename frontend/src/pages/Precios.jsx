@@ -7,8 +7,8 @@ const FORMSPREE = 'https://formspree.io/f/xdkoznqw'
 const TC = 36.50
 
 const planes = [
-  { id: 'starter', icon: ChefHat, nombre: 'Starter', usd: 10, descripcion: 'Ideal para panaderias pequenas', color: '#A78BFA', features: ['Hasta 50 productos en catalogo','Recetas y costeo ilimitadas','Control de inventario','Registro de ventas','Compras con IA','1 usuario operario','Soporte por WhatsApp'] },
-  { id: 'pro', icon: Zap, nombre: 'Pro', usd: 20, descripcion: 'Para panaderias en crecimiento', color: '#F59E0B', destacado: true, features: ['Todo lo de Starter','Productos ilimitados','Modulo de produccion','Reportes PDF','Dashboard de rentabilidad','3 usuarios operarios','Gestion fiscal DGI','Soporte prioritario'] },
+  { id: 'starter', icon: ChefHat, nombre: 'Starter', usd: 10, descripcion: 'Ideal para panaderías pequeñas', color: '#A78BFA', features: ['Hasta 50 productos en catálogo','Recetas y costeo ilimitadas','Control de inventario','Registro de ventas','Compras con IA','1 usuario operario','Soporte por WhatsApp'] },
+  { id: 'pro', icon: Zap, nombre: 'Pro', usd: 20, descripcion: 'Para panaderías en crecimiento', color: '#F59E0B', destacado: true, features: ['Todo lo de Starter','Productos ilimitados','Módulo de producción','Reportes PDF','Dashboard de rentabilidad','3 usuarios operarios','Gestión fiscal DGI','Soporte prioritario'] },
   { id: 'plus', icon: Crown, nombre: 'Plus', usd: 30, descripcion: 'Para cadenas y distribuidores', color: '#38BDF8', features: ['Todo lo de Pro','Usuarios ilimitados','Integracion Monica','GPS vendedores','API abierta','Multi-sucursal','Nomina y planilla','Gerente dedicado'] }
 ]
 

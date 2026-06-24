@@ -33,10 +33,10 @@ export default function Login() {
         <div className="text-center mb-8">
           <div className="text-4xl mb-2">🥐</div>
           <h1 className="text-2xl font-semibold text-gray-800">Master Baker</h1>
-          <p className="text-sm text-gray-500 mt-1">Sistema de gestion para panaderias</p>
+          <p className="text-sm text-gray-500 mt-1">Sistema de gestión para panaderías</p>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          <h2 className="text-base font-medium text-gray-700 mb-6">Iniciar sesion</h2>
+          <h2 className="text-base font-medium text-gray-700 mb-6">Iniciar sesión</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="form-group">
               <label className="form-label">Correo electronico</label>

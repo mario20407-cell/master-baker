@@ -1,4 +1,4 @@
-// pages/Produccion.jsx — v3.0 Ordenes de produccion con merma automatica
+// pages/Produccion.jsx — v3.0 Órdenes de producción con merma automática
 import { useState, useEffect, useCallback } from 'react'
 import { Factory, Plus, CheckCircle, AlertTriangle, ChevronDown, Clock, Package } from 'lucide-react'
 import { getRecetas, verificarProduccion, crearOrdenProduccion, getHistorialProduccion } from '../lib/api'
@@ -75,7 +75,7 @@ export default function Produccion() {
       {/* FORMULARIO NUEVA ORDEN */}
       <div className="card">
         <h3 className="text-sm font-medium text-gray-700 mb-4 flex items-center gap-2">
-          <Factory size={15} /> Nueva orden de produccion
+          <Factory size={15} /> Nueva orden de producción
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">

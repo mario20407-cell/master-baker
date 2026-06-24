@@ -37,7 +37,7 @@ export function Catalogo() {
       const { data } = await getCatalogo()
       setProductos(data)
     } catch {
-      toast.error('No se pudo cargar el catalogo')
+      toast.error('No se pudo cargar el catálogo')
     } finally {
       setLoading(false)
     }
@@ -90,7 +90,7 @@ export function Catalogo() {
     const pct = parseFloat(pctMasivo)
     if (!pct && pct !== 0) { toast.error('Ingresa un porcentaje'); return }
     const verbo = pct >= 0 ? 'subir' : 'bajar'
-    const objetivo = catMasivo === 'Todos' ? 'TODO el catalogo' : `la categoria "${catMasivo}"`
+    const objetivo = catMasivo === 'Todos' ? 'TODO el catálogo' : `la categoría "${catMasivo}"`
     if (!confirm(`Vas a ${verbo} ${Math.abs(pct)}% el precio de ${objetivo}?`)) return
     setPinAccion(() => async (pin) => {
       try {
@@ -115,7 +115,7 @@ export function Catalogo() {
     }
   }
 
-  if (loading) return <div className="text-sm text-gray-400 py-8 text-center">Cargando catalogo...</div>
+  if (loading) return <div className="text-sm text-gray-400 py-8 text-center">Cargando catálogo...</div>
 
   return (
     <div className="max-w-5xl">
@@ -143,7 +143,7 @@ export function Catalogo() {
             <div className="form-group">
               <label className="form-label">Categoria</label>
               <select value={catMasivo} onChange={e => setCatMasivo(e.target.value)}>
-                <option value="Todos">Todo el catalogo</option>
+                <option value="Todos">Todo el catálogo</option>
                 {categorias.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
@@ -162,7 +162,7 @@ export function Catalogo() {
       {panelAuditoria && (
         <div className="card mb-4">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-medium text-gray-700">Ultimos cambios al catalogo</h3>
+            <h3 className="text-sm font-medium text-gray-700">Últimos cambios al catálogo</h3>
             <button onClick={() => setPanelAuditoria(false)} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
           </div>
           {auditoria.length === 0 ? (
