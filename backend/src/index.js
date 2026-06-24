@@ -1,5 +1,5 @@
 import 'dotenv/config'
-if (!process.env.JWT_SECRET) process.env.JWT_SECRET = 'REMOVED'
+if (!process.env.JWT_SECRET) process.env.JWT_SECRET = 'temp_fallback_delete_after_demo'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
