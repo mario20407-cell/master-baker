@@ -17,6 +17,7 @@ import Ayuda from './pages/Ayuda'
 import Usuarios from './pages/Usuarios'
 import Produccion from './pages/Produccion'
 import Reportes from './pages/Reportes'
+import Politicas from './pages/Politicas'
 import Precios from './pages/Precios'
 
 function RutaProtegida({ children }) {

@@ -17,6 +17,7 @@ const NAV = [
   { to: '/produccion', icon: Factory,           label: 'Producción',  badge: 'NEW' },
   { to: '/compras',    icon: Receipt,          label: 'Compras' },
   { to: '/reportes', icon: FileText, label: 'Reportes' },
+  { to: '/politicas', icon: Shield, label: 'Políticas' },
   { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
   { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI' },
   { to: '/usuarios',   icon: Users,            label: 'Usuarios' },
