@@ -1,11 +1,11 @@
-﻿// src/services/ai/aiProvider.js
+// src/services/ai/aiProvider.js
 //
-// Capa Ãºnica de acceso a los modelos de IA.
-// v2.7.1 â€” OptimizaciÃ³n de tokens:
+// Capa única de acceso a los modelos de IA.
+// v2.7.1 — Optimización de tokens:
 //   - Clasificador de complejidad: simple (300 tokens) vs complejo (1024)
 //   - Historial reducido: 4 mensajes para simple, 6 para complejo
 //   - System prompt comprimido sin redundancias
-//   - Modelo corregido: claude-3-5-sonnet-20241022
+//   - Modelo corregido: claude-haiku-4-5-20251001
 
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
@@ -15,7 +15,7 @@ export const AI_CONFIG = {
   USE_MOCKS: false,
 }
 
-// â”€â”€ Clientes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Clientes ──────────────────────────────────────────────────────────────────
 const getOpenAI = () => {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY no configurada')
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -36,13 +36,13 @@ const getGemini = () => {
   return new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 }
 
-// â”€â”€ Clasificador de complejidad â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Decide cuÃ¡ntos tokens y mensajes de historial usar.
-// Simple: preguntas cortas, cÃ¡lculos directos â†’ 300 tokens, 4 mensajes
-// Complejo: recetas, anÃ¡lisis, comparaciones â†’ 1024 tokens, 6 mensajes
+// ── Clasificador de complejidad ───────────────────────────────────────────────
+// Decide cuántos tokens y mensajes de historial usar.
+// Simple: preguntas cortas, cálculos directos → 300 tokens, 4 mensajes
+// Complejo: recetas, análisis, comparaciones → 1024 tokens, 6 mensajes
 const PALABRAS_COMPLEJAS = [
   'receta', 'ingrediente', 'analiza', 'compara', 'optimiza',
-  'estrategia', 'recomendaciÃ³n', 'explica', 'detalla', 'plan',
+  'estrategia', 'recomendación', 'explica', 'detalla', 'plan',
   'semana', 'mes', 'lote', 'escalado', 'todos', 'lista',
 ]
 
@@ -55,46 +55,46 @@ function clasificarComplejidad(messages) {
   }
 }
 
-// â”€â”€ Mock helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Mock helper ───────────────────────────────────────────────────────────────
 function mockLog(modelo, messages) {
   const ultimo = messages?.[messages.length - 1]?.content || ''
-  console.log(`[MOCK] ${modelo} â† "${String(ultimo).slice(0, 60)}..."`)
+  console.log(`[MOCK] ${modelo} ← "${String(ultimo).slice(0, 60)}..."`)
 }
 
-// â”€â”€ System prompt comprimido para MarquÃ©z â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// VersiÃ³n reducida: mismo contexto, ~40% menos tokens que el original.
-const SYSTEM_MARQUEZ = `Eres el asesor de negocio de MarquÃ©z PanaderÃ­a & ReposterÃ­a, Chinandega, Nicaragua.
+// ── System prompt comprimido para Marquéz ────────────────────────────────────
+// Versión reducida: mismo contexto, ~40% menos tokens que el original.
+const SYSTEM_MARQUEZ = `Eres el asesor de negocio de Marquéz Panadería & Repostería, Chinandega, Nicaragua.
 
 REGLAS DE NEGOCIO:
-- Margen mÃ­nimo 57% (FACTOR_COSTO_MAX=0.43). Moneda: cÃ³rdobas (C$). 49 productos.
-- FÃ³rmulas: margen=((pventa-costo)/pventa)*100 | precio_mÃ­nimo=costo/0.43
-- RÃ©gimen fiscal: Cuota Fija DGI o RÃ©gimen General. Prorrateo = cuota_mensual/unidades_mes.
+- Margen mínimo 57% (FACTOR_COSTO_MAX=0.43). Moneda: córdobas (C$). 49 productos.
+- Fórmulas: margen=((pventa-costo)/pventa)*100 | precio_mínimo=costo/0.43
+- Régimen fiscal: Cuota Fija DGI o Régimen General. Prorrateo = cuota_mensual/unidades_mes.
 
-SEMÃFORO DE MARGEN:
-- margen < 57% â†’ ALERTA CRÃTICA + precio mÃ­nimo requerido
-- margen 57-60% â†’ APROBADO, advertir colchÃ³n estrecho
-- margen > 60% â†’ APROBADO, margen saludable
+SEMÁFORO DE MARGEN:
+- margen < 57% → ALERTA CRÍTICA + precio mínimo requerido
+- margen 57-60% → APROBADO, advertir colchón estrecho
+- margen > 60% → APROBADO, margen saludable
 
 RECETAS BASE (cuando el usuario no tiene una):
-- Puedes sugerir recetas orientativas de panaderÃ­a nicaragÃ¼ense para 100 piezas.
-- Da ingredientes con cantidades en kg o g, claras y prÃ¡cticas.
-- Incluye: harina, azÃºcar, mantequilla/margarina, huevos, levadura, sal y los especÃ­ficos del producto.
-- Siempre aclara: "Estas cantidades son de referencia â€” ajÃºstalas segÃºn tu horno y proceso."
-- DespuÃ©s de dar la receta, ofrece costearla si el usuario comparte los precios de sus ingredientes.
+- Puedes sugerir recetas orientativas de panadería nicaragüense para 100 piezas.
+- Da ingredientes con cantidades en kg o g, claras y prácticas.
+- Incluye: harina, azúcar, mantequilla/margarina, huevos, levadura, sal y los específicos del producto.
+- Siempre aclara: "Estas cantidades son de referencia — ajústalas según tu horno y proceso."
+- Después de dar la receta, ofrece costearla si el usuario comparte los precios de sus ingredientes.
 
-PRODUCTOS DEL CATÃLOGO (referencia):
+PRODUCTOS DEL CATÁLOGO (referencia):
 Pan dulce: Prisionero, Repodona, Berlinesa, Rol de canela, Empanada de queso, Churro de queso, Quesadilla, Semita
-Salados: Pico de queso, Maleta de carne, Maleta de pollo, Pan pizza, Enrollado de jamÃ³n
+Salados: Pico de queso, Maleta de carne, Maleta de pollo, Pan pizza, Enrollado de jamón
 Donas: Azucarada, Chocolate, Glaseada
-Hojaldre: Croissant, Mil hojas, Palmeritas, NapoleÃ³n
-Pasteles: Pastel de piÃ±a, Pastel de pollo, Volteado de piÃ±a
+Hojaldre: Croissant, Mil hojas, Palmeritas, Napoleón
+Pasteles: Pastel de piña, Pastel de pollo, Volteado de piña
 Cheesecakes, Galletas, Rines, Tortas, Postres, Cupcakes
 
-TONO: directo, en espaÃ±ol nicaragÃ¼ense, con nÃºmeros concretos. Sin preÃ¡mbulos innecesarios.`
+TONO: directo, en español nicaragüense, con números concretos. Sin preámbulos innecesarios.`
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// chatCliente â€” GPT-4o mini (WhatsApp)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════════
+// chatCliente — GPT-4o mini (WhatsApp)
+// ═══════════════════════════════════════════════════════════════════════════════
 export async function chatCliente(messages, system) {
   if (AI_CONFIG.USE_MOCKS) {
     mockLog('gpt-4o-mini', messages)
@@ -120,15 +120,15 @@ export async function chatCliente(messages, system) {
   }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// logicaNegocio â€” Claude Sonnet 4.6 (reglas de negocio, mÃ¡rgenes, decisiones)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════════
+// logicaNegocio — Claude Sonnet 4.6 (reglas de negocio, márgenes, decisiones)
+// ═══════════════════════════════════════════════════════════════════════════════
 export async function logicaNegocio(messages, system, context = {}) {
   if (AI_CONFIG.USE_MOCKS) {
-    mockLog('claude-3-5-sonnet-20241022', messages)
+    mockLog('claude-haiku-4-5-20251001', messages)
     return {
       respuesta: `[MOCK Claude Sonnet 4.6] Respuesta simulada. Margen objetivo: 57%.`,
-      modelo: 'claude-3-5-sonnet-20241022 (mock)',
+      modelo: 'claude-haiku-4-5-20251001 (mock)',
       tokens: { input_tokens: 0, output_tokens: 0 },
     }
   }
@@ -142,7 +142,7 @@ export async function logicaNegocio(messages, system, context = {}) {
   if (context?.alertas) systemFinal += `\nALERTAS: ${context.alertas}`
 
   const res = await client.messages.create({
-    model:      'claude-3-5-sonnet-20241022',
+    model:      'claude-haiku-4-5-20251001',
     max_tokens,
     system:     systemFinal,
     messages:   messages.slice(-historial),
@@ -150,14 +150,14 @@ export async function logicaNegocio(messages, system, context = {}) {
 
   return {
     respuesta: res.content.filter(b => b.type === 'text').map(b => b.text).join('\n'),
-    modelo:    'claude-3-5-sonnet-20241022',
+    modelo:    'claude-haiku-4-5-20251001',
     tokens:    res.usage,
   }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// costeoMasivo â€” DeepSeek V3
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════════
+// costeoMasivo — DeepSeek V3
+// ═══════════════════════════════════════════════════════════════════════════════
 export async function costeoMasivo(messages, system, datos) {
   if (AI_CONFIG.USE_MOCKS) {
     mockLog('deepseek-v3', messages)
@@ -169,7 +169,7 @@ export async function costeoMasivo(messages, system, datos) {
           precio_minimo: 0,
           margen_pct:    57,
           aprobado:      true,
-          nota:          'Mock â€” sin DEEPSEEK_API_KEY',
+          nota:          'Mock — sin DEEPSEEK_API_KEY',
         }))
       : null
     return {
@@ -197,15 +197,15 @@ export async function costeoMasivo(messages, system, datos) {
   }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// analisisRazon â€” DeepSeek R1
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════════
+// analisisRazon — DeepSeek R1
+// ═══════════════════════════════════════════════════════════════════════════════
 export async function analisisRazon(messages, system) {
   if (AI_CONFIG.USE_MOCKS) {
     mockLog('deepseek-r1', messages)
     return {
-      respuesta:     '[MOCK DeepSeek R1] AnÃ¡lisis simulado.',
-      razonamiento:  '[MOCK] Paso 1 â†’ Paso 2 â†’ ConclusiÃ³n.',
+      respuesta:     '[MOCK DeepSeek R1] Análisis simulado.',
+      razonamiento:  '[MOCK] Paso 1 → Paso 2 → Conclusión.',
       modelo:        'deepseek-r1 (mock)',
       tokens:        { input_tokens: 0, output_tokens: 0 },
     }
@@ -225,12 +225,12 @@ export async function analisisRazon(messages, system) {
   }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// multimedia â€” Gemini 2.5 Flash (PDFs, imÃ¡genes, facturas)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════════
+// multimedia — Gemini 2.5 Flash (PDFs, imágenes, facturas)
+// ═══════════════════════════════════════════════════════════════════════════════
 export async function multimedia(prompt, fileData, mimeType) {
   if (AI_CONFIG.USE_MOCKS) {
-    console.log(`[MOCK] gemini-2.5-flash â† "${prompt.slice(0, 60)}"`)
+    console.log(`[MOCK] gemini-2.5-flash ← "${prompt.slice(0, 60)}"`)
     return {
       respuesta: JSON.stringify({ mock: true, nota: 'Sin GEMINI_API_KEY.' }),
       modelo:    'gemini-2.5-flash (mock)',
@@ -249,18 +249,18 @@ export async function multimedia(prompt, fileData, mimeType) {
   }
 }
 
-// â”€â”€ Estado de proveedores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Estado de proveedores ─────────────────────────────────────────────────────
 export function getProvidersStatus() {
   return {
-    'claude-3-5-sonnet-20241022': {
+    'claude-haiku-4-5-20251001': {
       activo:  AI_CONFIG.USE_MOCKS ? 'mock' : !!process.env.ANTHROPIC_API_KEY,
-      uso:     'LÃ³gica de negocio, mÃ¡rgenes, decisiones',
+      uso:     'Lógica de negocio, márgenes, decisiones',
       costo:   '~$0.003/1K tokens',
       keyVar:  'ANTHROPIC_API_KEY',
     },
     'gpt-4o-mini': {
       activo:  AI_CONFIG.USE_MOCKS ? 'mock' : !!process.env.OPENAI_API_KEY,
-      uso:     'Chat WhatsApp, atenciÃ³n al cliente',
+      uso:     'Chat WhatsApp, atención al cliente',
       costo:   '~$0.00015/1K tokens',
       keyVar:  'OPENAI_API_KEY',
     },
@@ -272,13 +272,13 @@ export function getProvidersStatus() {
     },
     'deepseek-r1': {
       activo:  AI_CONFIG.USE_MOCKS ? 'mock' : !!process.env.DEEPSEEK_API_KEY,
-      uso:     'AnÃ¡lisis profundo, optimizaciÃ³n',
+      uso:     'Análisis profundo, optimización',
       costo:   '~$0.00055/1K tokens',
       keyVar:  'DEEPSEEK_API_KEY',
     },
     'gemini-2.5-flash': {
       activo:  AI_CONFIG.USE_MOCKS ? 'mock' : !!process.env.GEMINI_API_KEY,
-      uso:     'PDFs, imÃ¡genes, facturas escaneadas',
+      uso:     'PDFs, imágenes, facturas escaneadas',
       costo:   '~$0.000075/1K tokens',
       keyVar:  'GEMINI_API_KEY',
     },
