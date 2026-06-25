@@ -97,11 +97,22 @@ export function Compras() {
     setResultado({ items: itsValidos, alertas, total: itsValidos.reduce((s, i) => s + i.cantidad * parseFloat(i.precio_actual), 0) })
 
     try {
+      // Solo muestra el análisis, no guarda aún
+    } catch (e) {}
+  }
+
+  const guardarFactura = async () => {
+    const itsValidos = items.filter(i => i.producto && parseFloat(i.precio_actual) > 0)
+    if (!itsValidos.length) { toast.error('Agrega al menos un producto con precio'); return }
+    try {
       await saveFactura({ proveedor: prov, fecha, items: itsValidos })
       const r = await getCompras()
       setHistorial(r.data)
       toast.success('✅ Factura guardada e inventario actualizado')
-    } catch (e) {}
+      setProv(''); setFecha(new Date().toISOString().split('T')[0])
+      setItems([{ producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
+      setResultado(null)
+    } catch (e) { toast.error('Error al guardar la factura') }
   }
 
   const varPct = (actual, anterior) => {
@@ -173,7 +184,8 @@ export function Compras() {
         ))}
         <div className="flex gap-2 mt-2">
           <button onClick={addItem} className="btn-secondary flex items-center gap-1 text-xs"><Plus size={12} /> Ítem</button>
-          <button onClick={analizar} className="btn-primary flex items-center gap-2"><Receipt size={14} /> Analizar factura</button>
+          <button onClick={analizar} className="btn-secondary flex items-center gap-2"><Receipt size={14} /> Analizar factura</button>
+          <button onClick={guardarFactura} className="btn-primary flex items-center gap-2"><Receipt size={14} /> Guardar en inventario</button>
         </div>
       </div>
 
