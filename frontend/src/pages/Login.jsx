@@ -30,8 +30,8 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#FAF8F4' }}>
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <img src="/branding/logo-completo.png" alt="Master Baker" className="h-48 mx-auto" style={{ mixBlendMode: 'multiply' }} />
+        <div className="text-center mb-4">
+          <img src="/branding/logo-completo.png" alt="Master Baker" className="h-32 mx-auto" style={{ mixBlendMode: 'multiply' }} />
           <p className="text-base font-semibold text-gray-600 mt-1">Sistema de gestión para panaderías</p>
           <p className="text-xs text-gray-500 mt-1 italic font-semibold">"Danos el pan nuestro de cada día"</p>
         </div>
