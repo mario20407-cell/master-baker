@@ -24,19 +24,26 @@ const SUGERENCIAS = {
 }
 
 const mdStyles = `
-  .md-content table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
-  .md-content th { background: #f3f0ff; padding: 7px 12px; text-align: left; border-bottom: 2px solid #e5e7eb; font-weight: 700; color: #374151; }
-  .md-content td { padding: 6px 12px; border-bottom: 1px solid #f0f0f0; color: #374151; }
-  .md-content tr:hover td { background: #fafafa; }
-  .md-content h1, .md-content h2 { font-size: 14px; font-weight: 700; margin: 12px 0 6px; color: #111827; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
-  .md-content h3 { font-size: 13px; font-weight: 600; margin: 8px 0 4px; color: #1f2937; }
+  .md-content table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .md-content thead { background: #534AB7; }
+  .md-content th { padding: 9px 14px; text-align: left; font-weight: 600; color: #fff; font-size: 12px; letter-spacing: 0.3px; }
+  .md-content td { padding: 8px 14px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px; }
+  .md-content tr:nth-child(even) td { background: #f9f8ff; }
+  .md-content tr:hover td { background: #f3f0ff; }
+  .md-content tr:last-child td { border-bottom: none; }
+  .md-content h1, .md-content h2 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; color: #111827; border-bottom: 2px solid #C29C53; padding-bottom: 4px; display: inline-block; }
+  .md-content h3 { font-size: 13px; font-weight: 600; margin: 10px 0 4px; color: #534AB7; }
   .md-content ul, .md-content ol { padding-left: 18px; margin: 6px 0; }
-  .md-content li { margin: 3px 0; font-size: 13px; color: #374151; }
+  .md-content li { margin: 4px 0; font-size: 13px; color: #374151; }
+  .md-content li::marker { color: #C29C53; font-weight: 700; }
   .md-content strong { font-weight: 700; color: #111827; }
-  .md-content hr { border: none; border-top: 1px solid #e5e7eb; margin: 10px 0; }
-  .md-content p { margin: 4px 0; font-size: 13px; line-height: 1.6; }
-  .md-content code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-  .md-content blockquote { border-left: 3px solid #C29C53; padding-left: 10px; color: #6b7280; margin: 6px 0; }
+  .md-content hr { border: none; border-top: 1px solid #e5e7eb; margin: 12px 0; }
+  .md-content p { margin: 5px 0; font-size: 13px; line-height: 1.7; color: #374151; }
+  .md-content pre { background: #1e1e2e; border-radius: 8px; padding: 12px 16px; margin: 10px 0; overflow-x: auto; }
+  .md-content pre code { background: transparent; color: #cdd6f4; font-size: 12px; font-family: 'Courier New', monospace; padding: 0; }
+  .md-content code { background: #f3f0ff; color: #534AB7; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-family: 'Courier New', monospace; }
+  .md-content blockquote { border-left: 3px solid #C29C53; padding: 6px 12px; color: #6b7280; margin: 8px 0; background: #faf8f4; border-radius: 0 6px 6px 0; }
+  .md-content em { color: #6b7280; font-style: italic; }
 `
 
 export default function IAChat() {
