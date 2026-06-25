@@ -52,6 +52,27 @@ router.post('/', async (req, res, next) => {
             item.precio_actual || 0, item.precio_anterior || 0,
             variacion ? parseFloat(variacion.toFixed(2)) : null, alerta])
       }
+      // Actualizar inventario con los items de la factura
+      for (const item of items) {
+        if (!item.producto || !item.precio_actual) continue
+        const nombreNorm = item.producto.toLowerCase().trim()
+        // Buscar insumo por nombre similar
+        const { rows: insumos } = await client.query(`
+          SELECT id, nombre FROM inventario
+          WHERE tenant_id = $1 AND LOWER(nombre) LIKE $2
+          LIMIT 1
+        `, [tenantId, '%' + nombreNorm.substring(0, 6) + '%'])
+
+        if (insumos.length > 0) {
+          await client.query(`
+            UPDATE inventario
+            SET existencia = existencia + $1,
+                costo_unitario = $2
+            WHERE id = $3 AND tenant_id = $4
+          `, [item.cantidad || 1, item.precio_actual, insumos[0].id, tenantId])
+        }
+      }
+
       return f
     })
 
