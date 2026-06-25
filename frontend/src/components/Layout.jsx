@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
-  FileText, LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
+  FileText, LogOut, LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, Moon, Sun, Factory, Users
 } from 'lucide-react'
 
@@ -90,6 +90,13 @@ export default function Layout() {
               style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-secondary)' }}
               title={darkMode ? 'Modo claro' : 'Modo oscuro'}>
               {darkMode ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
+            <button
+              onClick={logout}
+              className="p-1.5 rounded-lg transition-colors"
+              style={{ background: 'var(--color-surface-2)', color: '#dc2626' }}
+              title="Cerrar sesion">
+              <LogOut size={15} />
             </button>
           </div>
         </header>
