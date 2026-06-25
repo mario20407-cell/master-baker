@@ -62,7 +62,8 @@ export default function App() {
         <Route path="ventas"      element={<Ventas />} />
         <Route path="produccion"  element={<Produccion />} />
         <Route path="ia"          element={<IAChat />} />
-        <Route path="reportes"    element={<Reportes />} />
+        <Route path="reportes" element={<Reportes />} />
+        <Route path="politicas" element={<Politicas />} />
         <Route path="exportar"    element={<Exportar />} />
         <Route path="fiscal"      element={<SoloAdmin><ConfigFiscal /></SoloAdmin>} />
         <Route path="usuarios"    element={<SoloAdmin><Usuarios /></SoloAdmin>} />
