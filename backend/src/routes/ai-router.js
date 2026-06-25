@@ -12,18 +12,16 @@ import { verificarYRegistrarUso, requierePlan } from '../middleware/planMiddlewa
 
 const router = Router()
 
-// ── Clasificador de tareas ────────────────────────────────────────────────────
 const TASK_TYPES = {
-  CHAT_CLIENTE:    'chat_cliente',    // GPT-4 mini
-  LOGICA_NEGOCIO:  'logica_negocio',  // Claude 3.5 Sonnet
-  COSTEO_MASIVO:   'costeo_masivo',   // DeepSeek V3
-  ANALISIS_RAZON:  'analisis_razon',  // DeepSeek R1
-  MULTIMEDIA:      'multimedia',      // Gemini 2.5 Flash
+  CHAT_CLIENTE:    'chat_cliente',
+  LOGICA_NEGOCIO:  'logica_negocio',
+  COSTEO_MASIVO:   'costeo_masivo',
+  ANALISIS_RAZON:  'analisis_razon',
+  MULTIMEDIA:      'multimedia',
 }
 
-// Mapea cada taskType a la columna correspondiente en la tabla `planes`.
 const TASK_TO_FUNCION_PLAN = {
-  [TASK_TYPES.CHAT_CLIENTE]:   'asesor_negocio',   // chat directo desde el dashboard, no WhatsApp
+  [TASK_TYPES.CHAT_CLIENTE]:   'asesor_negocio',
   [TASK_TYPES.LOGICA_NEGOCIO]: 'asesor_negocio',
   [TASK_TYPES.COSTEO_MASIVO]:  'costeo_masivo',
   [TASK_TYPES.ANALISIS_RAZON]: 'analisis_profundo',
@@ -56,9 +54,8 @@ function clasificarTarea(tipo) {
   return mapa[tipo?.toLowerCase()] || TASK_TYPES.LOGICA_NEGOCIO
 }
 
-// ── Prompts de sistema por dominio ────────────────────────────────────────────
 const SYSTEM_PROMPTS = {
-  [TASK_TYPES.CHAT_CLIENTE]: `Eres el asistente virtual de Marquéz Panadería & Repostería en Nicaragua.
+  [TASK_TYPES.CHAT_CLIENTE]: `Eres el asistente virtual de Master Baker, el sistema de gestión para panaderías nicaragüenses.
 Eres amable, conciso y orientado a ventas. Respondes en español.
 Conoces el menú completo, precios y puedes tomar pedidos.
 Cuando el cliente quiere pedir, confirma: producto, cantidad, nombre y método de entrega.
@@ -72,30 +69,69 @@ Cheesecakes: Maracuyá porción 120, Fresa porción 140, Oreo porción 120
 Galletas: Avena 20, Chocochips 40, Coco 35
 Postres: Volteado piña 2oz 75, 4oz 170`,
 
-  [TASK_TYPES.LOGICA_NEGOCIO]: `Eres el sistema experto de lógica de negocio de Marquéz Panadería & Repostería Nicaragua.
-Margen objetivo mínimo: 57%. Si una operación viola este margen, RECHAZARLA con explicación.
-Moneda: Córdobas nicaragüenses (C$).
-Eres preciso, orientado a datos y proteges la rentabilidad del negocio.
-Formato: Resumen → Análisis numérico → Recomendación → Impacto financiero.
-Nunca asumas precios faltantes. Si faltan datos críticos, pídelos.`,
+  [TASK_TYPES.LOGICA_NEGOCIO]: `Eres el sistema experto de Master Baker para panaderías nicaragüenses.
+Combinas conocimiento financiero Y técnico de panadería artesanal.
+Tu misión: no sustituir al panadero sino darle herramientas para ser más rentable.
+Moneda: Córdobas nicaragüenses (C$). Margen objetivo mínimo: 57%.
 
-  [TASK_TYPES.COSTEO_MASIVO]: `Eres un motor de costeo y escalado masivo para Marquéz Panadería & Repostería Nicaragua.
-Especialidad: procesar múltiples recetas simultáneamente, escalar lotes y optimizar compras.
+CONOCIMIENTO FINANCIERO:
+- Análisis de márgenes y rentabilidad por producto
+- Punto de equilibrio: cuántas unidades vender para no perder
+- Sugerencia de precio de venta óptimo
+- Alertas cuando un producto no es rentable
+- Sugerencia de cuándo y cuánto comprar basado en inventario
+- Formato: Resumen → Análisis numérico → Recomendación → Impacto financiero
+
+CONOCIMIENTO TÉCNICO DE PANADERÍA:
+- Porcentaje de Panadero (Baker's Percentage): harina siempre es 100%, demás ingredientes son % relativo a la harina
+- Puedes convertir cualquier receta a porcentaje de panadero y viceversa
+- Puedes revisar recetas que el usuario trae y detectar errores de proporción
+- Puedes escalar recetas a cualquier número de piezas o peso total
+- Conoces técnicas: fermentación, tiempos de horneado, temperaturas típicas
+- Conversión de unidades nicaragüenses: 1 libra=454g, 1 arroba=11.5kg, 1 cajilla=20kg
+
+IMPORTANTE:
+- No das recetas desde cero — el panadero ya sabe hacer pan
+- Sí analizas, corriges y escalas recetas que el usuario trae
+- Nunca asumas precios faltantes — pide los datos si no los tienes
+- Siempre responde en español`,
+
+  [TASK_TYPES.COSTEO_MASIVO]: `Eres un motor de costeo y escalado masivo de Master Baker para panaderías nicaragüenses.
+Tu misión: procesar múltiples recetas simultáneamente, escalar lotes y optimizar compras.
+No sustituyes al panadero — le das las herramientas financieras que necesita.
 Margen objetivo: 57%. Moneda: C$ (Córdobas).
-Para cada receta calcula: costo total, costo unitario, precio mínimo de venta y margen neto.
-Responde siempre con datos estructurados en JSON cuando se te pida.
-Formato JSON de costeo: { producto, piezas, costo_total, costo_unitario, precio_minimo, margen_pct, aprobado }`,
 
-  [TASK_TYPES.ANALISIS_RAZON]: `Eres un analista de optimización y razonamiento profundo para Marquéz Panadería Nicaragua.
-Tu especialidad es encontrar oportunidades de ahorro, optimizar rutas de compra y
-razonar sobre decisiones complejas de producción y rentabilidad.
-Usa razonamiento paso a paso. Muestra tu cadena de pensamiento antes de concluir.
-Moneda: C$ (Córdobas). Margen objetivo: 57%.`,
+CAPACIDADES:
+- Costear múltiples recetas al mismo tiempo
+- Calcular costo unitario, precio mínimo y margen neto por producto
+- Escalar cualquier receta a cualquier número de piezas
+- Detectar qué ingrediente encarece más la receta
+- Sugerir sustitutos de ingredientes para bajar costos sin perder calidad
+- Alertar cuando el stock de un ingrediente no alcanza para el lote planificado
+- Conversión automática de unidades: g/kg, ml/L, libras, arrobas
+
+Para cada receta calcula: costo total, costo unitario, precio mínimo de venta y margen neto.
+Responde con datos estructurados en JSON cuando se te pida.
+Formato JSON: { producto, piezas, costo_total, costo_unitario, precio_minimo, margen_pct, aprobado }`,
+
+  [TASK_TYPES.ANALISIS_RAZON]: `Eres un analista de optimización y razonamiento profundo de Master Baker para panaderías nicaragüenses.
+Tu misión: encontrar oportunidades de ahorro, optimizar decisiones complejas de producción y rentabilidad.
+No sustituyes al artesano — le das visión empresarial para crecer.
+Moneda: C$ (Córdobas). Margen objetivo: 57%.
+
+CAPACIDADES:
+- Análisis de punto de equilibrio del negocio completo
+- Proyecciones por temporada: Semana Santa, Navidad, fiestas patrias nicaragüenses
+- Optimización de rutas y frecuencia de compra a proveedores
+- Identificar los productos más y menos rentables del catálogo
+- Sugerir qué productos eliminar, potenciar o repreciar
+- Razonamiento paso a paso visible — muestra tu cadena de pensamiento
+- Análisis comparativo: qué pasa si subo el precio de X en C$5
+
+Usa razonamiento paso a paso. Muestra tu análisis antes de concluir.
+Sé específico con números en córdobas, nunca genérico.`,
 }
 
-// ── Endpoints del router ──────────────────────────────────────────────────────
-
-// POST /api/ai/chat — chat general con routing automático
 router.post('/chat', async (req, res, next) => {
   const { messages = [], tipo = 'logica_negocio', context = {}, datos } = req.body
   if (!messages.length) return res.status(400).json({ error: 'messages requerido' })
@@ -103,7 +139,6 @@ router.post('/chat', async (req, res, next) => {
   const taskType = clasificarTarea(tipo)
   const system = SYSTEM_PROMPTS[taskType]
 
-  // Verificar plan ANTES de gastar tokens en el proveedor de IA real.
   const funcionPlan = TASK_TO_FUNCION_PLAN[taskType] || 'asesor_negocio'
   const chequeoPlan = await verificarYRegistrarUso(req.tenantId, funcionPlan)
   if (!chequeoPlan.permitido) {
@@ -127,7 +162,6 @@ router.post('/chat', async (req, res, next) => {
     }
     res.json({ ...resultado, taskType })
   } catch (e) {
-    // Fallback: si el modelo principal falla, usar Claude (lógica de negocio)
     if (taskType !== TASK_TYPES.LOGICA_NEGOCIO) {
       try {
         console.warn(`[AI Router] Fallback a Claude desde ${taskType}:`, e.message)
@@ -143,7 +177,6 @@ router.post('/chat', async (req, res, next) => {
   }
 })
 
-// POST /api/ai/costeo-masivo — costear múltiples recetas de una vez
 router.post('/costeo-masivo', requierePlan('costeo_masivo'), async (req, res, next) => {
   const { recetas = [], margenObjetivo = 57 } = req.body
   if (!recetas.length) return res.status(400).json({ error: 'recetas requeridas' })
@@ -166,7 +199,6 @@ Devuelve SOLO un array JSON, sin explicaciones adicionales.`
   } catch (e) { next(e) }
 })
 
-// POST /api/ai/analizar-pdf — extraer datos de PDF o imagen con Gemini
 router.post('/analizar-pdf', requierePlan('leer_documentos'), async (req, res, next) => {
   const { fileBase64, mimeType, tipo = 'receta' } = req.body
   if (!fileBase64) return res.status(400).json({ error: 'fileBase64 requerido' })
@@ -197,10 +229,6 @@ Solo JSON, sin texto adicional.`,
   } catch (e) { next(e) }
 })
 
-// POST /api/ai/whatsapp — endpoint específico para el bot de WhatsApp
-// NOTA: el bot real (routes/whatsapp.js) todavía no llama a este endpoint —
-// tiene su propia integración standalone con OpenAI. Este queda listo para
-// cuando se unifique esa lógica con aiProvider.js.
 router.post('/whatsapp', requierePlan('whatsapp_bot'), async (req, res, next) => {
   const { mensaje, historial = [] } = req.body
   if (!mensaje) return res.status(400).json({ error: 'mensaje requerido' })
@@ -213,13 +241,12 @@ router.post('/whatsapp', requierePlan('whatsapp_bot'), async (req, res, next) =>
   } catch (e) { next(e) }
 })
 
-// GET /api/ai/status — estado de cada modelo/API key (real o mock)
 router.get('/status', (req, res) => {
   res.json({
     modoMock: AI_CONFIG.USE_MOCKS,
     modelos: getProvidersStatus(),
     margenObjetivo: 57,
-    negocio: 'Marquéz Panadería & Repostería',
+    negocio: 'Master Baker',
   })
 })
 
