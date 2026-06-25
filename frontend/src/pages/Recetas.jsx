@@ -342,7 +342,8 @@ export default function Recetas() {
             <div className="space-y-2">
               {lista.map(r => {
                 const { cu, margen } = costoReceta(r)
-                const color = CAT_COLORS[r.categoria] || { bg: '#F1EFE8', text: '#444441' }
+                const catLabel = r.categoria || (r.producto?.toLowerCase().includes('relleno') ? 'Sub-receta' : '')
+                const color = CAT_COLORS[catLabel] || (catLabel === 'Sub-receta' ? { bg: '#E8F0FE', text: '#1a56db' } : { bg: '#F1EFE8', text: '#444441' })
                 const sel = detalle === r.producto
                 return (
                   <div key={r.producto}>
@@ -354,7 +355,7 @@ export default function Recetas() {
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-medium text-gray-900">{r.producto}</span>
                           <span className="text-xs px-2 py-0.5 rounded-md font-medium"
-                            style={{ background: color.bg, color: color.text }}>{r.categoria}</span>
+                            style={{ background: color.bg, color: color.text }}>{catLabel}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           {margen !== null && (
