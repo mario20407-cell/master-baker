@@ -70,6 +70,11 @@ router.post('/', async (req, res, next) => {
                 costo_unitario = $2
             WHERE id = $3 AND tenant_id = $4
           `, [item.cantidad || 1, item.precio_actual, insumos[0].id, tenantId])
+        } else {
+          await client.query(`
+            INSERT INTO inventario (tenant_id, nombre, existencia, unidad, costo_unitario, consumo_diario, punto_reposicion)
+            VALUES ($1, $2, $3, 'unidad', $4, 0, 0)
+          `, [tenantId, item.producto, item.cantidad || 1, item.precio_actual || 0])
         }
       }
 
