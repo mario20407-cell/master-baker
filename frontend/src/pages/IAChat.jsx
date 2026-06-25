@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { Bot, Send, User, Upload, FileText, Zap, Brain, Image } from 'lucide-react'
 import axios from 'axios'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -141,7 +143,7 @@ export default function IAChat() {
               )}
               <div className={`rounded-2xl px-3 py-2 text-sm leading-relaxed ${m.role === 'user' ? 'text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'}`}
                 style={m.role === 'user' ? { background: '#C29C53' } : {}}>
-                {m.content.split('\n').map((line, j) => <span key={j}>{line}{j < m.content.split('\n').length - 1 ? <br /> : null}</span>)}
+                <ReactMarkdown>{m.content}</ReactMarkdown>
               </div>
             </div>
           </div>
