@@ -68,6 +68,9 @@ export default function Login() {
         <p className="text-center text-xs text-gray-400 mt-6">
           Marquéz Panadería & Repostería · Chichigalpa, Nicaragua
         </p>
+        <p className="text-center text-xs mt-1" style={{ color: '#C29C53' }}>
+          Leiva Cruz Developments · Chichigalpa, Nicaragua
+        </p>
       </div>
     </div>
   )
