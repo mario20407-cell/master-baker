@@ -9,7 +9,7 @@ import { getInventario } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
-const UNIDADES = ['kg', 'g', 'L', 'ml', 'unidad', 'porci�n']
+const UNIDADES = ['kg', 'g', 'L', 'ml', 'unidad', 'porción']
 
 function IngredienteRow({ ing, onChange, onDelete, insumos = [], recetasLista = [] }) {
   const [sugerencias, setSugerencias] = useState([])
@@ -99,11 +99,11 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos, recetasLista = 
   const [notas, setNotas] = useState(inicial?.notas || '')
   const [ings, setIngs] = useState(inicial?.ingredientes || [
     { nombre: 'Harina',                 cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
-    { nombre: 'Az�car',                 cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
+    { nombre: 'Azúcar',                 cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
     { nombre: 'Huevos',                 cantidad: '', unidad: 'unidad', precio: '', tipo: 'directo' },
     { nombre: 'Margarina',              cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
-    { nombre: 'Gas (indirecto)',        cantidad: '', unidad: 'porci�n',precio: '', tipo: 'indirecto' },
-    { nombre: 'Mano de obra (indirecto)', cantidad: '', unidad: 'porci�n', precio: '', tipo: 'indirecto' },
+    { nombre: 'Gas (indirecto)',        cantidad: '', unidad: 'porción',precio: '', tipo: 'indirecto' },
+    { nombre: 'Mano de obra (indirecto)', cantidad: '', unidad: 'porción', precio: '', tipo: 'indirecto' },
     { nombre: 'Empaque',                cantidad: '', unidad: 'unidad', precio: '', tipo: 'directo' },
   ])
 
@@ -189,8 +189,8 @@ function FormReceta({ inicial, onGuardar, onCancelar, productos, recetasLista = 
         ))}
 
         <div className="flex gap-2 mt-1 text-xs text-gray-400">
-          <span className="badge-gray">Directo</span> ingredientes f�sicos &nbsp;
-          <span className="badge-info">Indirecto</span> gas, energ�a, mano de obra
+          <span className="badge-gray">Directo</span> ingredientes físicos &nbsp;
+          <span className="badge-info">Indirecto</span> gas, energía, mano de obra
         </div>
       </div>
 
@@ -456,7 +456,7 @@ export default function Recetas() {
           <div className="form-group mb-3">
             <label className="form-label">Pegar tabla aqu�</label>
             <textarea rows={8} value={pegado} onChange={e => setPegado(e.target.value)}
-              placeholder={"Harina\t0.5\tkg\t28\nAz�car\t0.2\tkg\t18\nHuevos\t3\tunidad\t5\nGas (indirecto)\t1\tporci�n\t15"} />
+              placeholder={"Harina\t0.5\tkg\t28\nAzúcar\t0.2\tkg\t18\nHuevos\t3\tunidad\t5\nGas (indirecto)\t1\tporción\t15"} />
           </div>
           <div className="flex gap-2">
             <button onClick={importarPegado} className="btn-primary flex items-center gap-2">
