@@ -100,6 +100,7 @@ export function Compras() {
       await saveFactura({ proveedor: prov, fecha, items: itsValidos })
       const r = await getCompras()
       setHistorial(r.data)
+      toast.success('✅ Factura guardada e inventario actualizado')
     } catch (e) {}
   }
 
