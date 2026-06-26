@@ -38,6 +38,7 @@ app.use('/api/auth',            authRoutes)
 app.use('/api/whatsapp/webhook', whatsappRoutes)
 
 // ── Middleware global de autenticación ──────────────────────────────────────
+app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '3.2', timestamp: new Date().toISOString() }))
 app.use(requireAuth)
 
 // ── Rutas privadas (protegidas automáticamente) ─────────────────────────────
