@@ -18,6 +18,7 @@ import ventasRoutes      from './routes/ventas.js'
 import authRoutes        from './routes/auth.js'
 import produccionRoutes  from './routes/produccion.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
+import { requireAuth } from './middleware/authMiddleware.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -31,6 +32,15 @@ app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 500 }))
 app.use(tenantMiddleware)
 
 const aiLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: 'Demasiadas consultas.' } })
+
+// ── Rutas públicas (sin autenticación) ──────────────────────────────────────
+app.use('/api/auth/login',          authRoutes)
+app.use('/api/whatsapp/webhook',    whatsappRoutes)
+
+// ── Middleware global de autenticación ──────────────────────────────────────
+app.use(requireAuth)
+
+// ── Rutas privadas (protegidas automáticamente) ─────────────────────────────
 app.use('/api/auth',       authRoutes)
 app.use('/api/catalogo',   catalogoRoutes)
 app.use('/api/recetas',    recetasRoutes)
