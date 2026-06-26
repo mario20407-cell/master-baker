@@ -33,6 +33,10 @@ app.use(tenantMiddleware)
 
 const aiLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: 'Demasiadas consultas.' } })
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Demasiados intentos de login. Espera 15 minutos.' }, standardHeaders: true, legacyHeaders: false })
+const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 200, message: { error: 'Demasiadas solicitudes. Intenta en un minuto.' }, standardHeaders: true, legacyHeaders: false })
+
+// ── Rate limit global ───────────────────────────────────────────────────────
+app.use(globalLimiter)
 
 // ── Rutas públicas (sin autenticación) ──────────────────────────────────────
 app.use('/api/auth/login', loginLimiter)
