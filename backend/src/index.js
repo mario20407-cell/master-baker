@@ -36,6 +36,7 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { e
 const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 200, message: { error: 'Demasiadas solicitudes. Intenta en un minuto.' }, standardHeaders: true, legacyHeaders: false })
 
 // ── Rate limit global ───────────────────────────────────────────────────────
+app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '3.2', timestamp: new Date().toISOString() }))
 app.use(globalLimiter)
 
 // ── Rutas públicas (sin autenticación) ──────────────────────────────────────
