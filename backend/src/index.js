@@ -15,7 +15,8 @@ import whatsappRoutes    from './routes/whatsapp.js'
 import fiscalRoutes      from './routes/fiscal.js'
 import ventasRoutes      from './routes/ventas.js'
 import authRoutes        from './routes/auth.js'
-import produccionRoutes  from './routes/produccion.js'
+import produccionRoutes     from './routes/produccion.js'
+import suscripcionesRoutes from './routes/suscripciones.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 import { requireAuth }      from './middleware/authMiddleware.js'
 
@@ -87,7 +88,8 @@ app.use('/api/ai',         aiLimiter, aiRouterRoutes)
 app.use('/api/whatsapp',   whatsappRoutes)
 app.use('/api/fiscal',     fiscalRoutes)
 app.use('/api/ventas',     ventasRoutes)
-app.use('/api/produccion', produccionRoutes)
+app.use('/api/produccion',     produccionRoutes)
+app.use('/api/suscripciones', suscripcionesRoutes)
 
 app.use((err, req, res, _next) => {
   console.error('[Error]', err.message)
