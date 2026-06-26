@@ -7,6 +7,7 @@
  * queries directas futuras, pero aquí basta filtrar por receta.tenant_id.
  */
 import { Router } from 'express'
+import xss from 'xss'
 import { query, transaction } from '../db/client.js'
 
 const router = Router()
