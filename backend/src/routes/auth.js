@@ -57,7 +57,8 @@ router.post('/login', async (req, res, next) => {
 router.post('/registrar', requireAuth, requireRol('admin'), async (req, res, next) => {
   const { email, password, nombre, rol = 'operario' } = req.body
   if (!email || !password || !nombre) return res.status(400).json({ error: 'Email, contrasena y nombre son requeridos' })
-  if (!['admin', 'operario'].includes(rol)) return res.status(400).json({ error: 'Rol invalido' })
+  if (rol === 'admin') return res.status(403).json({ error: 'No se puede crear un usuario con rol admin desde la API' })
+  if (!['operario'].includes(rol)) return res.status(400).json({ error: 'Rol invalido' })
   if (password.length < 8) return res.status(400).json({ error: 'La contrasena debe tener al menos 8 caracteres' })
   try {
     const hash = await bcrypt.hash(password, 12)
