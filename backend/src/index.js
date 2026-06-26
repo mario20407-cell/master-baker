@@ -34,14 +34,13 @@ app.use(tenantMiddleware)
 const aiLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: 'Demasiadas consultas.' } })
 
 // ── Rutas públicas (sin autenticación) ──────────────────────────────────────
-app.use('/api/auth/login',          authRoutes)
-app.use('/api/whatsapp/webhook',    whatsappRoutes)
+app.use('/api/auth',            authRoutes)
+app.use('/api/whatsapp/webhook', whatsappRoutes)
 
 // ── Middleware global de autenticación ──────────────────────────────────────
 app.use(requireAuth)
 
 // ── Rutas privadas (protegidas automáticamente) ─────────────────────────────
-app.use('/api/auth',       authRoutes)
 app.use('/api/catalogo',   catalogoRoutes)
 app.use('/api/recetas',    recetasRoutes)
 app.use('/api/costeos',    costeosRoutes)
