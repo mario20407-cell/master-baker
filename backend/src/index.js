@@ -1,54 +1,43 @@
-import 'dotenv/config'
-if (!process.env.JWT_SECRET) process.env.JWT_SECRET = 'temp_fallback_delete_after_demo'
+﻿import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
 import rateLimit from 'express-rate-limit'
-import catalogoRoutes    from './routes/catalogo.js'
-import recetasRoutes     from './routes/recetas.js'
-import costeosRoutes     from './routes/costeos.js'
-import inventarioRoutes  from './routes/inventario.js'
-import comprasRoutes     from './routes/compras.js'
-import exportarRoutes    from './routes/exportar.js'
-import aiRouterRoutes    from './routes/ai-router.js'
-import whatsappRoutes    from './routes/whatsapp.js'
-import fiscalRoutes      from './routes/fiscal.js'
-import ventasRoutes      from './routes/ventas.js'
-import authRoutes        from './routes/auth.js'
-import produccionRoutes     from './routes/produccion.js'
-import suscripcionesRoutes from './routes/suscripciones.js'
+
+import catalogoRoutes   from './routes/catalogo.js'
+import recetasRoutes    from './routes/recetas.js'
+import costeosRoutes    from './routes/costeos.js'
+import inventarioRoutes from './routes/inventario.js'
+import comprasRoutes    from './routes/compras.js'
+import exportarRoutes   from './routes/exportar.js'
+import aiRouterRoutes   from './routes/ai-router.js'
+import whatsappRoutes   from './routes/whatsapp.js'
+import fiscalRoutes     from './routes/fiscal.js'
+import ventasRoutes     from './routes/ventas.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
-import { requireAuth } from './middleware/authMiddleware.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
-app.set('trust proxy', 1)
+
 app.use(helmet())
-const allowedOrigins = ['https://masterbaker.store', 'https://www.masterbaker.store', 'https://marquez-app-v27.vercel.app', 'http://localhost:5173']; app.use(cors({ origin: (origin, cb) => cb(null, allowedOrigins.includes(origin) || !origin), credentials: true }))
+app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }))
 app.use(morgan('dev'))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
+
+// Rate limiting global
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 500 }))
+
+// Resuelve req.tenantId en cada request â€” DEBE ir antes de las rutas /api
 app.use(tenantMiddleware)
 
-const aiLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: 'Demasiadas consultas.' } })
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Demasiados intentos de login. Espera 15 minutos.' }, standardHeaders: true, legacyHeaders: false })
-const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 200, message: { error: 'Demasiadas solicitudes. Intenta en un minuto.' }, standardHeaders: true, legacyHeaders: false })
 
-// ── Rate limit global ───────────────────────────────────────────────────────
-app.use(globalLimiter)
+// Rate limiting IA
+const aiLimiter = rateLimit({ windowMs: 60 * 1000, max: 30,
+  message: { error: 'Demasiadas consultas. Espera un minuto.' } })
 
-// ── Rutas públicas (sin autenticación) ──────────────────────────────────────
-app.use('/api/auth/login', loginLimiter)
-app.use('/api/auth',            authRoutes)
-app.use('/api/whatsapp/webhook', whatsappRoutes)
-
-// ── Middleware global de autenticación ──────────────────────────────────────
-app.get('/api/health', (_, res) => res.json({ status: 'ok', version: '3.2', timestamp: new Date().toISOString() }))
-app.use(requireAuth)
-
-// ── Rutas privadas (protegidas automáticamente) ─────────────────────────────
+// Rutas
 app.use('/api/catalogo',   catalogoRoutes)
 app.use('/api/recetas',    recetasRoutes)
 app.use('/api/costeos',    costeosRoutes)
@@ -59,27 +48,43 @@ app.use('/api/ai',         aiLimiter, aiRouterRoutes)
 app.use('/api/whatsapp',   whatsappRoutes)
 app.use('/api/fiscal',     fiscalRoutes)
 app.use('/api/ventas',     ventasRoutes)
-app.use('/api/produccion',     produccionRoutes)
-app.use('/api/suscripciones', suscripcionesRoutes)
 
+// Health check
 app.get('/api/health', (_, res) => res.json({
-  status: 'ok', version: '3.0',
-  negocio: 'Marquez Panaderia y Reposteria',
-  auth: { login: '/api/auth/login', registro_cerrado: true },
-  ia: { openai: !!process.env.OPENAI_API_KEY, anthropic: !!process.env.ANTHROPIC_API_KEY, deepseek: !!process.env.DEEPSEEK_API_KEY, gemini: !!process.env.GEMINI_API_KEY },
-  whatsapp: { activo: !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID, phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado' },
-  admin_pin_configurado: !!process.env.ADMIN_PIN,
-  jwt_configurado: !!process.env.JWT_SECRET,
+  status: 'ok', version: '2.7',
+  negocio: 'MarquÃ©z PanaderÃ­a & ReposterÃ­a',
+  ia: {
+    openai:    !!process.env.OPENAI_API_KEY,
+    anthropic: !!process.env.ANTHROPIC_API_KEY,
+    deepseek:  !!process.env.DEEPSEEK_API_KEY,
+    gemini:    !!process.env.GEMINI_API_KEY,
+  },
+  whatsapp: {
+    activo:   !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID,
+    phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
+  },
   timestamp: new Date().toISOString(),
 }))
 
+// Errores
 app.use((err, req, res, _next) => {
   console.error('[Error]', err.message)
   res.status(err.status || 500).json({ error: err.message || 'Error interno' })
 })
 
 app.listen(PORT, () => {
-  console.log('Marquez v3.0 corriendo en puerto ' + PORT)
+  console.log(`\nðŸ¥ Maestro Panadero IA â€” MarquÃ©z v2.7`)
+  console.log(`   Servidor:    http://localhost:${PORT}`)
+  console.log(`   Rutas:       catalogo | recetas | costeos | inventario | compras | ventas | fiscal | ai | whatsapp`)
+  console.log(`   IA activas:`)
+  console.log(`   - GPT-4 mini:       ${process.env.OPENAI_API_KEY    ? 'âœ…' : 'â³ pendiente'}`)
+  console.log(`   - Claude 3.5:       ${process.env.ANTHROPIC_API_KEY ? 'âœ…' : 'â³ pendiente'}`)
+  console.log(`   - DeepSeek V3/R1:   ${process.env.DEEPSEEK_API_KEY  ? 'âœ…' : 'â³ pendiente'}`)
+  console.log(`   - Gemini 1.5 Flash: ${process.env.GEMINI_API_KEY    ? 'âœ…' : 'â³ pendiente'}`)
+  console.log(`   WhatsApp Bot:       ${process.env.WHATSAPP_TOKEN     ? 'âœ… activo' : 'â³ pendiente'}`)
+  console.log(`   Webhook URL:        http://localhost:${PORT}/api/whatsapp/webhook\n`)
 })
 
 export default app
+
+
