@@ -1,3 +1,18 @@
+
+:root {
+  --mb-navy: #1B2A4A;
+  --mb-navy-light: #243d63;
+  --mb-navy-dark: #0f1e35;
+  --mb-navy-border: #263d63;
+  --mb-gold: #C29C53;
+  --mb-gray: #888B8D;
+  --mb-gray-light: #f0f2f5;
+  --mb-gray-border: #c8cbcd;
+  --mb-white: #ffffff;
+  --mb-green: #1A7A4A;
+  --mb-red: #C0392B;
+  --mb-amber: #854F0B;
+}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
