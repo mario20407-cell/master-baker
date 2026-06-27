@@ -62,11 +62,11 @@ export default function Layout() {
         <div style={{ padding:'14px 16px', borderBottom:'1px solid #263d63', flexShrink:0 }}>
           {!collapsed && (
             <>
-              <div style={{ color:'#C29C53', fontSize:14, fontWeight:700, letterSpacing:'.04em' }}>MASTER BAKER</div>
-              <div style={{ color:'#888B8D', fontSize:10, marginTop:2 }}>{usuario?.negocio || 'Panadería'}</div>
+              <img src='/branding/logo-completo.png' alt='Master Baker' style={{ height:48, objectFit:'contain' }} />
+              <div style={{ color:'#888B8D', fontSize:10, marginTop:4 }}>{usuario?.negocio || 'Panadería'}</div>
             </>
           )}
-          {collapsed && <div style={{ color:'#C29C53', fontSize:14, fontWeight:700 }}>MB</div>}
+          {collapsed && <img src='/branding/logo-emblema.png' alt='MB' style={{ height:32, objectFit:'contain' }} />}
         </div>
 
         {/* Nav */}
