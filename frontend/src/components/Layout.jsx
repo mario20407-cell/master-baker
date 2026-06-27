@@ -3,7 +3,7 @@ import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   FileText, LogOut, LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
-  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, Moon, Sun, Factory, Users
+  Package, Receipt, ShoppingCart, Bot, Download, Menu, CreditCard, X, Shield, HelpCircle, Moon, Sun, Factory, Users
 } from 'lucide-react'
 
 const NAV = [
@@ -17,6 +17,7 @@ const NAV = [
   { to: '/produccion', icon: Factory,           label: 'Producción',  badge: 'NEW' },
   { to: '/compras',    icon: Receipt,          label: 'Compras' },
   { to: '/reportes', icon: FileText, label: 'Reportes' },
+  { to: '/suscripcion', icon: CreditCard, label: 'Mi Plan' },
   { to: '/politicas', icon: Shield, label: 'Políticas' },
   { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
   { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI' },
