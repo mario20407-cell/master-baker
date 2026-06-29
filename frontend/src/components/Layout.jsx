@@ -5,6 +5,7 @@ import {
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, Moon, Sun, LogOut, ClipboardList, Boxes
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import api from '../lib/api'
 
 const NAV = [
   { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
@@ -27,12 +28,22 @@ export default function Layout() {
   const { logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true')
+  const [alertasStock, setAlertasStock] = useState(0)
   const location = useLocation()
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode)
     localStorage.setItem('darkMode', darkMode)
   }, [darkMode])
+
+  useEffect(() => {
+    api.get('/inventario-terminado')
+      .then(({ data }) => {
+        const count = data.filter(i => Number(i.stock) <= Number(i.stock_minimo) && Number(i.stock_minimo) > 0).length
+        setAlertasStock(count)
+      })
+      .catch(() => {})
+  }, [location.pathname])
   const currentPage = NAV.find(n => location.pathname.startsWith(n.to))?.label || 'Master Baker'
 
   return (
@@ -55,7 +66,11 @@ export default function Layout() {
               className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <Icon size={16} />
               <span className="flex-1">{label}</span>
-              {badge && (
+              {to === '/stock' && alertasStock > 0 ? (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500 text-white">
+                  {alertasStock}
+                </span>
+              ) : badge ? (
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
                   style={{
                     background: badge === 'NEW' ? '#3B6D11' : badge === 'DGI' ? '#263D4F' : '#C29C53',
@@ -63,7 +78,7 @@ export default function Layout() {
                   }}>
                   {badge}
                 </span>
-              )}
+              ) : null}
             </NavLink>
           ))}
         </nav>
