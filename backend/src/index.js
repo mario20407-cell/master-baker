@@ -84,6 +84,7 @@ app.get('/api/health', (_, res) => res.json({
   auth: {
     jwt_secret: !!process.env.JWT_SECRET,
   },
+  cors_origins: allowedOrigins,
   timestamp: new Date().toISOString(),
 }))
 
