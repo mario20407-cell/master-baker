@@ -1,4 +1,12 @@
-﻿import 'dotenv/config'
+﻿import dotenv from 'dotenv'
+// Load .env (local dev) then .env.txt as fallback for empty/missing vars
+dotenv.config()
+const envTxt = dotenv.config({ path: '.env.txt' })
+if (envTxt.parsed) {
+  for (const [k, v] of Object.entries(envTxt.parsed)) {
+    if (!process.env[k]) process.env[k] = v
+  }
+}
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
