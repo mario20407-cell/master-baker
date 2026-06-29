@@ -14,6 +14,7 @@ import IAChat from './pages/IAChat'
 import Exportar from './pages/Exportar'
 import Usuarios from './pages/Usuarios'
 import ConfigFiscal from './pages/ConfigFiscal'
+import CajaProduccion from './pages/CajaProduccion'
 
 function RutaProtegida({ children }) {
   const { usuario, cargando } = useAuth()
@@ -55,7 +56,8 @@ export default function App() {
         <Route path="compras"    element={<Compras />} />
         <Route path="ventas"     element={<Ventas />} />
         <Route path="ia"         element={<IAChat />} />
-        <Route path="exportar"   element={<Exportar />} />
+        <Route path="exportar"      element={<Exportar />} />
+        <Route path="caja"          element={<CajaProduccion />} />
         <Route path="fiscal"     element={<SoloAdmin><ConfigFiscal /></SoloAdmin>} />
         <Route path="usuarios"   element={<SoloAdmin><Usuarios /></SoloAdmin>} />
       </Route>
