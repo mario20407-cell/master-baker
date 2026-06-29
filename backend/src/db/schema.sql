@@ -29,6 +29,24 @@ INSERT INTO tenants (id, slug, nombre_negocio, pais, moneda, margen_objetivo)
 VALUES ('00000000-0000-0000-0000-000000000001', 'marquez', 'Marquéz Panadería & Repostería', 'Nicaragua', 'C$', 57)
 ON CONFLICT (id) DO NOTHING;
 
+-- ── Usuarios ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS usuarios (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id      UUID NOT NULL REFERENCES tenants(id),
+  email          VARCHAR(120) NOT NULL,
+  password_hash  TEXT,
+  nombre         VARCHAR(120) NOT NULL,
+  rol            VARCHAR(30) NOT NULL DEFAULT 'operario',
+  activo         BOOLEAN DEFAULT true,
+  ultimo_login   TIMESTAMPTZ,
+  creado_en      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (tenant_id, email)
+);
+
+INSERT INTO usuarios (tenant_id, email, nombre, rol)
+VALUES ('00000000-0000-0000-0000-000000000001', 'admin@marquez.com', 'Administrador', 'admin')
+ON CONFLICT (tenant_id, email) DO NOTHING;
+
 -- ── Catálogo de productos ──────────────────────────────────────
 CREATE TABLE IF NOT EXISTS productos (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

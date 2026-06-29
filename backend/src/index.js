@@ -5,6 +5,7 @@ import helmet from 'helmet'
 import morgan from 'morgan'
 import rateLimit from 'express-rate-limit'
 
+import authRoutes       from './routes/auth.js'
 import catalogoRoutes   from './routes/catalogo.js'
 import recetasRoutes    from './routes/recetas.js'
 import costeosRoutes    from './routes/costeos.js'
@@ -39,6 +40,7 @@ const aiLimiter = rateLimit({ windowMs: 60 * 1000, max: 30,
   message: { error: 'Demasiadas consultas. Espera un minuto.' } })
 
 // Rutas
+app.use('/api/auth',       authRoutes)
 app.use('/api/catalogo',   catalogoRoutes)
 app.use('/api/recetas',    recetasRoutes)
 app.use('/api/costeos',    costeosRoutes)
