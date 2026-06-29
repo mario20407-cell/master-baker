@@ -25,7 +25,9 @@ import whatsappRoutes   from './routes/whatsapp.js'
 import fiscalRoutes     from './routes/fiscal.js'
 import usuariosRoutes from './routes/usuarios.js'
 import ventasRoutes     from './routes/ventas.js'
-import lotesRoutes      from './routes/lotes.js'
+import lotesRoutes             from './routes/lotes.js'
+import sucursalesRoutes        from './routes/sucursales.js'
+import inventarioTerminadoRoutes from './routes/inventario-terminado.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 
 const app = express()
@@ -73,7 +75,9 @@ app.use('/api/whatsapp',   whatsappRoutes)
 app.use('/api/fiscal',     fiscalRoutes)
 app.use('/api/usuarios', usuariosRoutes)
 app.use('/api/ventas',     ventasRoutes)
-app.use('/api/lotes',      lotesRoutes)
+app.use('/api/lotes',               lotesRoutes)
+app.use('/api/sucursales',          sucursalesRoutes)
+app.use('/api/inventario-terminado', inventarioTerminadoRoutes)
 
 // Health check
 app.get('/api/health', (_, res) => res.json({
