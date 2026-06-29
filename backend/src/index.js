@@ -14,6 +14,7 @@ import exportarRoutes   from './routes/exportar.js'
 import aiRouterRoutes   from './routes/ai-router.js'
 import whatsappRoutes   from './routes/whatsapp.js'
 import fiscalRoutes     from './routes/fiscal.js'
+import usuariosRoutes from './routes/usuarios.js'
 import ventasRoutes     from './routes/ventas.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 
@@ -47,6 +48,7 @@ app.use('/api/exportar',   exportarRoutes)
 app.use('/api/ai',         aiLimiter, aiRouterRoutes)
 app.use('/api/whatsapp',   whatsappRoutes)
 app.use('/api/fiscal',     fiscalRoutes)
+app.use('/api/usuarios', usuariosRoutes)
 app.use('/api/ventas',     ventasRoutes)
 
 // Health check
@@ -86,5 +88,7 @@ app.listen(PORT, () => {
 })
 
 export default app
+
+
 
 

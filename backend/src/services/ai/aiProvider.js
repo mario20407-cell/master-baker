@@ -5,7 +5,7 @@
 //   - Clasificador de complejidad: simple (300 tokens) vs complejo (1024)
 //   - Historial reducido: 4 mensajes para simple, 6 para complejo
 //   - System prompt comprimido sin redundancias
-//   - Modelo corregido: claude-haiku-4-5-20251001
+//   - Modelo corregido: claude-sonnet-4-6
 
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
@@ -125,10 +125,10 @@ export async function chatCliente(messages, system) {
 // ═══════════════════════════════════════════════════════════════════════════════
 export async function logicaNegocio(messages, system, context = {}) {
   if (AI_CONFIG.USE_MOCKS) {
-    mockLog('claude-haiku-4-5-20251001', messages)
+    mockLog('claude-sonnet-4-6', messages)
     return {
       respuesta: `[MOCK Claude Sonnet 4.6] Respuesta simulada. Margen objetivo: 57%.`,
-      modelo: 'claude-haiku-4-5-20251001 (mock)',
+      modelo: 'claude-sonnet-4-6 (mock)',
       tokens: { input_tokens: 0, output_tokens: 0 },
     }
   }
@@ -142,7 +142,7 @@ export async function logicaNegocio(messages, system, context = {}) {
   if (context?.alertas) systemFinal += `\nALERTAS: ${context.alertas}`
 
   const res = await client.messages.create({
-    model:      'claude-haiku-4-5-20251001',
+    model:      'claude-sonnet-4-6',
     max_tokens,
     system:     systemFinal,
     messages:   messages.slice(-historial),
@@ -150,7 +150,7 @@ export async function logicaNegocio(messages, system, context = {}) {
 
   return {
     respuesta: res.content.filter(b => b.type === 'text').map(b => b.text).join('\n'),
-    modelo:    'claude-haiku-4-5-20251001',
+    modelo:    'claude-sonnet-4-6',
     tokens:    res.usage,
   }
 }
@@ -252,7 +252,7 @@ export async function multimedia(prompt, fileData, mimeType) {
 // ── Estado de proveedores ─────────────────────────────────────────────────────
 export function getProvidersStatus() {
   return {
-    'claude-haiku-4-5-20251001': {
+    'claude-sonnet-4-6': {
       activo:  AI_CONFIG.USE_MOCKS ? 'mock' : !!process.env.ANTHROPIC_API_KEY,
       uso:     'Lógica de negocio, márgenes, decisiones',
       costo:   '~$0.003/1K tokens',
@@ -286,4 +286,3 @@ export function getProvidersStatus() {
 }
 
 export default { AI_CONFIG, chatCliente, logicaNegocio, costeoMasivo, analisisRazon, multimedia, getProvidersStatus }
-

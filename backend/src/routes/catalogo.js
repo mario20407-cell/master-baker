@@ -1,27 +1,9 @@
 import { Router } from 'express'
-import { query, transaction } from '../db/client.js'
-import { requireAdminPin } from '../middleware/adminPinMiddleware.js'
+import { query } from '../db/client.js'
 
 const router = Router()
 
-// Helper: registra un cambio (precio, nombre o categoría) en auditoria_precios.
-// No lanza si falla — la auditoría nunca debe tumbar la escritura real.
-// NOTA: valor_nuevo es NOT NULL en la tabla (pensada originalmente solo
-// para precios) — para cambios de texto (nombre/categoría) se manda 0
-// como relleno numérico; el dato real vive en valor_nuevo_texto.
-async function registrarAuditoria(client, { tenantId, tipo, entidadId, entidadNombre, campo, valorAnterior, valorNuevo, valorAnteriorTexto, valorNuevoTexto, metodo, porcentaje, ip }) {
-  try {
-    await client.query(`
-      INSERT INTO auditoria_precios
-        (tenant_id, tipo, entidad_id, entidad_nombre, campo, valor_anterior, valor_nuevo, valor_anterior_texto, valor_nuevo_texto, metodo, porcentaje_aplicado, ip_origen)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-    `, [tenantId, tipo, entidadId, entidadNombre, campo || 'precio', valorAnterior ?? null, valorNuevo ?? 0, valorAnteriorTexto || null, valorNuevoTexto || null, metodo, porcentaje || null, ip || null])
-  } catch (e) {
-    console.error('No se pudo registrar auditoría de cambio:', e.message)
-  }
-}
-
-// GET /api/catalogo — solo productos del tenant activo (lectura libre, sin PIN)
+// GET /api/catalogo — solo productos del tenant activo
 router.get('/', async (req, res, next) => {
   try {
     const { rows } = await query(`
@@ -36,166 +18,18 @@ router.get('/', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// GET /api/catalogo/auditoria — historial de cambios de precio (lectura libre)
-router.get('/auditoria', async (req, res, next) => {
+// PUT /api/catalogo/:id — actualizar precio (solo si pertenece al tenant)
+router.put('/:id', async (req, res, next) => {
+  const { precio, presentacion } = req.body
   try {
-    const { limit = 50 } = req.query
-    const { rows } = await query(`
-      SELECT * FROM auditoria_precios
-      WHERE tenant_id = $1 AND tipo = 'producto'
-      ORDER BY creado_en DESC
-      LIMIT $2
-    `, [req.tenantId, parseInt(limit)])
-    res.json(rows)
+    const { rows } = await query(
+      `UPDATE productos SET precio=$1, presentacion=$2, actualizado_en=NOW()
+       WHERE id=$3 AND tenant_id=$4 RETURNING *`,
+      [precio, presentacion, req.params.id, req.tenantId]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Producto no encontrado' })
+    res.json(rows[0])
   } catch (e) { next(e) }
-})
-
-// ── Rutas de escritura — protegidas con PIN de Admin ──────────────────────
-// IMPORTANTE: las rutas masivas van antes de /:id, si no Express toma
-// "masivo" como si fuera el parámetro :id.
-
-// PUT /api/catalogo/masivo/lista — edición masiva: lista explícita de {id, precio}
-router.put('/masivo/lista', requireAdminPin, async (req, res, next) => {
-  const { productos = [] } = req.body
-  if (!productos.length) return res.status(400).json({ error: 'Se requiere al menos un producto' })
-
-  try {
-    const actualizados = await transaction(async (client) => {
-      const resultados = []
-      for (const p of productos) {
-        const { rows: anteriorRows } = await client.query(
-          'SELECT precio, nombre FROM productos WHERE id=$1 AND tenant_id=$2',
-          [p.id, req.tenantId]
-        )
-        if (!anteriorRows.length) continue
-        const anterior = anteriorRows[0]
-
-        const { rows } = await client.query(
-          `UPDATE productos SET precio=$1, actualizado_en=NOW()
-           WHERE id=$2 AND tenant_id=$3 RETURNING *`,
-          [p.precio, p.id, req.tenantId]
-        )
-        if (rows.length) {
-          resultados.push(rows[0])
-          await registrarAuditoria(client, {
-            tenantId: req.tenantId, tipo: 'producto', entidadId: p.id,
-            entidadNombre: anterior.nombre, valorAnterior: anterior.precio,
-            valorNuevo: p.precio, metodo: 'masivo_lista', ip: req.ip,
-          })
-        }
-      }
-      return resultados
-    })
-    res.json({ actualizados: actualizados.length, productos: actualizados })
-  } catch (e) { next(e) }
-})
-
-// PUT /api/catalogo/masivo/categoria — ajuste por porcentaje a toda una categoría
-router.put('/masivo/categoria', requireAdminPin, async (req, res, next) => {
-  const { categoria, porcentaje } = req.body
-  if (porcentaje === undefined || porcentaje === null) {
-    return res.status(400).json({ error: 'porcentaje es requerido' })
-  }
-
-  try {
-    const factor = 1 + (parseFloat(porcentaje) / 100)
-
-    const actualizados = await transaction(async (client) => {
-      const params = [req.tenantId]
-      let where = 'WHERE tenant_id = $1'
-      if (categoria && categoria !== 'Todos') {
-        params.push(categoria)
-        where += ' AND categoria = $2'
-      }
-
-      const { rows: afectados } = await client.query(
-        `SELECT id, nombre, precio FROM productos ${where}`, params
-      )
-
-      const resultados = []
-      for (const prod of afectados) {
-        const nuevoPrecio = Math.round(prod.precio * factor * 100) / 100
-        await client.query(
-          'UPDATE productos SET precio=$1, actualizado_en=NOW() WHERE id=$2',
-          [nuevoPrecio, prod.id]
-        )
-        await registrarAuditoria(client, {
-          tenantId: req.tenantId, tipo: 'producto', entidadId: prod.id,
-          entidadNombre: prod.nombre, valorAnterior: prod.precio,
-          valorNuevo: nuevoPrecio, metodo: 'masivo_porcentaje',
-          porcentaje: parseFloat(porcentaje), ip: req.ip,
-        })
-        resultados.push({ id: prod.id, nombre: prod.nombre, precio: nuevoPrecio })
-      }
-      return resultados
-    })
-
-    res.json({ actualizados: actualizados.length, factor_aplicado: factor, productos: actualizados })
-  } catch (e) { next(e) }
-})
-
-// PUT /api/catalogo/:id — actualizar un producto individual
-// Soporta cambiar nombre, categoría y/o precio en la misma operación.
-// Cada campo que cambie de valor queda registrado por separado en auditoría.
-router.put('/:id', requireAdminPin, async (req, res, next) => {
-  const { precio, presentacion, nombre, categoria } = req.body
-  try {
-    const actualizado = await transaction(async (client) => {
-      const { rows: anteriorRows } = await client.query(
-        'SELECT precio, nombre, categoria, presentacion FROM productos WHERE id=$1 AND tenant_id=$2',
-        [req.params.id, req.tenantId]
-      )
-      if (!anteriorRows.length) return null
-      const anterior = anteriorRows[0]
-
-      const nuevoNombre       = nombre       !== undefined ? nombre       : anterior.nombre
-      const nuevaCategoria    = categoria    !== undefined ? categoria    : anterior.categoria
-      const nuevoPrecio       = precio       !== undefined ? precio       : anterior.precio
-      const nuevaPresentacion = presentacion !== undefined ? presentacion : anterior.presentacion
-
-      const { rows } = await client.query(
-        `UPDATE productos SET nombre=$1, categoria=$2, precio=$3, presentacion=$4, actualizado_en=NOW()
-         WHERE id=$5 AND tenant_id=$6 RETURNING *`,
-        [nuevoNombre, nuevaCategoria, nuevoPrecio, nuevaPresentacion, req.params.id, req.tenantId]
-      )
-
-      if (rows.length) {
-        if (parseFloat(nuevoPrecio) !== parseFloat(anterior.precio)) {
-          await registrarAuditoria(client, {
-            tenantId: req.tenantId, tipo: 'producto', entidadId: req.params.id,
-            entidadNombre: nuevoNombre, campo: 'precio',
-            valorAnterior: anterior.precio, valorNuevo: nuevoPrecio,
-            metodo: 'individual', ip: req.ip,
-          })
-        }
-        if (nuevoNombre !== anterior.nombre) {
-          await registrarAuditoria(client, {
-            tenantId: req.tenantId, tipo: 'producto', entidadId: req.params.id,
-            entidadNombre: nuevoNombre, campo: 'nombre',
-            valorAnteriorTexto: anterior.nombre, valorNuevoTexto: nuevoNombre,
-            metodo: 'individual', ip: req.ip,
-          })
-        }
-        if (nuevaCategoria !== anterior.categoria) {
-          await registrarAuditoria(client, {
-            tenantId: req.tenantId, tipo: 'producto', entidadId: req.params.id,
-            entidadNombre: nuevoNombre, campo: 'categoria',
-            valorAnteriorTexto: anterior.categoria, valorNuevoTexto: nuevaCategoria,
-            metodo: 'individual', ip: req.ip,
-          })
-        }
-      }
-      return rows[0] || null
-    })
-
-    if (!actualizado) return res.status(404).json({ error: 'Producto no encontrado' })
-    res.json(actualizado)
-  } catch (e) {
-    if (e.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe un producto con ese nombre' })
-    }
-    next(e)
-  }
 })
 
 export default router

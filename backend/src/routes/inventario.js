@@ -1,23 +1,9 @@
 import { Router } from 'express'
-import { query, transaction } from '../db/client.js'
-import { requireAdminPin } from '../middleware/adminPinMiddleware.js'
-import { requireAuth } from '../middleware/authMiddleware.js'
+import { query } from '../db/client.js'
 
 const router = Router()
 
-async function registrarAuditoria(client, { tenantId, entidadId, entidadNombre, valorAnterior, valorNuevo, metodo, porcentaje, ip }) {
-  try {
-    await client.query(`
-      INSERT INTO auditoria_precios
-        (tenant_id, tipo, entidad_id, entidad_nombre, campo, valor_anterior, valor_nuevo, metodo, porcentaje_aplicado, ip_origen)
-      VALUES ($1,'insumo',$2,$3,'costo_unitario',$4,$5,$6,$7,$8)
-    `, [tenantId, entidadId, entidadNombre, valorAnterior, valorNuevo, metodo, porcentaje || null, ip || null])
-  } catch (e) {
-    console.error('No se pudo registrar auditoría de costo:', e.message)
-  }
-}
-
-// GET /api/inventario — lectura libre, sin PIN
+// GET /api/inventario
 router.get('/', async (req, res, next) => {
   try {
     const { rows } = await query(`
@@ -39,21 +25,7 @@ router.get('/', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// GET /api/inventario/auditoria — historial de cambios de costo (lectura libre)
-router.get('/auditoria', async (req, res, next) => {
-  try {
-    const { limit = 50 } = req.query
-    const { rows } = await query(`
-      SELECT * FROM auditoria_precios
-      WHERE tenant_id = $1 AND tipo = 'insumo'
-      ORDER BY creado_en DESC
-      LIMIT $2
-    `, [req.tenantId, parseInt(limit)])
-    res.json(rows)
-  } catch (e) { next(e) }
-})
-
-// POST /api/inventario — crear insumo nuevo (sin PIN: agregar es distinto a editar precio existente)
+// POST /api/inventario
 router.post('/', async (req, res, next) => {
   const { nombre, existencia, unidad, consumo_diario, punto_reposicion, costo_unitario } = req.body
   if (!nombre) return res.status(400).json({ error: 'nombre es requerido' })
@@ -72,127 +44,21 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// ── Rutas masivas — protegidas con PIN, antes de /:id ──────────────────────
-
-router.put('/masivo/lista', requireAdminPin, async (req, res, next) => {
-  const { insumos = [] } = req.body
-  if (!insumos.length) return res.status(400).json({ error: 'Se requiere al menos un insumo' })
-
-  try {
-    const actualizados = await transaction(async (client) => {
-      const resultados = []
-      for (const i of insumos) {
-        const { rows: anteriorRows } = await client.query(
-          'SELECT costo_unitario, nombre FROM inventario WHERE id=$1 AND tenant_id=$2',
-          [i.id, req.tenantId]
-        )
-        if (!anteriorRows.length) continue
-        const anterior = anteriorRows[0]
-
-        const { rows } = await client.query(
-          `UPDATE inventario SET costo_unitario=$1, actualizado_en=NOW()
-           WHERE id=$2 AND tenant_id=$3 RETURNING *`,
-          [i.costo_unitario, i.id, req.tenantId]
-        )
-        if (rows.length) {
-          resultados.push(rows[0])
-          await registrarAuditoria(client, {
-            tenantId: req.tenantId, entidadId: i.id, entidadNombre: anterior.nombre,
-            valorAnterior: anterior.costo_unitario, valorNuevo: i.costo_unitario,
-            metodo: 'masivo_lista', ip: req.ip,
-          })
-        }
-      }
-      return resultados
-    })
-    res.json({ actualizados: actualizados.length, insumos: actualizados })
-  } catch (e) { next(e) }
-})
-
-router.put('/masivo/porcentaje', requireAdminPin, async (req, res, next) => {
-  const { porcentaje } = req.body
-  if (porcentaje === undefined || porcentaje === null) {
-    return res.status(400).json({ error: 'porcentaje es requerido' })
-  }
-  try {
-    const factor = 1 + (parseFloat(porcentaje) / 100)
-
-    const actualizados = await transaction(async (client) => {
-      const { rows: afectados } = await client.query(
-        'SELECT id, nombre, costo_unitario FROM inventario WHERE tenant_id = $1', [req.tenantId]
-      )
-      const resultados = []
-      for (const ins of afectados) {
-        const nuevoCosto = Math.round(ins.costo_unitario * factor * 10000) / 10000
-        await client.query(
-          'UPDATE inventario SET costo_unitario=$1, actualizado_en=NOW() WHERE id=$2',
-          [nuevoCosto, ins.id]
-        )
-        await registrarAuditoria(client, {
-          tenantId: req.tenantId, entidadId: ins.id, entidadNombre: ins.nombre,
-          valorAnterior: ins.costo_unitario, valorNuevo: nuevoCosto,
-          metodo: 'masivo_porcentaje', porcentaje: parseFloat(porcentaje), ip: req.ip,
-        })
-        resultados.push({ id: ins.id, nombre: ins.nombre, costo_unitario: nuevoCosto })
-      }
-      return resultados
-    })
-
-    res.json({ actualizados: actualizados.length, factor_aplicado: factor, insumos: actualizados })
-  } catch (e) { next(e) }
-})
-
-// PUT /api/inventario/:id — editar insumo individual (protegido con PIN solo si cambia el costo)
-router.put('/:id', requireAdminPin, async (req, res, next) => {
+// PUT /api/inventario/:id
+router.put('/:id', async (req, res, next) => {
   const { existencia, consumo_diario, punto_reposicion, costo_unitario } = req.body
   try {
-    const actualizado = await transaction(async (client) => {
-      const { rows: anteriorRows } = await client.query(
-        'SELECT costo_unitario, nombre FROM inventario WHERE id=$1 AND tenant_id=$2',
-        [req.params.id, req.tenantId]
-      )
-      if (!anteriorRows.length) return null
-      const anterior = anteriorRows[0]
-
-      const { rows } = await client.query(`
-        UPDATE inventario SET existencia=$1, consumo_diario=$2,
-          punto_reposicion=$3, costo_unitario=$4, actualizado_en=NOW()
-        WHERE id=$5 AND tenant_id=$6 RETURNING *
-      `, [existencia, consumo_diario, punto_reposicion, costo_unitario, req.params.id, req.tenantId])
-
-      if (rows.length && parseFloat(costo_unitario) !== parseFloat(anterior.costo_unitario)) {
-        await registrarAuditoria(client, {
-          tenantId: req.tenantId, entidadId: req.params.id, entidadNombre: anterior.nombre,
-          valorAnterior: anterior.costo_unitario, valorNuevo: costo_unitario,
-          metodo: 'individual', ip: req.ip,
-        })
-      }
-      return rows[0] || null
-    })
-
-    if (!actualizado) return res.status(404).json({ error: 'Insumo no encontrado' })
-    res.json(actualizado)
-  } catch (e) { next(e) }
-})
-
-// DELETE /api/inventario/:id — sin PIN (eliminar no es "editar precio")
-// PATCH /api/inventario/:id/existencia — actualizar existencia y unidad sin PIN
-router.patch('/:id/existencia', requireAuth, async (req, res, next) => {
-  const { existencia, unidad } = req.body
-  if (existencia === undefined || existencia === null) return res.status(400).json({ error: 'existencia es requerida' })
-  const nueva = parseFloat(existencia)
-  if (isNaN(nueva) || nueva < 0) return res.status(400).json({ error: 'existencia invalida' })
-  try {
-    const { rows } = await query(
-      `UPDATE inventario SET existencia=$1, unidad=COALESCE($2, unidad), actualizado_en=NOW()
-       WHERE id=$3 AND tenant_id=$4 RETURNING *`,
-      [nueva, unidad || null, req.params.id, req.tenantId]
-    )
-    if (!rows[0]) return res.status(404).json({ error: 'Insumo no encontrado' })
+    const { rows } = await query(`
+      UPDATE inventario SET existencia=$1, consumo_diario=$2,
+        punto_reposicion=$3, costo_unitario=$4, actualizado_en=NOW()
+      WHERE id=$5 AND tenant_id=$6 RETURNING *
+    `, [existencia, consumo_diario, punto_reposicion, costo_unitario, req.params.id, req.tenantId])
+    if (!rows.length) return res.status(404).json({ error: 'Insumo no encontrado' })
     res.json(rows[0])
   } catch (e) { next(e) }
 })
 
+// DELETE /api/inventario/:id
 router.delete('/:id', async (req, res, next) => {
   try {
     const { rowCount } = await query('DELETE FROM inventario WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])

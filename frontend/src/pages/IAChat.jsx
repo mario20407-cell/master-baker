@@ -1,18 +1,16 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
-import { Bot, Send, User, Upload, FileText } from 'lucide-react'
+import { Bot, Send, User, Upload, FileText, Zap, Brain, Image } from 'lucide-react'
 import axios from 'axios'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const MODELOS = [
-  { id: 'logica_negocio', label: 'Asesor de negocio',  desc: 'Márgenes y decisiones', color: '#534AB7' },
-  { id: 'chat',           label: 'Atención al cliente', desc: 'Consultas rápidas',     color: '#378ADD' },
-  { id: 'costeo',         label: 'Costeo masivo',       desc: 'Recetas y escalado',    color: '#1D9E75' },
-  { id: 'analisis_razon', label: 'Análisis profundo',   desc: 'Estrategia y optimización', color: '#0F6E56' },
-  { id: 'pdf',            label: 'Leer documentos',     desc: 'PDFs e imágenes',       color: '#D85A30' },
+  { id: 'logica_negocio', label: 'Claude 3.5',   desc: 'Lógica y decisiones', color: '#534AB7' },
+  { id: 'chat',           label: 'GPT-4 mini',   desc: 'Chat rápido',         color: '#378ADD' },
+  { id: 'costeo',         label: 'DeepSeek V3',  desc: 'Costeo masivo',       color: '#1D9E75' },
+  { id: 'analisis_razon', label: 'DeepSeek R1',  desc: 'Razonamiento',        color: '#0F6E56' },
+  { id: 'pdf',            label: 'Gemini Flash', desc: 'PDFs e imágenes',     color: '#D85A30' },
 ]
 
 const SUGERENCIAS = {
@@ -23,33 +21,10 @@ const SUGERENCIAS = {
   pdf:            ['Sube un PDF o imagen para analizar'],
 }
 
-const mdStyles = `
-  .md-content table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-  .md-content thead { background: #534AB7; }
-  .md-content th { padding: 9px 14px; text-align: left; font-weight: 600; color: #fff; font-size: 12px; letter-spacing: 0.3px; }
-  .md-content td { padding: 8px 14px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px; }
-  .md-content tr:nth-child(even) td { background: #f9f8ff; }
-  .md-content tr:hover td { background: #f3f0ff; }
-  .md-content tr:last-child td { border-bottom: none; }
-  .md-content h1, .md-content h2 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; color: #111827; border-bottom: 2px solid #C29C53; padding-bottom: 4px; display: inline-block; }
-  .md-content h3 { font-size: 13px; font-weight: 600; margin: 10px 0 4px; color: #534AB7; }
-  .md-content ul, .md-content ol { padding-left: 18px; margin: 6px 0; }
-  .md-content li { margin: 4px 0; font-size: 13px; color: #374151; }
-  .md-content li::marker { color: #C29C53; font-weight: 700; }
-  .md-content strong { font-weight: 700; color: #111827; }
-  .md-content hr { border: none; border-top: 1px solid #e5e7eb; margin: 12px 0; }
-  .md-content p { margin: 5px 0; font-size: 13px; line-height: 1.7; color: #374151; }
-  .md-content pre { background: #1e1e2e; border-radius: 8px; padding: 12px 16px; margin: 10px 0; overflow-x: auto; }
-  .md-content pre code { background: transparent; color: #cdd6f4; font-size: 12px; font-family: 'Courier New', monospace; padding: 0; }
-  .md-content code { background: #f3f0ff; color: #534AB7; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-family: 'Courier New', monospace; }
-  .md-content blockquote { border-left: 3px solid #C29C53; padding: 6px 12px; color: #6b7280; margin: 8px 0; background: #faf8f4; border-radius: 0 6px 6px 0; }
-  .md-content em { color: #6b7280; font-style: italic; }
-`
-
 export default function IAChat() {
   const { recetas } = useRecetas()
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Hola. Soy el asistente de Master Baker. Elige el tipo de consulta según tu necesidad y escríbeme.', modelo: 'sistema' }
+    { role: 'assistant', content: 'Hola. Soy el sistema multi-IA de Master Baker. Selecciona el modelo según tu tarea y escríbeme.', modelo: 'sistema' }
   ])
   const [input, setInput]           = useState('')
   const [loading, setLoading]       = useState(false)
@@ -62,7 +37,10 @@ export default function IAChat() {
   const fileRef   = useRef(null)
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
-  useEffect(() => { axios.get(`${API}/api/ai/status`).then(r => setStatus(r.data)).catch(() => {}) }, [])
+
+  useEffect(() => {
+    axios.get(`${API}/api/ai/status`).then(r => setStatus(r.data)).catch(() => {})
+  }, [])
 
   const handleArchivo = (e) => {
     const file = e.target.files[0]
@@ -90,10 +68,8 @@ export default function IAChat() {
 
     try {
       let resultado
-      let tipoUsado = modeloSel
       if (archivo && archivoB64) {
         const tipo = archivoMime?.includes('pdf') ? 'receta' : archivoMime?.includes('image') ? 'factura' : 'manual'
-        tipoUsado = 'pdf'
         const { data } = await axios.post(`${API}/api/ai/analizar-pdf`, { fileBase64: archivoB64, mimeType: archivoMime, tipo })
         resultado = { respuesta: typeof data.datos === 'string' ? data.datos : JSON.stringify(data.datos, null, 2), modelo: data.modelo }
         setArchivo(null); setArchivoB64(null); setArchivoMime(null)
@@ -104,7 +80,7 @@ export default function IAChat() {
         })
         resultado = data
       }
-      setMessages(prev => [...prev, { role: 'assistant', content: resultado.respuesta, modelo: resultado.modelo, tipoUsado, razonamiento: resultado.razonamiento }])
+      setMessages(prev => [...prev, { role: 'assistant', content: resultado.respuesta, modelo: resultado.modelo, razonamiento: resultado.razonamiento }])
     } catch (e) {
       setMessages(prev => [...prev, { role: 'assistant', content: `⚠ ${e.response?.data?.error || 'Error de conexión. Verifica que el backend esté corriendo.'}`, modelo: 'error' }])
     } finally { setLoading(false) }
@@ -116,8 +92,8 @@ export default function IAChat() {
 
   return (
     <div className="max-w-3xl flex flex-col" style={{ height: 'calc(100vh - 120px)' }}>
-      <style>{mdStyles}</style>
 
+      {/* Selector de modelo */}
       <div className="flex gap-2 mb-3 flex-wrap">
         {MODELOS.map(m => (
           <button key={m.id} onClick={() => setModeloSel(m.id)}
@@ -129,19 +105,18 @@ export default function IAChat() {
         ))}
       </div>
 
+      {/* Estado de modelos */}
       {status && (
-        <div className="flex gap-2 mb-3">
-          {(() => {
-            const algunoActivo = !status.modoMock && Object.values(status.modelos || {}).some(v => v.activo === true)
-            return (
-              <span className="text-[10px] flex items-center gap-1" style={{ color: algunoActivo ? '#3B6D11' : '#9ca3af' }}>
-                <span>{algunoActivo ? '●' : '○'}</span> Sistema {algunoActivo ? 'activo' : 'en modo limitado'}
-              </span>
-            )
-          })()}
+        <div className="flex gap-3 mb-3 flex-wrap">
+          {Object.entries(status.modelos).slice(0,5).map(([k, v]) => (
+            <span key={k} className="text-[10px] flex items-center gap-1" style={{ color: v.activo ? '#3B6D11' : '#9ca3af' }}>
+              <span>{v.activo ? '●' : '○'}</span> {k}
+            </span>
+          ))}
         </div>
       )}
 
+      {/* Mensajes */}
       <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1">
         {messages.map((m, i) => (
           <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
@@ -151,19 +126,17 @@ export default function IAChat() {
             </div>
             <div className="max-w-[85%] space-y-1">
               {m.modelo && m.role === 'assistant' && m.modelo !== 'sistema' && (
-                <div className="text-[10px] text-gray-400 px-1">{MODELOS.find(mo => mo.id === m.tipoUsado)?.label || modeloActual?.label}</div>
+                <div className="text-[10px] text-gray-400 px-1">{m.modelo}</div>
               )}
               {m.razonamiento && (
                 <details className="text-[10px] text-gray-400 bg-gray-50 rounded-lg px-2 py-1">
-                  <summary className="cursor-pointer font-medium">Ver análisis detallado</summary>
+                  <summary className="cursor-pointer font-medium">Ver razonamiento DeepSeek R1</summary>
                   <pre className="whitespace-pre-wrap mt-1 text-[10px]">{m.razonamiento}</pre>
                 </details>
               )}
               <div className={`rounded-2xl px-3 py-2 text-sm leading-relaxed ${m.role === 'user' ? 'text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm shadow-sm'}`}
                 style={m.role === 'user' ? { background: '#C29C53' } : {}}>
-                <div className="md-content">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
-                </div>
+                {m.content.split('\n').map((line, j) => <span key={j}>{line}{j < m.content.split('\n').length - 1 ? <br /> : null}</span>)}
               </div>
             </div>
           </div>
@@ -183,12 +156,14 @@ export default function IAChat() {
         <div ref={bottomRef} />
       </div>
 
+      {/* Sugerencias */}
       {messages.length <= 1 && (
         <div className="flex gap-2 flex-wrap mb-2">
           {sugs.map((s, i) => <button key={i} onClick={() => enviar(s)} className="btn-secondary text-xs px-2 py-1.5 text-left leading-tight">{s}</button>)}
         </div>
       )}
 
+      {/* Archivo seleccionado */}
       {archivo && (
         <div className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg text-xs" style={{ background: '#FAEEDA', color: '#633806' }}>
           <FileText size={13} />
@@ -197,9 +172,10 @@ export default function IAChat() {
         </div>
       )}
 
+      {/* Input */}
       <div className="flex gap-2 bg-white border border-gray-200 rounded-xl p-2 shadow-sm">
         <input type="file" ref={fileRef} onChange={handleArchivo} accept=".pdf,image/*" className="hidden" />
-        <button onClick={() => fileRef.current?.click()} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600" title="Subir PDF o imagen">
+        <button onClick={() => fileRef.current?.click()} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600" title="Subir PDF o imagen (Gemini)">
           <Upload size={15} />
         </button>
         <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKey}

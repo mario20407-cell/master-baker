@@ -1,178 +1,96 @@
-import { useState } from 'react'
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useState, useEffect } from 'react'
+import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import {
-  LayoutDashboard, ShoppingCart, BookOpen, Calculator, Scale,
-  Package, ShoppingBag, BarChart2, Bot, Download, Shield,
-  Settings, Users, HelpCircle, CreditCard, LogOut, ChefHat,
-  Receipt, TrendingUp
+  LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
+  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, Moon, Sun
 } from 'lucide-react'
 
-const navItems = [
+const NAV = [
   { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/ventas',     icon: ShoppingCart,    label: 'Ventas',    badge: 'NEW' },
-  { to: '/catalogo',   icon: ChefHat,         label: 'Catálogo' },
-  { to: '/recetas',    icon: BookOpen,        label: 'Recetas',   badge: 'CLAVE' },
-  { to: '/costeo',     icon: Calculator,      label: 'Costeo' },
-  { to: '/escalado',   icon: Scale,           label: 'Escalado' },
-  { to: '/inventario', icon: Package,         label: 'Inventario' },
-  { to: '/produccion', icon: TrendingUp,      label: 'Producción', badge: 'NEW' },
-  { to: '/compras',    icon: ShoppingBag,     label: 'Compras' },
-  { to: '/reportes',   icon: BarChart2,       label: 'Reportes' },
-  { to: '/suscripcion',icon: CreditCard,      label: 'Mi Plan' },
-  { to: '/politicas',  icon: Shield,          label: 'Políticas' },
-  { to: '/ia',         icon: Bot,             label: 'Consultar IA' },
-  { to: '/fiscal',     icon: Settings,        label: 'Config. Fiscal', badge: 'DGI', soloAdmin: true },
-  { to: '/usuarios',   icon: Users,           label: 'Usuarios', soloAdmin: true },
-  { to: '/ayuda',      icon: HelpCircle,      label: 'Ayuda' },
-  { to: '/exportar',   icon: Download,        label: 'Exportar' },
+  { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',      badge: 'NEW' },
+  { to: '/catalogo',   icon: BookOpen,         label: 'Catálogo' },
+  { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE' },
+  { to: '/costeo',     icon: Calculator,       label: 'Costeo' },
+  { to: '/escalado',   icon: Scale,            label: 'Escalado' },
+  { to: '/inventario', icon: Package,          label: 'Inventario' },
+  { to: '/compras',    icon: Receipt,          label: 'Compras' },
+  { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
+  { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI' },
+  { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
+  { to: '/exportar',   icon: Download,         label: 'Exportar' },
 ]
 
-const badgeColors = {
-  NEW:  { bg: '#1A7A4A', color: '#fff' },
-  CLAVE:{ bg: '#854F0B', color: '#fff' },
-  DGI:  { bg: '#1B2A4A', color: '#fff' },
-}
-
 export default function Layout() {
-  const { usuario, logout } = useAuth()
-  const navigate = useNavigate()
-  const [collapsed, setCollapsed] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true')
+  const location = useLocation()
 
-  const handleLogout = () => { logout(); navigate('/login') }
-  const isAdmin = usuario?.rol === 'admin'
-  const initials = usuario?.nombre?.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase() || 'MB'
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode)
+    localStorage.setItem('darkMode', darkMode)
+  }, [darkMode])
+  const currentPage = NAV.find(n => location.pathname.startsWith(n.to))?.label || 'Master Baker'
 
   return (
-    <div style={{ display:'flex', height:'100vh', background:'#f0f2f5', fontFamily:'system-ui,sans-serif' }}>
-
-      {/* SIDEBAR */}
-      <aside style={{
-        width: collapsed ? 56 : 210,
-        minWidth: collapsed ? 56 : 210,
-        background: '#1B2A4A',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'width .2s',
-        overflow: 'hidden',
-        borderRight: '1px solid #263d63'
-      }}>
-
-        {/* Logo */}
-        <div style={{ padding:'14px 16px', borderBottom:'1px solid #263d63', flexShrink:0 }}>
-          {!collapsed && (
-            <>
-              <img src='/branding/logo-completo.png' alt='Master Baker' style={{ height:48, objectFit:'contain' }} />
-              <div style={{ color:'#888B8D', fontSize:10, marginTop:4 }}>{usuario?.negocio || 'Panadería'}</div>
-            </>
-          )}
-          {collapsed && <img src='/branding/logo-emblema.png' alt='MB' style={{ height:32, objectFit:'contain' }} />}
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/30 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+      <aside className={`fixed lg:static inset-y-0 left-0 z-30 w-56 border-r flex flex-col transition-transform duration-200 lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+        <div className="flex items-center justify-center px-4 py-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
+          <Link to="/dashboard" onClick={() => setSidebarOpen(false)}>
+            <img src="/branding/logo-completo.png" alt="Master Baker" className="w-full h-32 object-contain" style={{ mixBlendMode: 'multiply' }} />
+          </Link>
+          <button className="ml-auto lg:hidden text-gray-400" onClick={() => setSidebarOpen(false)}>
+            <X size={18} />
+          </button>
         </div>
-
-        {/* Nav */}
-        <nav style={{ flex:1, overflowY:'auto', padding:'8px 0' }}>
-          {navItems.filter(item => !item.soloAdmin || isAdmin).map(({ to, icon: Icon, label, badge }) => (
-            <NavLink key={to} to={to} style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: collapsed ? '8px 16px' : '7px 16px',
-              color: isActive ? '#ffffff' : '#888B8D',
-              background: isActive ? '#243d63' : 'transparent',
-              borderLeft: isActive ? '3px solid #C29C53' : '3px solid transparent',
-              textDecoration: 'none',
-              fontSize: 11,
-              fontWeight: isActive ? 700 : 400,
-              whiteSpace: 'nowrap',
-              transition: 'all .15s'
-            })}>
-              <Icon size={15} style={{ flexShrink:0 }} />
-              {!collapsed && (
-                <>
-                  <span style={{ flex:1 }}>{label}</span>
-                  {badge && (
-                    <span style={{
-                      fontSize:9, fontWeight:700,
-                      padding:'2px 5px', borderRadius:3,
-                      background: badgeColors[badge]?.bg || '#888',
-                      color: badgeColors[badge]?.color || '#fff'
-                    }}>{badge}</span>
-                  )}
-                </>
+        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+          {NAV.map(({ to, icon: Icon, label, badge }) => (
+            <NavLink key={to} to={to} onClick={() => setSidebarOpen(false)}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <Icon size={16} />
+              <span className="flex-1">{label}</span>
+              {badge && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                  style={{
+                    background: badge === 'NEW' ? '#3B6D11' : badge === 'DGI' ? '#263D4F' : '#C29C53',
+                    color: badge === 'NEW' ? '#fff' : badge === 'DGI' ? '#fff' : '#4F3C1C'
+                  }}>
+                  {badge}
+                </span>
               )}
             </NavLink>
           ))}
         </nav>
-
-        {/* User footer */}
-        {!collapsed && (
-          <div style={{ padding:'10px 16px', borderTop:'1px solid #263d63', flexShrink:0 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <div style={{
-                width:28, height:28, borderRadius:'50%',
-                background:'#C29C53', display:'flex', alignItems:'center',
-                justifyContent:'center', fontSize:10, fontWeight:700,
-                color:'#1B2A4A', flexShrink:0
-              }}>{initials}</div>
-              <div>
-                <div style={{ color:'#e0e2e3', fontSize:10, fontWeight:700 }}>{usuario?.nombre}</div>
-                <div style={{ color:'#888B8D', fontSize:9 }}>{usuario?.rol}</div>
-              </div>
-            </div>
-          </div>
-        )}
+        <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>v3.2 · Margen objetivo ≥57%</div>
+        </div>
       </aside>
 
-      {/* MAIN */}
-      <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
-
-        {/* TOPBAR */}
-        <header style={{
-          background:'#ffffff',
-          padding:'10px 24px',
-          borderBottom:'0.5px solid #c8cbcd',
-          display:'flex',
-          alignItems:'center',
-          justifyContent:'space-between',
-          flexShrink:0
-        }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <button onClick={() => setCollapsed(!collapsed)} style={{
-              border:'none', background:'transparent', cursor:'pointer',
-              color:'#888B8D', padding:4, display:'flex'
-            }}>
-              <LayoutDashboard size={18} />
-            </button>
-            <div>
-              <div style={{ color:'#1B2A4A', fontSize:14, fontWeight:700 }}>Master Baker</div>
-              <div style={{ color:'#888B8D', fontSize:10 }}>{usuario?.negocio || 'Panel de gestión'}</div>
-            </div>
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header className="border-b px-4 py-3 flex items-center gap-3 flex-shrink-0" style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+          <button className="lg:hidden text-gray-500 hover:text-gray-700" onClick={() => setSidebarOpen(true)}>
+            <Menu size={24} />
+          </button>
+          <div className="flex flex-col items-center flex-1">
+            <span className="text-sm font-bold tracking-widest uppercase" style={{ color: '#263D4F' }}>Master Baker</span>
+            <span className="text-xs tracking-wider" style={{ color: '#C29C53' }}>Sistema de Gestión Inteligente de Panadería</span>
           </div>
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <span style={{
-              background:'#FBF5E9', color:'#854F0B',
-              fontSize:11, padding:'5px 10px',
-              borderRadius:6, fontWeight:700
-            }}>v3.5</span>
-            <button onClick={handleLogout} style={{
-              display:'flex', alignItems:'center', gap:6,
-              padding:'8px 18px',
-              background:'#C0392B',
-              color:'#fff',
-              border:'none',
-              borderRadius:8,
-              fontSize:13,
-              fontWeight:700,
-              cursor:'pointer'
-            }}>
-              <LogOut size={16} />
-              Cerrar sesión
+          <div className="flex items-center gap-2">
+            <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ background: '#EAF3DE', color: '#27500A' }}>
+              Margen objetivo: ≥57%
+            </span>
+            <button
+              onClick={() => setDarkMode(d => !d)}
+              className="p-1.5 rounded-lg transition-colors"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-secondary)' }}
+              title={darkMode ? 'Modo claro' : 'Modo oscuro'}>
+              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
           </div>
         </header>
-
-        {/* CONTENT */}
-        <main style={{ flex:1, overflowY:'auto', padding:'24px' }}>
+        <main className="flex-1 overflow-y-auto p-4">
           <Outlet />
         </main>
       </div>
