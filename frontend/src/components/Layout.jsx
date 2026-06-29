@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
-  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, Moon, Sun, LogOut, ClipboardList
+  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, Moon, Sun, LogOut, ClipboardList, Boxes
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
@@ -16,6 +16,7 @@ const NAV = [
   { to: '/inventario', icon: Package,          label: 'Inventario' },
   { to: '/compras',    icon: Receipt,          label: 'Compras' },
   { to: '/caja',       icon: ClipboardList,    label: 'Caja Producción' },
+  { to: '/stock',      icon: Boxes,            label: 'Stock Terminado' },
   { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
   { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI' },
   { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
