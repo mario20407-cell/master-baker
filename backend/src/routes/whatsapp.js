@@ -128,8 +128,11 @@ async function enviarMensaje(telefono, texto) {
 
   const data = await res.json()
   if (!res.ok) {
-    console.error('[WhatsApp] Error al enviar:', data)
-    throw new Error(data.error?.message || 'Error al enviar mensaje')
+    console.error('[WhatsApp] Error al enviar:', JSON.stringify(data))
+    const err = new Error(data.error?.message || 'Error al enviar mensaje')
+    err.status = res.status
+    err.meta = data.error
+    throw err
   }
   return data
 }
@@ -253,7 +256,9 @@ router.post('/enviar', async (req, res, next) => {
   try {
     const data = await enviarMensaje(telefono, mensaje)
     res.json({ ok: true, data })
-  } catch (e) { next(e) }
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message, meta: e.meta || null })
+  }
 })
 
 // ── Endpoint: ver historial de conversación ───────────────────────────────────
