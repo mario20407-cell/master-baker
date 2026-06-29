@@ -273,6 +273,7 @@ router.get('/status', (req, res) => {
   res.json({
     activo:           !!getWAToken() && !!getWAPhoneId(),
     phone_id:         getWAPhoneId() || 'No configurado',
+    token_preview:    (getWAToken() || '').slice(0, 8) || 'EMPTY',
     ia_activa:        !!process.env.OPENAI_API_KEY,
     modelo:           'gpt-4o-mini',
     conversaciones:   conversaciones.size,
