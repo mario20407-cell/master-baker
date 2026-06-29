@@ -32,8 +32,14 @@ const PORT = process.env.PORT || 3001
 
 
 app.use(helmet())
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
-  .split(',').map(s => s.trim())
+const allowedOrigins = [
+  'https://masterbaker.store',
+  'https://www.masterbaker.store',
+  'https://marquez-app-v27.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:4173',
+  ...( process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(s => s.trim()) : [] ),
+]
 app.use(cors({
   origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)),
   credentials: true,
