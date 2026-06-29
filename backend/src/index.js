@@ -22,6 +22,8 @@ import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 const app = express()
 const PORT = process.env.PORT || 3001
 
+console.log('[startup] JWT_SECRET set:', !!process.env.JWT_SECRET, '| length:', (process.env.JWT_SECRET||'').length)
+
 app.use(helmet())
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }))
 app.use(morgan('dev'))
