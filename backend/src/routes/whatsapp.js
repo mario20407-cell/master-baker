@@ -3,11 +3,11 @@ import OpenAI from 'openai'
 
 const router = Router()
 
-// ── Configuración ─────────────────────────────────────────────────────────────
-const WA_TOKEN    = process.env.WHATSAPP_TOKEN
-const WA_PHONE_ID = process.env.WHATSAPP_PHONE_ID
+// ── Configuración — leída lazily para que dotenv ya haya cargado ──────────────
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'marquez_verify_2024'
-const WA_API      = `https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`
+const getWAToken   = () => process.env.WHATSAPP_TOKEN
+const getWAPhoneId = () => process.env.WHATSAPP_PHONE_ID
+const getWAAPI     = () => `https://graph.facebook.com/v20.0/${getWAPhoneId()}/messages`
 
 // Historial de conversaciones por número (en memoria, se limpia al reiniciar)
 const conversaciones = new Map()
@@ -107,15 +107,15 @@ COMANDOS ESPECIALES que debes detectar:
 
 // ── Función: enviar mensaje a WhatsApp ────────────────────────────────────────
 async function enviarMensaje(telefono, texto) {
-  if (!WA_TOKEN || !WA_PHONE_ID) {
+  if (!getWAToken() || !getWAPhoneId()) {
     console.warn('[WhatsApp] Token o Phone ID no configurados')
     return
   }
 
-  const res = await fetch(WA_API, {
+  const res = await fetch(getWAAPI(), {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${WA_TOKEN}`,
+      'Authorization': `Bearer ${getWAToken()}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -271,8 +271,8 @@ router.delete('/conversacion/:telefono', (req, res) => {
 // ── Endpoint: status del bot ──────────────────────────────────────────────────
 router.get('/status', (req, res) => {
   res.json({
-    activo:           !!WA_TOKEN && !!WA_PHONE_ID,
-    phone_id:         WA_PHONE_ID || 'No configurado',
+    activo:           !!getWAToken() && !!getWAPhoneId(),
+    phone_id:         getWAPhoneId() || 'No configurado',
     ia_activa:        !!process.env.OPENAI_API_KEY,
     modelo:           'gpt-4o-mini',
     conversaciones:   conversaciones.size,
