@@ -32,7 +32,7 @@ router.post('/', async (req, res, next) => {
     const { producto, cantidad, unidad = 'unidad', costo_total = 0, fecha, notas, precio_unitario = 0 } = req.body
     if (!producto || !cantidad) return res.status(400).json({ error: 'producto y cantidad requeridos' })
 
-    const { rows } = await transaction(async (client) => {
+    const result = await transaction(async (client) => {
       const lote = await client.query(
         `INSERT INTO lotes (tenant_id, producto, cantidad, unidad, costo_total, fecha, notas)
          VALUES ($1,$2,$3,$4,$5,COALESCE($6::date, CURRENT_DATE),$7) RETURNING *`,
@@ -45,7 +45,7 @@ router.post('/', async (req, res, next) => {
       )
       return { ...lote.rows[0], caja: caja.rows[0] }
     })
-    res.status(201).json(rows)
+    res.status(201).json(result)
   } catch (e) { next(e) }
 })
 
