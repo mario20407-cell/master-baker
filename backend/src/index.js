@@ -56,7 +56,7 @@ app.use('/api/ventas',     ventasRoutes)
 // Health check
 app.get('/api/health', (_, res) => res.json({
   status: 'ok', version: '2.7',
-  negocio: 'MarquÃ©z PanaderÃ­a & ReposterÃ­a',
+  negocio: 'Marquéz Panadería & Repostería',
   ia: {
     openai:    !!process.env.OPENAI_API_KEY,
     anthropic: !!process.env.ANTHROPIC_API_KEY,
@@ -66,6 +66,9 @@ app.get('/api/health', (_, res) => res.json({
   whatsapp: {
     activo:   !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID,
     phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
+  },
+  auth: {
+    jwt_secret: !!process.env.JWT_SECRET,
   },
   timestamp: new Date().toISOString(),
 }))
