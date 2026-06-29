@@ -71,6 +71,7 @@ app.get('/api/health', (_, res) => res.json({
   },
   auth: {
     jwt_secret: !!process.env.JWT_SECRET,
+    jwt_secret_preview: (process.env.JWT_SECRET || '').slice(0, 4) || 'EMPTY',
   },
   timestamp: new Date().toISOString(),
 }))
