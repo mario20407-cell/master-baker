@@ -281,7 +281,6 @@ router.get('/status', (req, res) => {
     phone_id:         getWAPhoneId() || 'No configurado',
     token_preview:    (getWAToken() || '').slice(0, 8) || 'EMPTY',
     env_keys_with_whatsapp: Object.keys(process.env).filter(k => k.includes('WHATSAPP')),
-    test_var: process.env.TEST_VAR || 'NOT_SET',
     ia_activa:        !!process.env.OPENAI_API_KEY,
     modelo:           'gpt-4o-mini',
     conversaciones:   conversaciones.size,
