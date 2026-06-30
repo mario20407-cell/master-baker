@@ -63,10 +63,17 @@ export default function InventarioTerminado() {
     } catch (err) { toast.error(err.response?.data?.error || 'Error al crear sucursal') }
   }
 
-  const ajustarStockMinimo = async (id, valor) => {
+  const ajustarStockMinimo = async (id, stock_minimo, stock) => {
     try {
-      await api.patch(`/inventario-terminado/${id}`, { stock_minimo: Number(valor) })
-      setInventario(inv => inv.map(i => i.id === id ? { ...i, stock_minimo: valor } : i))
+      const body = {}
+      if (stock_minimo !== undefined) body.stock_minimo = Number(stock_minimo)
+      if (stock !== undefined) body.stock = Number(stock)
+      await api.patch(`/inventario-terminado/${id}`, body)
+      setInventario(inv => inv.map(i => i.id === id ? {
+        ...i,
+        ...(stock_minimo !== undefined ? { stock_minimo } : {}),
+        ...(stock !== undefined ? { stock } : {}),
+      } : i))
     } catch { toast.error('Error al actualizar') }
   }
 
@@ -222,8 +229,10 @@ export default function InventarioTerminado() {
 }
 
 function FilaInventario({ item, onActualizar }) {
-  const [editMin, setEditMin] = useState(false)
-  const [minVal, setMinVal]   = useState(String(item.stock_minimo))
+  const [editMin, setEditMin]     = useState(false)
+  const [editStock, setEditStock] = useState(false)
+  const [minVal, setMinVal]       = useState(String(item.stock_minimo))
+  const [stockVal, setStockVal]   = useState(String(item.stock))
   const bajo = Number(item.stock) <= Number(item.stock_minimo) && Number(item.stock_minimo) > 0
   const agotado = Number(item.stock) === 0
 
@@ -232,15 +241,25 @@ function FilaInventario({ item, onActualizar }) {
       <td className="px-4 py-3 font-medium text-gray-800">{item.producto}</td>
       <td className="px-4 py-3 text-gray-500">{item.sucursal_nombre}</td>
       <td className="px-4 py-3 text-right font-semibold">
-        <span className={agotado ? 'text-red-500' : bajo ? 'text-amber-500' : 'text-gray-800'}>
-          {item.stock} {item.unidad}
-        </span>
+        {editStock ? (
+          <input type="number" min="0" value={stockVal}
+            className="w-16 text-sm border border-gray-200 rounded px-1.5 py-0.5 text-right"
+            onBlur={() => { onActualizar(item.id, undefined, stockVal); setEditStock(false) }}
+            onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
+            onChange={e => setStockVal(e.target.value)}
+            autoFocus />
+        ) : (
+          <button onClick={() => setEditStock(true)} className={`flex items-center gap-1 ml-auto ${agotado ? 'text-red-500' : bajo ? 'text-amber-500' : 'text-gray-800'}`}>
+            {item.stock} {item.unidad} <ChevronDown size={11} />
+          </button>
+        )}
       </td>
       <td className="px-4 py-3 text-right">
         {editMin ? (
           <input type="number" min="0" value={minVal}
             className="w-16 text-sm border border-gray-200 rounded px-1.5 py-0.5 text-right"
             onBlur={() => { onActualizar(item.id, minVal); setEditMin(false) }}
+            onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
             onChange={e => setMinVal(e.target.value)}
             autoFocus />
         ) : (
