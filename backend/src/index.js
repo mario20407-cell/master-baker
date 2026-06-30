@@ -4,7 +4,7 @@ dotenv.config()
 const envTxt = dotenv.config({ path: '.env.txt' })
 if (envTxt.parsed) {
   for (const [k, v] of Object.entries(envTxt.parsed)) {
-    if (!process.env[k]) process.env[k] = v
+    if (!process.env[k] && v) process.env[k] = v
   }
 }
 import express from 'express'
