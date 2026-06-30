@@ -25,18 +25,6 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-router.patch('/:id', async (req, res, next) => {
-  try {
-    const { nombre, rol, activo } = req.body
-    const { rows } = await query(
-      'UPDATE usuarios SET nombre=COALESCE($1,nombre), rol=COALESCE($2,rol), activo=COALESCE($3,activo) WHERE id=$4 AND tenant_id=$5 RETURNING *',
-      [nombre, rol, activo, req.params.id, req.tenantId]
-    )
-    if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
-    res.json(rows[0])
-  } catch (e) { next(e) }
-})
-
 router.get('/tenant-config', async (req, res, next) => {
   try {
     const { rows } = await query(
@@ -58,6 +46,18 @@ router.patch('/tenant-config', async (req, res, next) => {
        WHERE id = $4 RETURNING whatsapp_taller, whatsapp_compras, whatsapp_jefe_operaciones`,
       [whatsapp_taller || null, whatsapp_compras || null, whatsapp_jefe_operaciones || null, req.tenantId]
     )
+    res.json(rows[0])
+  } catch (e) { next(e) }
+})
+
+router.patch('/:id', async (req, res, next) => {
+  try {
+    const { nombre, rol, activo } = req.body
+    const { rows } = await query(
+      'UPDATE usuarios SET nombre=COALESCE($1,nombre), rol=COALESCE($2,rol), activo=COALESCE($3,activo) WHERE id=$4 AND tenant_id=$5 RETURNING *',
+      [nombre, rol, activo, req.params.id, req.tenantId]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
     res.json(rows[0])
   } catch (e) { next(e) }
 })
