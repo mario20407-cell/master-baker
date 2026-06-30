@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
-import { API } from '../lib/api'
+import api, { API } from '../lib/api'
+import toast from 'react-hot-toast'
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
   const [form, setForm] = useState({ nombre: '', email: '', rol: 'operario' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [waConfig, setWaConfig] = useState({ whatsapp_taller: '', whatsapp_compras: '', whatsapp_jefe_operaciones: '' })
+  const [savingWa, setSavingWa] = useState(false)
 
   const cargar = async () => {
     try {
@@ -14,7 +17,14 @@ export default function Usuarios() {
     } catch (e) { setError('Error cargando usuarios') }
   }
 
-  useEffect(() => { cargar() }, [])
+  useEffect(() => {
+    cargar()
+    api.get('/usuarios/tenant-config').then(({ data }) => setWaConfig({
+      whatsapp_taller: data.whatsapp_taller || '',
+      whatsapp_compras: data.whatsapp_compras || '',
+      whatsapp_jefe_operaciones: data.whatsapp_jefe_operaciones || '',
+    })).catch(() => {})
+  }, [])
 
   const crear = async () => {
     if (!form.nombre || !form.email) return setError('Nombre y email requeridos')
@@ -33,6 +43,15 @@ export default function Usuarios() {
       await API.patch(`/api/usuarios/${u.id}`, { activo: !u.activo })
       await cargar()
     } catch (e) { setError('Error actualizando usuario') }
+  }
+
+  const guardarWa = async () => {
+    setSavingWa(true)
+    try {
+      await api.patch('/usuarios/tenant-config', waConfig)
+      toast.success('Números de alerta guardados')
+    } catch { toast.error('Error guardando configuración') }
+    setSavingWa(false)
   }
 
   return (
@@ -70,6 +89,39 @@ export default function Usuarios() {
           className="mt-3 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-lg disabled:opacity-50"
         >
           {loading ? 'Creando...' : 'Crear usuario'}
+        </button>
+      </div>
+
+      {/* Alertas WhatsApp */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+        <h2 className="text-sm font-medium text-gray-500 mb-1">Alertas WhatsApp</h2>
+        <p className="text-xs text-gray-400 mb-4">Números que reciben avisos de stock bajo e insumos. Formato: 50576926316 (sin + ni espacios)</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Taller / Producción</label>
+            <input className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full"
+              placeholder="50576926316"
+              value={waConfig.whatsapp_taller}
+              onChange={e => setWaConfig(c => ({ ...c, whatsapp_taller: e.target.value }))} />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Compras / Insumos</label>
+            <input className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full"
+              placeholder="50576926316"
+              value={waConfig.whatsapp_compras}
+              onChange={e => setWaConfig(c => ({ ...c, whatsapp_compras: e.target.value }))} />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Jefe de Operaciones</label>
+            <input className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-full"
+              placeholder="50576926316"
+              value={waConfig.whatsapp_jefe_operaciones}
+              onChange={e => setWaConfig(c => ({ ...c, whatsapp_jefe_operaciones: e.target.value }))} />
+          </div>
+        </div>
+        <button onClick={guardarWa} disabled={savingWa}
+          className="mt-3 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-2 rounded-lg disabled:opacity-50">
+          {savingWa ? 'Guardando...' : 'Guardar números'}
         </button>
       </div>
 

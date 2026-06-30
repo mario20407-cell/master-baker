@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
+import { checkStockTerminado } from '../services/alertas.js'
 
 const router = Router()
 
@@ -67,6 +68,7 @@ router.post('/distribuir', async (req, res, next) => {
       return registros
     })
     res.status(201).json(result)
+    checkStockTerminado(req.tenantId).catch(() => {})
   } catch (e) { next(e) }
 })
 
@@ -84,6 +86,7 @@ router.patch('/:id', async (req, res, next) => {
     )
     if (!rows[0]) return res.status(404).json({ error: 'Registro no encontrado' })
     res.json(rows[0])
+    checkStockTerminado(req.tenantId).catch(() => {})
   } catch (e) { next(e) }
 })
 

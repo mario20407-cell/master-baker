@@ -37,4 +37,29 @@ router.patch('/:id', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+router.get('/tenant-config', async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      'SELECT whatsapp_taller, whatsapp_compras, whatsapp_jefe_operaciones FROM tenants WHERE id = $1',
+      [req.tenantId]
+    )
+    res.json(rows[0] || {})
+  } catch (e) { next(e) }
+})
+
+router.patch('/tenant-config', async (req, res, next) => {
+  try {
+    const { whatsapp_taller, whatsapp_compras, whatsapp_jefe_operaciones } = req.body
+    const { rows } = await query(
+      `UPDATE tenants SET
+        whatsapp_taller = COALESCE($1, whatsapp_taller),
+        whatsapp_compras = COALESCE($2, whatsapp_compras),
+        whatsapp_jefe_operaciones = COALESCE($3, whatsapp_jefe_operaciones)
+       WHERE id = $4 RETURNING whatsapp_taller, whatsapp_compras, whatsapp_jefe_operaciones`,
+      [whatsapp_taller || null, whatsapp_compras || null, whatsapp_jefe_operaciones || null, req.tenantId]
+    )
+    res.json(rows[0])
+  } catch (e) { next(e) }
+})
+
 export default router

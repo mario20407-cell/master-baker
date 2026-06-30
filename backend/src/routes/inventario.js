@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { query } from '../db/client.js'
+import { checkInventarioInsumos } from '../services/alertas.js'
 
 const router = Router()
 
@@ -55,6 +56,7 @@ router.put('/:id', async (req, res, next) => {
     `, [existencia, consumo_diario, punto_reposicion, costo_unitario, req.params.id, req.tenantId])
     if (!rows.length) return res.status(404).json({ error: 'Insumo no encontrado' })
     res.json(rows[0])
+    checkInventarioInsumos(req.tenantId).catch(() => {})
   } catch (e) { next(e) }
 })
 
