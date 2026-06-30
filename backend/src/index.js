@@ -100,6 +100,13 @@ app.get('/api/health', (_, res) => res.json({
   timestamp: new Date().toISOString(),
 }))
 
+// Diagnóstico temporal — eliminar luego
+app.get('/api/debug-env', (_, res) => res.json({
+  all_keys: Object.keys(process.env).sort(),
+  whatsapp_token_length: (process.env.WHATSAPP_TOKEN || '').length,
+  test_var: process.env.TEST_VAR || 'NOT_SET',
+}))
+
 // Errores
 app.use((err, req, res, _next) => {
   console.error('[Error]', err.message)
