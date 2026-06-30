@@ -255,6 +255,7 @@ router.post('/enviar', async (req, res, next) => {
   }
   try {
     const data = await enviarMensaje(telefono, mensaje)
+    if (!data) return res.status(503).json({ error: 'WHATSAPP_TOKEN no configurado en el servidor' })
     res.json({ ok: true, data })
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message, meta: e.meta || null })
