@@ -45,8 +45,8 @@ export async function checkStockTerminado(tenantId) {
 
   for (const row of rows) {
     const msg = `🍞 Master Baker — ${row.sucursal}: solo quedan ${row.stock} ${row.unidad} de ${row.producto}. Preparar nueva hornada.`
-    if (whatsapp_taller) await enviarWA(whatsapp_taller, msg)
-    if (whatsapp_jefe_operaciones) await enviarWA(whatsapp_jefe_operaciones, msg)
+    const destinatarios = [...new Set([whatsapp_taller, whatsapp_jefe_operaciones].filter(Boolean))]
+    for (const num of destinatarios) await enviarWA(num, msg)
     await query('UPDATE inventario_terminado SET alerta_enviada_en = NOW() WHERE id = $1', [row.id])
     console.log(`[Alertas] Stock bajo enviado: ${row.producto} (${row.sucursal})`)
   }
@@ -73,8 +73,8 @@ export async function checkInventarioInsumos(tenantId) {
 
   for (const row of rows) {
     const msg = `🛒 Master Baker — ${row.nombre} bajo el mínimo: quedan ${row.existencia}${row.unidad}. Hacer pedido.`
-    if (whatsapp_compras) await enviarWA(whatsapp_compras, msg)
-    if (whatsapp_jefe_operaciones) await enviarWA(whatsapp_jefe_operaciones, msg)
+    const destinatarios = [...new Set([whatsapp_compras, whatsapp_jefe_operaciones].filter(Boolean))]
+    for (const num of destinatarios) await enviarWA(num, msg)
     await query('UPDATE inventario SET alerta_enviada_en = NOW() WHERE id = $1', [row.id])
     console.log(`[Alertas] Insumo bajo enviado: ${row.nombre}`)
   }
