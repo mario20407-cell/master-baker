@@ -69,6 +69,7 @@ export default function InventarioTerminado() {
       if (stock_minimo !== undefined) body.stock_minimo = Number(stock_minimo)
       if (stock !== undefined) body.stock = Number(stock)
       await api.patch(`/inventario-terminado/${id}`, body)
+      toast.success('Guardado')
       setInventario(inv => inv.map(i => i.id === id ? {
         ...i,
         ...(stock_minimo !== undefined ? { stock_minimo } : {}),
@@ -231,8 +232,8 @@ export default function InventarioTerminado() {
 function FilaInventario({ item, onActualizar }) {
   const [editMin, setEditMin]     = useState(false)
   const [editStock, setEditStock] = useState(false)
-  const [minVal, setMinVal]       = useState(String(item.stock_minimo))
-  const [stockVal, setStockVal]   = useState(String(item.stock))
+  const [minVal, setMinVal]       = useState(item.stock_minimo != null ? String(item.stock_minimo) : '0')
+  const [stockVal, setStockVal]   = useState(item.stock != null ? String(item.stock) : '0')
   const bajo = Number(item.stock) <= Number(item.stock_minimo) && Number(item.stock_minimo) > 0
   const agotado = Number(item.stock) === 0
 
