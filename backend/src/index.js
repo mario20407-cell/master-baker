@@ -90,8 +90,9 @@ app.get('/api/health', (_, res) => res.json({
     gemini:    !!process.env.GEMINI_API_KEY,
   },
   whatsapp: {
-    activo:   !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID,
-    phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
+    activo:      !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID,
+    phone_id:    process.env.WHATSAPP_PHONE_ID || 'No configurado',
+    token_chars: process.env.WHATSAPP_TOKEN?.length ?? 0,
   },
   auth: {
     jwt_secret: !!process.env.JWT_SECRET,
