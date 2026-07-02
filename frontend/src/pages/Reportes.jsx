@@ -151,14 +151,16 @@ function ReporteInventario({ inventario }) {
 }
 
 function ReporteVentas({ ventas, resumen }) {
-  const total = resumen?.total_ingresos || 0
+  const total = resumen?.ingresos || 0
   const cantidad = resumen?.total_ventas || 0
   const porProducto = {}
   ;(ventas || []).forEach(v => {
-    const k = v.producto || v.nombre || 'Otro'
-    if (!porProducto[k]) porProducto[k] = { producto: k, cantidad: 0, total: 0 }
-    porProducto[k].cantidad += v.cantidad || 1
-    porProducto[k].total += v.total || v.precio || 0
+    (v.items || []).forEach(item => {
+      const k = item.producto || 'Otro'
+      if (!porProducto[k]) porProducto[k] = { producto: k, cantidad: 0, total: 0 }
+      porProducto[k].cantidad += item.cantidad || 1
+      porProducto[k].total += (item.precio_unit || 0) * (item.cantidad || 1)
+    })
   })
   const ranking = Object.values(porProducto).sort((a, b) => b.total - a.total)
   return (
