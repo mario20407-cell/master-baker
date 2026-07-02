@@ -247,7 +247,7 @@ export default function Dashboard() {
                   {alertasMargen.slice(0, 4).map(r => (
                     <div key={r.producto} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'5px 0', borderBottom:'0.5px solid #f0f2f5' }}>
                       <span style={{ color:'#1B2A4A', fontSize:11, fontWeight:600 }}>{r.producto}</span>
-                      <StatusBadge status='warning'>{r.margen.toFixed(1)}%</StatusBadge>
+                      <StatusBadge status='warning'>{(r.cu === 0 || r.margen < -100) ? '--' : r.margen.toFixed(1) + '%'}</StatusBadge>
                     </div>
                   ))}
                   {alertasMargen.length > 4 && <div style={{ fontSize:9, color:'#888B8D', marginTop:4 }}>+{alertasMargen.length - 4} más</div>}
@@ -273,7 +273,7 @@ export default function Dashboard() {
               <tbody>
                 {ventasHoy.slice(0, 7).map(v => (
                   <tr key={v.id} style={{ borderBottom:'0.5px solid #f8f9fa' }}>
-                    <td style={{ padding:'5px 4px', color:'#1B2A4A', fontWeight:600 }}>{v.cliente || 'Sin nombre'}</td>
+                    <td style={{ padding:'5px 4px', color:'#1B2A4A', fontWeight:600 }}>{(!v.cliente || v.cliente === 'Sin nombre') ? 'Cliente general' : v.cliente}</td>
                     <td style={{ padding:'5px 4px', color:'#888B8D' }}>{v.hora?.slice(0,5)}</td>
                     <td style={{ padding:'5px 4px', color:'#888B8D' }}>{v.metodo_pago}</td>
                     <td style={{ padding:'5px 4px', color:'#888B8D' }}>{v.canal}</td>
