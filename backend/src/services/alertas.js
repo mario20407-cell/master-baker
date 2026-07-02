@@ -3,7 +3,7 @@ import { query } from '../db/client.js'
 const WA_API = () => `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_ID}/messages`
 
 async function enviarWA(telefono, mensaje) {
-  const token = process.env.WHATSAPP_TOKEN
+  const token = process.env.WHATSAPP_TOKEN || process.env.WA_TOKEN
   if (!token || !process.env.WHATSAPP_PHONE_ID) return
   const numero = telefono.replace(/\D/g, '')
   if (!numero) return

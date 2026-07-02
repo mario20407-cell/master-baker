@@ -5,7 +5,7 @@ const router = Router()
 
 // ── Configuración — leída lazily para que dotenv ya haya cargado ──────────────
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'marquez_verify_2024'
-const getWAToken   = () => process.env.WHATSAPP_TOKEN
+const getWAToken   = () => process.env.WHATSAPP_TOKEN || process.env.WA_TOKEN
 const getWAPhoneId = () => process.env.WHATSAPP_PHONE_ID
 const getWAAPI     = () => `https://graph.facebook.com/v20.0/${getWAPhoneId()}/messages`
 
