@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
@@ -25,7 +25,7 @@ const NAV = [
 ]
 
 export default function Layout() {
-  const { logout } = useAuth()
+  const { logout, usuario } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true')
   const [alertasStock, setAlertasStock] = useState(0)
@@ -97,6 +97,14 @@ export default function Layout() {
             <span className="text-xs tracking-wider" style={{ color: '#C29C53' }}>Sistema de Gestión Inteligente de Panadería</span>
           </div>
           <div className="flex items-center gap-2">
+            {usuario && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-medium text-gray-700">{usuario.nombre}</span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${usuario.rol === 'admin' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {usuario.rol}
+                </span>
+              </div>
+            )}
             <span className="text-xs px-2 py-1 rounded-md font-medium" style={{ background: '#EAF3DE', color: '#27500A' }}>
               Margen objetivo: ≥57%
             </span>
