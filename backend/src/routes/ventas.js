@@ -48,7 +48,7 @@ router.post('/', async (req, res, next) => {
           const { rowCount } = await client.query(
             `UPDATE inventario_terminado
              SET stock = stock - $1, actualizado_en = NOW()
-             WHERE tenant_id = $2 AND sucursal_id = $3 AND producto = $4
+             WHERE tenant_id = $2 AND sucursal_id = $3 AND LOWER(producto) = LOWER($4)
                AND stock >= $1`,
             [cantidad, tenantId, sucursal_id, producto]
           )
@@ -57,7 +57,7 @@ router.post('/', async (req, res, next) => {
             // Distinguir: ¿no existe el producto o no hay stock suficiente?
             const { rows } = await client.query(
               `SELECT stock FROM inventario_terminado
-               WHERE tenant_id = $1 AND sucursal_id = $2 AND producto = $3`,
+               WHERE tenant_id = $1 AND sucursal_id = $2 AND LOWER(producto) = LOWER($3)`,
               [tenantId, sucursal_id, producto]
             )
             if (rows.length === 0) {
