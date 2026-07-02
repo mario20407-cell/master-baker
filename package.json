@@ -12,7 +12,8 @@
     "dev:frontend": "cd frontend && npm run dev",
     "db:migrate": "cd backend && npm run db:migrate",
     "db:seed": "cd backend && npm run db:seed",
-    "build": "cd frontend && npm run build"
+    "build": "cd frontend && npm run build",
+    "regresion": "node scripts/check-regresion.js"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
