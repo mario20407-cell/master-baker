@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 import { Plus, Package, ArrowRightLeft, X, AlertTriangle, ChevronDown } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 export default function InventarioTerminado() {
+  const { usuario } = useAuth()
+  const esAdmin = usuario?.rol === 'admin'
   const [inventario, setInventario]   = useState([])
   const [sucursales, setSucursales]   = useState([])
   const [lotes, setLotes]             = useState([])
@@ -93,14 +96,14 @@ export default function InventarioTerminado() {
           <p className="text-xs text-gray-500">Stock de producto por sucursal</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setModalSucursal(true)}
+          {esAdmin && <button onClick={() => setModalSucursal(true)}
             className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600">
             <Plus size={14} /> Sucursal
-          </button>
-          <button onClick={abrirDistribuir}
+          </button>}
+          {esAdmin && <button onClick={abrirDistribuir}
             className="btn-primary flex items-center gap-1.5 text-sm">
             <ArrowRightLeft size={14} /> Distribuir lote
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -151,7 +154,7 @@ export default function InventarioTerminado() {
             </thead>
             <tbody>
               {invFiltrado.map(item => (
-                <FilaInventario key={item.id} item={item} onActualizar={ajustarStockMinimo} />
+                <FilaInventario key={item.id} item={item} onActualizar={ajustarStockMinimo} esAdmin={esAdmin} />
               ))}
             </tbody>
           </table>
@@ -229,7 +232,7 @@ export default function InventarioTerminado() {
   )
 }
 
-function FilaInventario({ item, onActualizar }) {
+function FilaInventario({ item, onActualizar, esAdmin }) {
   const [editMin, setEditMin]     = useState(false)
   const [editStock, setEditStock] = useState(false)
   const [minVal, setMinVal]       = useState(item.stock_minimo != null ? String(item.stock_minimo) : '0')
@@ -242,31 +245,37 @@ function FilaInventario({ item, onActualizar }) {
       <td className="px-4 py-3 font-medium text-gray-800">{item.producto}</td>
       <td className="px-4 py-3 text-gray-500">{item.sucursal_nombre}</td>
       <td className="px-4 py-3 text-right font-semibold">
-        {editStock ? (
+        {esAdmin && editStock ? (
           <input type="number" min="0" value={stockVal}
             className="w-16 text-sm border border-gray-200 rounded px-1.5 py-0.5 text-right"
             onBlur={() => { onActualizar(item.id, undefined, stockVal); setEditStock(false) }}
             onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
             onChange={e => setStockVal(e.target.value)}
             autoFocus />
-        ) : (
+        ) : esAdmin ? (
           <button onClick={() => setEditStock(true)} className={`flex items-center gap-1 ml-auto ${agotado ? 'text-red-500' : bajo ? 'text-amber-500' : 'text-gray-800'}`}>
             {item.stock} {item.unidad} <ChevronDown size={11} />
           </button>
+        ) : (
+          <span className={agotado ? 'text-red-500' : bajo ? 'text-amber-500' : 'text-gray-800'}>
+            {item.stock} {item.unidad}
+          </span>
         )}
       </td>
       <td className="px-4 py-3 text-right">
-        {editMin ? (
+        {esAdmin && editMin ? (
           <input type="number" min="0" value={minVal}
             className="w-16 text-sm border border-gray-200 rounded px-1.5 py-0.5 text-right"
             onBlur={() => { onActualizar(item.id, minVal); setEditMin(false) }}
             onKeyDown={e => { if (e.key === 'Enter') e.target.blur() }}
             onChange={e => setMinVal(e.target.value)}
             autoFocus />
-        ) : (
+        ) : esAdmin ? (
           <button onClick={() => setEditMin(true)} className="text-gray-400 hover:text-gray-700 flex items-center gap-1 ml-auto">
             {item.stock_minimo} <ChevronDown size={11} />
           </button>
+        ) : (
+          <span className="text-gray-500">{item.stock_minimo}</span>
         )}
       </td>
       <td className="px-4 py-3 text-right">

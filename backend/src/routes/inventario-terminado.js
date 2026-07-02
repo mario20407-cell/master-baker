@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { checkStockTerminado } from '../services/alertas.js'
+import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 
 const router = Router()
 
@@ -23,9 +24,9 @@ router.get('/', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// POST /api/inventario-terminado/distribuir — distribuir lote entre sucursales
+// POST /api/inventario-terminado/distribuir — distribuir lote entre sucursales (solo admin)
 // body: { lote_id, distribuciones: [{ sucursal_id, cantidad }] }
-router.post('/distribuir', async (req, res, next) => {
+router.post('/distribuir', requireAuth, requireRol('admin'), async (req, res, next) => {
   try {
     const { lote_id, distribuciones } = req.body
     if (!lote_id || !Array.isArray(distribuciones) || distribuciones.length === 0)
@@ -72,8 +73,8 @@ router.post('/distribuir', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// PATCH /api/inventario-terminado/:id — ajuste manual de stock o stock_minimo
-router.patch('/:id', async (req, res, next) => {
+// PATCH /api/inventario-terminado/:id — ajuste manual de stock o stock_minimo (solo admin)
+router.patch('/:id', requireAuth, requireRol('admin'), async (req, res, next) => {
   try {
     const { stock, stock_minimo } = req.body
     const { rows } = await query(
