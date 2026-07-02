@@ -25,7 +25,7 @@ router.post('/', async (req, res, next) => {
     const venta = await transaction(async (client) => {
       const { rows: [v] } = await client.query(`
         INSERT INTO ventas (tenant_id, fecha, hora, cliente, canal, metodo_pago, total)
-        VALUES ($1, ${fecha ? '$2' : 'CURRENT_DATE'}, ${hora ? `'${hora}'::TIME` : 'NOW()::TIME'}, $${fecha ? 3 : 2}, $${fecha ? 4 : 3}, $${fecha ? 5 : 4}, $${fecha ? 6 : 5})
+        VALUES ($1, ${fecha ? '$2' : "(NOW() AT TIME ZONE 'America/Managua')::date"}, ${hora ? `'${hora}'::TIME` : "(NOW() AT TIME ZONE 'America/Managua')::time"}, $${fecha ? 3 : 2}, $${fecha ? 4 : 3}, $${fecha ? 5 : 4}, $${fecha ? 6 : 5})
         RETURNING *
       `, fecha ? [tenantId, fecha, cliente, canal, metodo_pago, total] : [tenantId, cliente, canal, metodo_pago, total])
 
@@ -126,7 +126,7 @@ router.get('/resumen', async (req, res, next) => {
     const { fecha } = req.query
     const tenantId  = req.tenantId
     const params    = fecha ? [tenantId, fecha] : [tenantId]
-    const fechaCond = fecha ? 'v.fecha = $2' : 'v.fecha = CURRENT_DATE'
+    const fechaCond = fecha ? 'v.fecha = $2' : "v.fecha = (NOW() AT TIME ZONE 'America/Managua')::date"
 
     const { rows: [resumen] } = await query(`
       SELECT
@@ -163,7 +163,7 @@ router.get('/cierre', async (req, res, next) => {
     const { fecha } = req.query
     const tenantId  = req.tenantId
     const params    = fecha ? [tenantId, fecha] : [tenantId]
-    const fechaCond = fecha ? 'v.fecha = $2' : 'v.fecha = CURRENT_DATE'
+    const fechaCond = fecha ? 'v.fecha = $2' : "v.fecha = (NOW() AT TIME ZONE 'America/Managua')::date"
 
     const { rows: ventas } = await query(`
       SELECT v.id, v.hora, v.cliente, v.canal, v.metodo_pago, v.total,

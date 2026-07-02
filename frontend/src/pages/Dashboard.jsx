@@ -4,6 +4,7 @@ import { useRecetas } from '../hooks/useRecetas'
 import { useCatalogo } from '../hooks/useCatalogo'
 import { getInventario, getVentaResumen } from '../lib/api'
 import api from '../lib/api'
+import { hoyNicaragua, formatFechaHora } from '../lib/fecha'
 import {
   TrendingUp, Package, ChefHat, ShoppingCart, AlertTriangle,
   LayoutDashboard, Target, DollarSign, Edit2, Check, X, ChevronDown, ChevronUp
@@ -99,7 +100,7 @@ function CajaDelDia({ ingresosHoy }) {
   const [costoHoy, setCostoHoy] = useState(null)
 
   useEffect(() => {
-    const hoy = new Date().toISOString().split('T')[0]
+    const hoy = hoyNicaragua()
     api.get('/lotes', { params: { fecha: hoy } })
       .then(({ data }) => {
         const total = (data || []).reduce((s, l) => s + parseFloat(l.costo_total || 0), 0)
@@ -161,7 +162,7 @@ export default function Dashboard() {
   const [analisisAbierto, setAnalisis]    = useState(false)
 
   useEffect(() => {
-    const hoy = new Date().toISOString().split('T')[0]
+    const hoy = hoyNicaragua()
     getInventario().then(r => setInventario(r.data || [])).catch(() => {})
     api.get('/inventario-terminado').then(r => setStockTerminado(r.data || [])).catch(() => {})
     getVentaResumen(hoy).then(r => setResumenVentas(r.data)).catch(() => {})
@@ -265,7 +266,7 @@ export default function Dashboard() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
               <thead>
                 <tr style={{ borderBottom:'1px solid #f0f2f5' }}>
-                  {['Cliente','Hora','Método','Canal','Total'].map(h => (
+                  {['Cliente','Fecha/Hora','Método','Canal','Total'].map(h => (
                     <th key={h} style={{ textAlign: h === 'Total' ? 'right' : 'left', padding:'3px 4px', fontSize:9, fontWeight:700, color:'#888B8D', textTransform:'uppercase' }}>{h}</th>
                   ))}
                 </tr>
@@ -274,7 +275,7 @@ export default function Dashboard() {
                 {ventasHoy.slice(0, 7).map(v => (
                   <tr key={v.id} style={{ borderBottom:'0.5px solid #f8f9fa' }}>
                     <td style={{ padding:'5px 4px', color:'#1B2A4A', fontWeight:600 }}>{(!v.cliente || v.cliente === 'Sin nombre') ? 'Cliente general' : v.cliente}</td>
-                    <td style={{ padding:'5px 4px', color:'#888B8D' }}>{v.hora?.slice(0,5)}</td>
+                    <td style={{ padding:'5px 4px', color:'#888B8D' }}>{formatFechaHora(v.fecha, v.hora)}</td>
                     <td style={{ padding:'5px 4px', color:'#888B8D' }}>{v.metodo_pago}</td>
                     <td style={{ padding:'5px 4px', color:'#888B8D' }}>{v.canal}</td>
                     <td style={{ padding:'5px 4px', fontWeight:700, color:'#1A7A4A', textAlign:'right' }}>{fmt(v.total)}</td>
