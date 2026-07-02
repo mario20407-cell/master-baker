@@ -1,13 +1,22 @@
 import { Router } from 'express'
 import OpenAI from 'openai'
+import { query } from '../db/client.js'
 
 const router = Router()
 
-// ── Configuración — leída lazily para que dotenv ya haya cargado ──────────────
+// ── Configuración ─────────────────────────────────────────────────────────────
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'marquez_verify_2024'
-const getWAToken   = () => process.env.WHATSAPP_TOKEN || process.env.WA_TOKEN
 const getWAPhoneId = () => process.env.WHATSAPP_PHONE_ID
 const getWAAPI     = () => `https://graph.facebook.com/v20.0/${getWAPhoneId()}/messages`
+
+// Token leído de DB (cache 5 min para no consultar en cada mensaje)
+let _waTokenCache = { value: null, at: 0 }
+async function getWAToken(tenantId = '00000000-0000-0000-0000-000000000001') {
+  if (Date.now() - _waTokenCache.at < 5 * 60 * 1000) return _waTokenCache.value
+  const { rows } = await query('SELECT whatsapp_token FROM tenants WHERE id = $1', [tenantId])
+  _waTokenCache = { value: rows[0]?.whatsapp_token || null, at: Date.now() }
+  return _waTokenCache.value
+}
 
 // Historial de conversaciones por número (en memoria, se limpia al reiniciar)
 const conversaciones = new Map()
@@ -106,8 +115,9 @@ COMANDOS ESPECIALES que debes detectar:
 - Si escribe "ubicacion" o "dirección" → responde que te ubiques por WhatsApp para coordinar`
 
 // ── Función: enviar mensaje a WhatsApp ────────────────────────────────────────
-async function enviarMensaje(telefono, texto) {
-  if (!getWAToken() || !getWAPhoneId()) {
+async function enviarMensaje(telefono, texto, tenantId) {
+  const token = await getWAToken(tenantId)
+  if (!token || !getWAPhoneId()) {
     console.warn('[WhatsApp] Token o Phone ID no configurados')
     return
   }
@@ -115,7 +125,7 @@ async function enviarMensaje(telefono, texto) {
   const res = await fetch(getWAAPI(), {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${getWAToken()}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -254,8 +264,8 @@ router.post('/enviar', async (req, res, next) => {
     return res.status(400).json({ error: 'telefono y mensaje son requeridos' })
   }
   try {
-    const data = await enviarMensaje(telefono, mensaje)
-    if (!data) return res.status(503).json({ error: 'WHATSAPP_TOKEN no configurado en el servidor' })
+    const data = await enviarMensaje(telefono, mensaje, req.tenantId)
+    if (!data) return res.status(503).json({ error: 'whatsapp_token no configurado en tenants' })
     res.json({ ok: true, data })
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message, meta: e.meta || null })
@@ -275,16 +285,16 @@ router.delete('/conversacion/:telefono', (req, res) => {
 })
 
 // ── Endpoint: status del bot ──────────────────────────────────────────────────
-router.get('/status', (req, res) => {
+router.get('/status', async (req, res) => {
+  const token = await getWAToken(req.tenantId)
   res.json({
-    activo:           !!getWAToken() && !!getWAPhoneId(),
-    phone_id:         getWAPhoneId() || 'No configurado',
-    token_preview:    (getWAToken() || '').slice(0, 8) || 'EMPTY',
-    env_keys_with_whatsapp: Object.keys(process.env).filter(k => k.includes('WHATSAPP')),
-    ia_activa:        !!process.env.OPENAI_API_KEY,
-    modelo:           'gpt-4o-mini',
-    conversaciones:   conversaciones.size,
-    verify_token:     VERIFY_TOKEN,
+    activo:         !!token && !!getWAPhoneId(),
+    phone_id:       getWAPhoneId() || 'No configurado',
+    token_preview:  token ? token.slice(0, 8) + '...' : 'NO CONFIGURADO',
+    ia_activa:      !!process.env.OPENAI_API_KEY,
+    modelo:         'gpt-4o-mini',
+    conversaciones: conversaciones.size,
+    verify_token:   VERIFY_TOKEN,
   })
 })
 

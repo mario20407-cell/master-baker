@@ -29,6 +29,7 @@ import lotesRoutes             from './routes/lotes.js'
 import sucursalesRoutes        from './routes/sucursales.js'
 import inventarioTerminadoRoutes from './routes/inventario-terminado.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
+import { query } from './db/client.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -80,27 +81,30 @@ app.use('/api/sucursales',          sucursalesRoutes)
 app.use('/api/inventario-terminado', inventarioTerminadoRoutes)
 
 // Health check
-app.get('/api/health', (_, res) => res.json({
-  status: 'ok', version: '2.7',
-  negocio: 'Marquéz Panadería & Repostería',
-  ia: {
-    openai:    !!process.env.OPENAI_API_KEY,
-    anthropic: !!process.env.ANTHROPIC_API_KEY,
-    deepseek:  !!process.env.DEEPSEEK_API_KEY,
-    gemini:    !!process.env.GEMINI_API_KEY,
-  },
-  whatsapp: {
-    activo:   !!(process.env.WHATSAPP_TOKEN || process.env.WA_TOKEN) && !!process.env.WHATSAPP_PHONE_ID,
-    phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
-    wa_chars: (process.env.WHATSAPP_TOKEN || process.env.WA_TOKEN)?.length ?? 0,
-    env_keys: Object.keys(process.env).filter(k => k.startsWith('WA') || k.startsWith('WHATS')),
-  },
-  auth: {
-    jwt_secret: !!process.env.JWT_SECRET,
-  },
-  cors_origins: allowedOrigins,
-  timestamp: new Date().toISOString(),
-}))
+app.get('/api/health', async (_, res) => {
+  const { rows } = await query('SELECT whatsapp_token FROM tenants WHERE id = $1',
+    ['00000000-0000-0000-0000-000000000001']).catch(() => ({ rows: [] }))
+  const waToken = rows[0]?.whatsapp_token
+  res.json({
+    status: 'ok', version: '2.7',
+    negocio: 'Marquéz Panadería & Repostería',
+    ia: {
+      openai:    !!process.env.OPENAI_API_KEY,
+      anthropic: !!process.env.ANTHROPIC_API_KEY,
+      deepseek:  !!process.env.DEEPSEEK_API_KEY,
+      gemini:    !!process.env.GEMINI_API_KEY,
+    },
+    whatsapp: {
+      activo:   !!waToken && !!process.env.WHATSAPP_PHONE_ID,
+      phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
+    },
+    auth: {
+      jwt_secret: !!process.env.JWT_SECRET,
+    },
+    cors_origins: allowedOrigins,
+    timestamp: new Date().toISOString(),
+  })
+})
 
 // Errores
 app.use((err, req, res, _next) => {

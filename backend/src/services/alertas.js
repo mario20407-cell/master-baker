@@ -2,8 +2,7 @@ import { query } from '../db/client.js'
 
 const WA_API = () => `https://graph.facebook.com/v20.0/${process.env.WHATSAPP_PHONE_ID}/messages`
 
-async function enviarWA(telefono, mensaje) {
-  const token = process.env.WHATSAPP_TOKEN || process.env.WA_TOKEN
+async function enviarWA(telefono, mensaje, token) {
   if (!token || !process.env.WHATSAPP_PHONE_ID) return
   const numero = telefono.replace(/\D/g, '')
   if (!numero) return
@@ -25,12 +24,13 @@ async function enviarWA(telefono, mensaje) {
 
 export async function checkStockTerminado(tenantId) {
   const { rows: config } = await query(
-    'SELECT whatsapp_taller, whatsapp_jefe_operaciones FROM tenants WHERE id = $1',
+    'SELECT whatsapp_taller, whatsapp_jefe_operaciones, whatsapp_token FROM tenants WHERE id = $1',
     [tenantId]
   )
   if (!config.length) return
-  const { whatsapp_taller, whatsapp_jefe_operaciones } = config[0]
+  const { whatsapp_taller, whatsapp_jefe_operaciones, whatsapp_token } = config[0]
   if (!whatsapp_taller && !whatsapp_jefe_operaciones) return
+  if (!whatsapp_token) return
 
   const { rows } = await query(
     `SELECT it.id, it.producto, it.stock, it.unidad, s.nombre AS sucursal
@@ -46,7 +46,7 @@ export async function checkStockTerminado(tenantId) {
   for (const row of rows) {
     const msg = `🍞 Master Baker — ${row.sucursal}: solo quedan ${row.stock} ${row.unidad} de ${row.producto}. Preparar nueva hornada.`
     const destinatarios = [...new Set([whatsapp_taller, whatsapp_jefe_operaciones].filter(Boolean))]
-    for (const num of destinatarios) await enviarWA(num, msg)
+    for (const num of destinatarios) await enviarWA(num, msg, whatsapp_token)
     await query('UPDATE inventario_terminado SET alerta_enviada_en = NOW() WHERE id = $1', [row.id])
     console.log(`[Alertas] Stock bajo enviado: ${row.producto} (${row.sucursal})`)
   }
@@ -54,12 +54,13 @@ export async function checkStockTerminado(tenantId) {
 
 export async function checkInventarioInsumos(tenantId) {
   const { rows: config } = await query(
-    'SELECT whatsapp_compras, whatsapp_jefe_operaciones FROM tenants WHERE id = $1',
+    'SELECT whatsapp_compras, whatsapp_jefe_operaciones, whatsapp_token FROM tenants WHERE id = $1',
     [tenantId]
   )
   if (!config.length) return
-  const { whatsapp_compras, whatsapp_jefe_operaciones } = config[0]
+  const { whatsapp_compras, whatsapp_jefe_operaciones, whatsapp_token } = config[0]
   if (!whatsapp_compras && !whatsapp_jefe_operaciones) return
+  if (!whatsapp_token) return
 
   const { rows } = await query(
     `SELECT id, nombre, existencia, unidad, punto_reposicion
@@ -74,7 +75,7 @@ export async function checkInventarioInsumos(tenantId) {
   for (const row of rows) {
     const msg = `🛒 Master Baker — ${row.nombre} bajo el mínimo: quedan ${row.existencia}${row.unidad}. Hacer pedido.`
     const destinatarios = [...new Set([whatsapp_compras, whatsapp_jefe_operaciones].filter(Boolean))]
-    for (const num of destinatarios) await enviarWA(num, msg)
+    for (const num of destinatarios) await enviarWA(num, msg, whatsapp_token)
     await query('UPDATE inventario SET alerta_enviada_en = NOW() WHERE id = $1', [row.id])
     console.log(`[Alertas] Insumo bajo enviado: ${row.nombre}`)
   }
