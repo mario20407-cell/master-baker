@@ -2,7 +2,7 @@
 import { Outlet, NavLink, Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
-  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, Moon, Sun, LogOut, ClipboardList, Boxes
+  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle, Moon, Sun, LogOut, ClipboardList, Boxes, Users
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
@@ -21,6 +21,7 @@ const NAV = [
   { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
   { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI' },
   { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
+  { to: '/usuarios',   icon: Users,            label: 'Usuarios' },
   { to: '/exportar',   icon: Download,         label: 'Exportar' },
 ]
 
@@ -131,3 +132,5 @@ export default function Layout() {
     </div>
   )
 }
+
+
