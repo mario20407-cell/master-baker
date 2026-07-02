@@ -10,9 +10,10 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { getVentas, getVentaResumen, saveVenta, deleteVenta } from '../lib/api'
+import { hoyNicaragua } from '../lib/fecha'
 import toast from 'react-hot-toast'
 
-const HOY_ISO = () => new Date().toISOString().slice(0, 10)
+const HOY_ISO = hoyNicaragua
 
 const STORAGE_KEY = 'marquez_ventas_v2'
 

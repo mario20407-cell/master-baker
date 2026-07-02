@@ -1,13 +1,14 @@
 // ─── pages/Compras.jsx ────────────────────────────────────────────────────────
 import { useState, useEffect } from 'react'
 import { getCompras, saveFactura } from '../lib/api'
+import { hoyNicaragua } from '../lib/fecha'
 import { Receipt, Plus, Trash2, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export function Compras() {
   const [historial, setHistorial] = useState([])
   const [prov, setProv] = useState('')
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
+  const [fecha, setFecha] = useState(hoyNicaragua())
   const [items, setItems] = useState([{ producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
   const [resultado, setResultado] = useState(null)
 

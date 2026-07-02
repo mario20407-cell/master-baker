@@ -35,8 +35,8 @@ router.post('/', async (req, res, next) => {
       const total = items.reduce((s, i) => s + (i.cantidad || 1) * (i.precio_actual || 0), 0)
       const { rows: [f] } = await client.query(`
         INSERT INTO facturas (tenant_id, proveedor, fecha, total, notas)
-        VALUES ($1, $2, $3, $4, $5) RETURNING *
-      `, [tenantId, proveedor || 'Sin nombre', fecha || new Date().toISOString().split('T')[0], total, notas || ''])
+        VALUES ($1, $2, COALESCE($3::date, (NOW() AT TIME ZONE 'America/Managua')::date), $4, $5) RETURNING *
+      `, [tenantId, proveedor || 'Sin nombre', fecha || null, total, notas || ''])
 
       let insumosActualizados = 0
 

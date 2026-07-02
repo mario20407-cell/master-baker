@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { useCatalogo } from '../hooks/useCatalogo'
 import { getInventario, getVentaResumen, getVentas } from '../lib/api'
+import { hoyNicaragua } from '../lib/fecha'
 import { FileText, Printer, TrendingUp, Package, ShoppingCart } from 'lucide-react'
 
 function fmt(n) { return 'C$ ' + (parseFloat(n) || 0).toFixed(2) }
@@ -215,7 +216,7 @@ export default function Reportes() {
 
   useEffect(() => {
     getInventario().then(r => setInventario(r.data || [])).catch(() => {})
-    const hoy = new Date().toISOString().split('T')[0]
+    const hoy = hoyNicaragua()
     getVentaResumen(hoy).then(r => setResumen(r.data)).catch(() => {})
     getVentas({ fecha: hoy }).then(r => setVentas(r.data?.ventas || r.data || [])).catch(() => {})
   }, [])
