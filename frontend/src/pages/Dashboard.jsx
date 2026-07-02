@@ -1,4 +1,4 @@
-// pages/Dashboard.jsx — v3.0
+﻿// pages/Dashboard.jsx — v3.0
 import { useState, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { useCatalogo } from '../hooks/useCatalogo'
@@ -154,6 +154,7 @@ export default function Dashboard() {
   const { recetas } = useRecetas()
   const { productos, cargando } = useCatalogo()
   const [inventario, setInventario]       = useState([])
+  const [stockTerminado, setStockTerminado] = useState([])
   const [resumenVentas, setResumenVentas] = useState(null)
   const [ventasHoy, setVentasHoy]         = useState([])
   const [ingresosMes, setIngresosMes]     = useState(0)
@@ -162,6 +163,7 @@ export default function Dashboard() {
   useEffect(() => {
     const hoy = new Date().toISOString().split('T')[0]
     getInventario().then(r => setInventario(r.data || [])).catch(() => {})
+    api.get('/inventario-terminado').then(r => setStockTerminado(r.data || [])).catch(() => {})
     getVentaResumen(hoy).then(r => setResumenVentas(r.data)).catch(() => {})
     api.get('/ventas', { params: { limit: 10 } })
       .then(({ data }) => {
@@ -184,12 +186,12 @@ export default function Dashboard() {
 
   const alertasMargen = recetasConDatos.filter(r => r.margen < 60)
   const topRentables  = [...recetasConDatos].sort((a, b) => b.margen - a.margen).slice(0, 5)
-  const stockCritico  = inventario.filter(i => (i.existencia || 0) < 1).slice(0, 5)
+  const stockBajoTerminado = stockTerminado.filter(i => Number(i.stock) <= Number(i.stock_minimo) && Number(i.stock_minimo) > 0).slice(0, 6)
   const catCount = {}
   productos.forEach(p => { catCount[p.categoria] = (catCount[p.categoria] || 0) + 1 })
   const totalVentasHoy = resumenVentas?.total_ventas || 0
   const ingresosHoy    = resumenVentas?.ingresos || 0
-  const totalAlertas   = stockCritico.length + alertasMargen.length
+  const totalAlertas   = stockBajoTerminado.length + alertasMargen.length
 
   if (cargando) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:200, color:'#888B8D', fontSize:13, fontWeight:700 }}>
@@ -204,7 +206,7 @@ export default function Dashboard() {
       <KpiGrid cols={3}>
         <KpiCard label='Ventas hoy'    value={totalVentasHoy}      sub='transacciones registradas'                               color='navy' />
         <KpiCard label='Ingresos hoy'  value={fmt(ingresosHoy)}    sub='ventas del día'                                          color='green' />
-        <KpiCard label='Stock crítico' value={stockCritico.length} sub={stockCritico.length > 0 ? 'insumos por reabastecer' : 'todo en orden'} color={stockCritico.length > 0 ? 'red' : 'green'} />
+        <KpiCard label='Stock crítico' value={stockBajoTerminado.length} sub={stockBajoTerminado.length > 0 ? 'productos bajo mínimo' : 'todo en orden'} color={stockBajoTerminado.length > 0 ? 'red' : 'green'} />
       </KpiGrid>
 
       {/* FILA 2 — Gestión financiera */}
@@ -221,15 +223,18 @@ export default function Dashboard() {
             <EmptyState icon={AlertTriangle} title='Sin alertas' sub='Todo funciona correctamente' />
           ) : (
             <>
-              {stockCritico.length > 0 && (
+              {stockBajoTerminado.length > 0 && (
                 <div style={{ marginBottom:10 }}>
                   <div style={{ fontSize:10, fontWeight:700, color:'#C0392B', textTransform:'uppercase', marginBottom:6 }}>
-                    Stock crítico ({stockCritico.length})
+                    Stock bajo mínimo ({stockBajoTerminado.length})
                   </div>
-                  {stockCritico.map(i => (
+                  {stockBajoTerminado.map(i => (
                     <div key={i.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'5px 0', borderBottom:'0.5px solid #f0f2f5' }}>
-                      <span style={{ color:'#1B2A4A', fontSize:11, fontWeight:600 }}>{i.nombre}</span>
-                      <StatusBadge status='danger'>{i.existencia || 0} {i.unidad}</StatusBadge>
+                      <span style={{ color:'#1B2A4A', fontSize:11, fontWeight:600 }}>{i.producto}</span>
+                      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                        <span style={{ fontSize:9, color:'#888B8D' }}>{i.sucursal_nombre}</span>
+                        <StatusBadge status='danger'>{i.stock} {i.unidad}</StatusBadge>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -257,20 +262,26 @@ export default function Dashboard() {
           {ventasHoy.length === 0 ? (
             <EmptyState icon={ShoppingCart} title='Sin ventas hoy' sub='Las ventas aparecerán aquí' />
           ) : (
-            <>
-              {ventasHoy.slice(0, 6).map(v => (
-                <div key={v.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'0.5px solid #f0f2f5' }}>
-                  <div>
-                    <div style={{ fontSize:11, fontWeight:600, color:'#1B2A4A' }}>{v.cliente || 'Sin nombre'}</div>
-                    <div style={{ fontSize:9, color:'#888B8D' }}>{v.hora?.slice(0,5)} · {v.metodo_pago} · {v.canal}</div>
-                  </div>
-                  <span style={{ fontSize:12, fontWeight:700, color:'#1A7A4A' }}>{fmt(v.total)}</span>
-                </div>
-              ))}
-              {ventasHoy.length > 6 && (
-                <div style={{ fontSize:9, color:'#888B8D', marginTop:6 }}>+{ventasHoy.length - 6} ventas más hoy</div>
-              )}
-            </>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr style={{ borderBottom:'1px solid #f0f2f5' }}>
+                  {['Cliente','Hora','Método','Canal','Total'].map(h => (
+                    <th key={h} style={{ textAlign: h === 'Total' ? 'right' : 'left', padding:'3px 4px', fontSize:9, fontWeight:700, color:'#888B8D', textTransform:'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ventasHoy.slice(0, 7).map(v => (
+                  <tr key={v.id} style={{ borderBottom:'0.5px solid #f8f9fa' }}>
+                    <td style={{ padding:'5px 4px', color:'#1B2A4A', fontWeight:600 }}>{v.cliente || 'Sin nombre'}</td>
+                    <td style={{ padding:'5px 4px', color:'#888B8D' }}>{v.hora?.slice(0,5)}</td>
+                    <td style={{ padding:'5px 4px', color:'#888B8D' }}>{v.metodo_pago}</td>
+                    <td style={{ padding:'5px 4px', color:'#888B8D' }}>{v.canal}</td>
+                    <td style={{ padding:'5px 4px', fontWeight:700, color:'#1A7A4A', textAlign:'right' }}>{fmt(v.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </Card>
       </Grid>
@@ -281,9 +292,9 @@ export default function Dashboard() {
         style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:'#f8f9fa', border:'1px solid #e5e7eb', borderRadius:10, cursor:'pointer', marginBottom: analisisAbierto ? 12 : 0, fontSize:12, fontWeight:700, color:'#1B2A4A' }}
       >
         <span style={{ display:'flex', alignItems:'center', gap:6 }}>
-          <TrendingUp size={14} /> Análisis detallado
+          <TrendingUp size={14} /> Ver análisis
         </span>
-        {analisisAbierto ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        {analisisAbierto ? <ChevronUp size={15} /> : <span style={{display:'flex',alignItems:'center',gap:2}}><ChevronDown size={15} /></span>}
       </button>
 
       {analisisAbierto && (
@@ -341,3 +352,4 @@ export default function Dashboard() {
     </div>
   )
 }
+
