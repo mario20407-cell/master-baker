@@ -1,4 +1,4 @@
-// pages/Dashboard.jsx — v2.0 rediseno azul marino
+﻿// pages/Dashboard.jsx — v2.0 rediseno azul marino
 import { useState, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { useCatalogo } from '../hooks/useCatalogo'
@@ -44,7 +44,7 @@ export default function Dashboard() {
   const catCount = {}
   productos.forEach(p => { catCount[p.categoria] = (catCount[p.categoria] || 0) + 1 })
   const ventasHoy = resumenVentas?.total_ventas || 0
-  const ingresosHoy = resumenVentas?.total_ingresos || 0
+  const ingresosHoy = resumenVentas?.ingresos || 0
 
   if (cargando) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:200, color:'#888B8D', fontSize:13, fontWeight:700 }}>
@@ -156,3 +156,4 @@ export default function Dashboard() {
     </div>
   )
 }
+
