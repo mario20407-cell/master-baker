@@ -4,12 +4,13 @@
  */
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
+import { checkStockTerminado } from '../services/alertas.js'
 
 const router = Router()
 
 // ── POST /api/ventas ──────────────────────────────────────────────────────────
 router.post('/', async (req, res, next) => {
-  const { items, total, metodo_pago = 'efectivo', canal = 'tienda', cliente = 'Sin nombre', fecha, hora } = req.body
+  const { items, total, metodo_pago = 'efectivo', canal = 'tienda', cliente = 'Sin nombre', fecha, hora, sucursal_id } = req.body
   const tenantId = req.tenantId
 
   if (!items?.length)          return res.status(400).json({ error: 'La venta debe tener al menos un item' })
@@ -38,6 +39,38 @@ router.post('/', async (req, res, next) => {
         )
       }
 
+      // Descontar inventario_terminado si se indicó sucursal_id
+      if (sucursal_id) {
+        for (const item of items) {
+          const producto  = item.producto || item.n
+          const cantidad  = parseInt(item.cantidad || item.qty || 1)
+
+          const { rowCount } = await client.query(
+            `UPDATE inventario_terminado
+             SET stock = stock - $1, actualizado_en = NOW()
+             WHERE tenant_id = $2 AND sucursal_id = $3 AND producto = $4
+               AND stock >= $1`,
+            [cantidad, tenantId, sucursal_id, producto]
+          )
+
+          if (rowCount === 0) {
+            // Distinguir: ¿no existe el producto o no hay stock suficiente?
+            const { rows } = await client.query(
+              `SELECT stock FROM inventario_terminado
+               WHERE tenant_id = $1 AND sucursal_id = $2 AND producto = $3`,
+              [tenantId, sucursal_id, producto]
+            )
+            if (rows.length === 0) {
+              throw Object.assign(new Error(`Producto no encontrado en inventario de esta sucursal: ${producto}`), { status: 409 })
+            }
+            throw Object.assign(
+              new Error(`Stock insuficiente: ${producto} (disponible: ${rows[0].stock}, solicitado: ${cantidad})`),
+              { status: 409 }
+            )
+          }
+        }
+      }
+
       const { rows: itemsRows } = await client.query(
         'SELECT * FROM venta_items WHERE venta_id = $1 AND tenant_id = $2 ORDER BY id',
         [v.id, tenantId]
@@ -46,6 +79,7 @@ router.post('/', async (req, res, next) => {
     })
 
     res.status(201).json(venta)
+    if (sucursal_id) checkStockTerminado(tenantId).catch(() => {})
   } catch (e) { next(e) }
 })
 
