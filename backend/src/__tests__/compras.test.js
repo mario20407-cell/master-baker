@@ -42,6 +42,7 @@ describe('POST /api/compras', () => {
     const mockClient = {
       query: vi.fn()
         .mockResolvedValueOnce({ rows: [{ id: 'f-1', proveedor: 'Distribuidora', total: 500 }] })
+        .mockResolvedValueOnce({ rowCount: 1 })
         .mockResolvedValueOnce({ rowCount: 1 }),
     }
     transaction.mockImplementation(async (fn) => fn(mockClient))
@@ -53,6 +54,35 @@ describe('POST /api/compras', () => {
     })
     expect(res.status).toBe(201)
     expect(res.body.proveedor).toBe('Distribuidora López')
+  })
+
+  it('upserts inventario for each item, summing existencia, and returns insumosActualizados', async () => {
+    const mockClient = {
+      query: vi.fn()
+        .mockResolvedValueOnce({ rows: [{ id: 'f-1', total: 500 }] })
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({ rowCount: 1 }),
+    }
+    transaction.mockImplementation(async (fn) => fn(mockClient))
+    query.mockResolvedValueOnce({ rows: [mockFactura] })
+
+    const res = await request(app).post('/').send({
+      proveedor: 'Distribuidora',
+      items: [
+        { producto: 'Harina', cantidad: 10, precio_actual: 50 },
+        { producto: 'Azúcar', cantidad: 5, precio_actual: 20 },
+      ],
+    })
+
+    expect(res.status).toBe(201)
+    expect(res.body.insumosActualizados).toBe(2)
+
+    const inventarioCall = mockClient.query.mock.calls[2]
+    expect(inventarioCall[0]).toMatch(/ON CONFLICT \(tenant_id, nombre\) DO UPDATE/)
+    expect(inventarioCall[0]).toMatch(/existencia = inventario\.existencia \+ EXCLUDED\.existencia/)
+    expect(inventarioCall[1]).toEqual(['test-tenant-id', 'Harina', 10, 50])
   })
 
   it('computes alerta=true when price increases > 10%', async () => {

@@ -32,10 +32,13 @@ export function Compras() {
     setResultado({ items: itsValidos, alertas, total: itsValidos.reduce((s, i) => s + i.cantidad * parseFloat(i.precio_actual), 0) })
 
     try {
-      await saveFactura({ proveedor: prov, fecha, items: itsValidos })
+      const { data } = await saveFactura({ proveedor: prov, fecha, items: itsValidos })
       const r = await getCompras()
       setHistorial(r.data)
-    } catch (e) {}
+      toast.success(`Factura guardada — ${data.insumosActualizados} insumos actualizados en inventario`)
+    } catch (e) {
+      toast.error('No se pudo guardar la factura')
+    }
   }
 
   const varPct = (actual, anterior) => {
