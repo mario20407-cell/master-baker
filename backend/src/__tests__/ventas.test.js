@@ -73,6 +73,49 @@ describe('GET /api/ventas', () => {
     const params = query.mock.calls[0][1]
     expect(params).toContain('2024-06-01')
   })
+
+  it('filters by desde/hasta range', async () => {
+    query.mockResolvedValueOnce({ rows: [] })
+    await request(app).get('/?desde=2024-06-01&hasta=2024-06-30')
+    const [sql, params] = query.mock.calls[0]
+    expect(sql).toMatch(/v\.fecha >= \$2/)
+    expect(sql).toMatch(/v\.fecha <= \$3/)
+    expect(params).toEqual(expect.arrayContaining(['2024-06-01', '2024-06-30']))
+  })
+
+  it('filters by sucursal_id and producto', async () => {
+    query.mockResolvedValueOnce({ rows: [] })
+    await request(app).get('/?sucursal_id=suc-1&producto=Dona')
+    const [sql, params] = query.mock.calls[0]
+    expect(sql).toMatch(/v\.sucursal_id = \$2/)
+    expect(sql).toMatch(/vi2\.producto ILIKE \$3/)
+    expect(params).toEqual(expect.arrayContaining(['suc-1', '%Dona%']))
+  })
+})
+
+describe('GET /api/ventas/resumen', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('defaults to today (Nicaragua) when no date filter given', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [{ total_ventas: 0, ingresos: 0 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+    await request(app).get('/resumen')
+    const sql = query.mock.calls[0][0]
+    expect(sql).toMatch(/America\/Managua/)
+  })
+
+  it('uses desde/hasta range instead of today when provided', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [{ total_ventas: 2, ingresos: 200 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ sucursal: 'Central', total: 200 }] })
+    const res = await request(app).get('/resumen?desde=2024-06-01&hasta=2024-06-30')
+    const sql = query.mock.calls[0][0]
+    expect(sql).not.toMatch(/America\/Managua/)
+    expect(res.body.por_sucursal).toEqual([{ sucursal: 'Central', total: 200 }])
+  })
 })
 
 describe('DELETE /api/ventas/:id', () => {

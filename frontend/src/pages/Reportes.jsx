@@ -2,9 +2,9 @@
 import { useState, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { useCatalogo } from '../hooks/useCatalogo'
-import { getInventario, getVentaResumen, getVentas } from '../lib/api'
+import { getInventario, getVentaResumen, getVentas, getSucursales } from '../lib/api'
 import { hoyNicaragua } from '../lib/fecha'
-import { FileText, Printer, TrendingUp, Package, ShoppingCart } from 'lucide-react'
+import { FileText, Printer, TrendingUp, Package, ShoppingCart, Search } from 'lucide-react'
 
 function fmt(n) { return 'C$ ' + (parseFloat(n) || 0).toFixed(2) }
 
@@ -151,7 +151,7 @@ function ReporteInventario({ inventario }) {
   )
 }
 
-function ReporteVentas({ ventas, resumen }) {
+function ReporteVentas({ ventas, resumen, filtros }) {
   const total = resumen?.ingresos || 0
   const cantidad = resumen?.total_ventas || 0
   const porProducto = {}
@@ -164,9 +164,27 @@ function ReporteVentas({ ventas, resumen }) {
     })
   })
   const ranking = Object.values(porProducto).sort((a, b) => b.total - a.total)
+
+  const porMetodo = [
+    { label: 'Efectivo',      valor: resumen?.efectivo || 0,      color: '#16a34a' },
+    { label: 'Tarjeta',       valor: resumen?.tarjeta || 0,       color: '#1d4ed8' },
+    { label: 'Transferencia', valor: resumen?.transferencia || 0, color: '#7c3aed' },
+  ]
+  const porSucursal = resumen?.por_sucursal || []
+
+  const rangoLabel = filtros?.desde === filtros?.hasta
+    ? filtros?.desde
+    : `${filtros?.desde} a ${filtros?.hasta}`
+  const subFiltros = [
+    rangoLabel,
+    filtros?.sucursalNombre && filtros.sucursalNombre !== 'Todas' ? filtros.sucursalNombre : null,
+    filtros?.metodoPago && filtros.metodoPago !== 'todos' ? filtros.metodoPago : null,
+    filtros?.producto ? `"${filtros.producto}"` : null,
+  ].filter(Boolean).join(' · ')
+
   return (
     <div className="reporte-body">
-      <Header titulo="Reporte de Ventas del Dia" subtitulo={`${cantidad} transacciones - ${fmt(total)} en ingresos`} />
+      <Header titulo="Reporte de Ventas" subtitulo={subFiltros} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, margin: '16px 0' }}>
         <div style={{ background: '#f0fdf4', borderRadius: 8, padding: 12, textAlign: 'center' }}>
           <div style={{ fontSize: 11, color: '#666' }}>Total ingresos</div>
@@ -181,6 +199,41 @@ function ReporteVentas({ ventas, resumen }) {
           <div style={{ fontSize: 20, fontWeight: 700, color: '#d97706' }}>{fmt(cantidad > 0 ? total / cantidad : 0)}</div>
         </div>
       </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, margin: '16px 0' }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 13, margin: '0 0 8px' }}>Resumen por método de pago</div>
+          <table className="reporte-tabla">
+            <tbody>
+              {porMetodo.map(m => (
+                <tr key={m.label}>
+                  <td style={{ fontWeight: 500 }}>{m.label}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: m.color }}>{fmt(m.valor)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 13, margin: '0 0 8px' }}>Resumen por sucursal</div>
+          {porSucursal.length > 0 ? (
+            <table className="reporte-tabla">
+              <tbody>
+                {porSucursal.map(s => (
+                  <tr key={s.sucursal}>
+                    <td style={{ fontWeight: 500 }}>{s.sucursal}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(s.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div style={{ color: '#999', fontSize: 12 }}>Sin datos de sucursal</div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ fontWeight: 700, fontSize: 13, margin: '16px 0 8px' }}>Ranking de productos</div>
       {ranking.length > 0 ? (
         <table className="reporte-tabla">
           <thead><tr><th>#</th><th>Producto</th><th style={{ textAlign: 'center' }}>Unidades</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
@@ -196,15 +249,50 @@ function ReporteVentas({ ventas, resumen }) {
           </tbody>
         </table>
       ) : (
-        <div style={{ textAlign: 'center', padding: 32, color: '#999', fontSize: 13 }}>Sin ventas registradas hoy</div>
+        <div style={{ textAlign: 'center', padding: 16, color: '#999', fontSize: 13 }}>Sin ventas en el rango seleccionado</div>
       )}
+
+      <div style={{ fontWeight: 700, fontSize: 13, margin: '16px 0 8px' }}>Transacciones ({(ventas || []).length})</div>
+      {(ventas || []).length > 0 ? (
+        <table className="reporte-tabla">
+          <thead>
+            <tr>
+              <th>#</th><th>Hora</th><th>Cliente</th><th>Sucursal</th>
+              <th>Método de pago</th><th>Canal</th><th style={{ textAlign: 'right' }}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ventas.map((v, i) => (
+              <tr key={v.id}>
+                <td style={{ color: '#666', fontSize: 11 }}>{i + 1}</td>
+                <td>{v.hora?.slice(0, 5)}</td>
+                <td style={{ fontWeight: 500 }}>{(!v.cliente || v.cliente === 'Sin nombre') ? 'Cliente general' : v.cliente}</td>
+                <td>{v.sucursal_nombre || 'Sin sucursal'}</td>
+                <td style={{ textTransform: 'capitalize' }}>{v.metodo_pago}</td>
+                <td style={{ textTransform: 'capitalize' }}>{v.canal}</td>
+                <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(v.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div style={{ textAlign: 'center', padding: 32, color: '#999', fontSize: 13 }}>Sin ventas registradas en el rango seleccionado</div>
+      )}
+
       <div className="reporte-footer">
-        <div>Reporte del dia - {new Date().toLocaleDateString('es-NI')}</div>
+        <div>Reporte generado el {new Date().toLocaleDateString('es-NI')}</div>
         <div>Generado por Master Baker</div>
       </div>
     </div>
   )
 }
+
+const METODOS = [
+  { id: 'todos', label: 'Todos' },
+  { id: 'efectivo', label: 'Efectivo' },
+  { id: 'tarjeta', label: 'Tarjeta' },
+  { id: 'transferencia', label: 'Transferencia' },
+]
 
 export default function Reportes() {
   const { recetas } = useRecetas()
@@ -212,16 +300,44 @@ export default function Reportes() {
   const [inventario, setInventario] = useState([])
   const [ventas, setVentas] = useState([])
   const [resumen, setResumen] = useState(null)
+  const [sucursales, setSucursales] = useState([])
   const [tab, setTab] = useState('costeo')
+
+  const hoy = hoyNicaragua()
+  const [desde, setDesde] = useState(hoy)
+  const [hasta, setHasta] = useState(hoy)
+  const [sucursalId, setSucursalId] = useState('')
+  const [metodoPago, setMetodoPago] = useState('todos')
+  const [producto, setProducto] = useState('')
+  const [productoInput, setProductoInput] = useState('')
 
   useEffect(() => {
     getInventario().then(r => setInventario(r.data || [])).catch(() => {})
-    const hoy = hoyNicaragua()
-    getVentaResumen(hoy).then(r => setResumen(r.data)).catch(() => {})
-    getVentas({ fecha: hoy }).then(r => setVentas(r.data?.ventas || r.data || [])).catch(() => {})
+    getSucursales().then(r => setSucursales(r.data || [])).catch(() => {})
   }, [])
 
+  // Búsqueda de producto con debounce — evita una request por cada tecla.
+  useEffect(() => {
+    const t = setTimeout(() => setProducto(productoInput.trim()), 400)
+    return () => clearTimeout(t)
+  }, [productoInput])
+
+  useEffect(() => {
+    if (tab !== 'ventas') return
+    const params = {
+      desde, hasta,
+      sucursal_id: sucursalId || undefined,
+      metodo_pago: metodoPago !== 'todos' ? metodoPago : undefined,
+      producto: producto || undefined,
+    }
+    getVentaResumen(params).then(r => setResumen(r.data)).catch(() => {})
+    getVentas({ ...params, limit: 500 }).then(r => setVentas(r.data || [])).catch(() => {})
+  }, [tab, desde, hasta, sucursalId, metodoPago, producto])
+
   if (cargando) return <div className="text-gray-400 text-sm p-4">Cargando...</div>
+
+  const sucursalNombre = sucursales.find(s => s.id === sucursalId)?.nombre || 'Todas'
+  const filtros = { desde, hasta, sucursalNombre, metodoPago, producto }
 
   return (
     <>
@@ -247,7 +363,7 @@ export default function Reportes() {
             <FileText size={18} /> Reportes
           </h2>
           <button onClick={() => window.print()} className="btn-primary flex items-center gap-2">
-            <Printer size={14} /> Imprimir / Guardar PDF
+            <Printer size={14} /> {tab === 'ventas' ? 'Exportar PDF' : 'Imprimir / Guardar PDF'}
           </button>
         </div>
         <div className="flex gap-1 mb-4 bg-gray-100 rounded-xl p-1 w-fit">
@@ -258,17 +374,58 @@ export default function Reportes() {
             </button>
           ))}
         </div>
+
+        {tab === 'ventas' && (
+          <div className="card mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+              <div className="form-group">
+                <label className="form-label">Desde</label>
+                <input type="date" value={desde} onChange={e => setDesde(e.target.value)} max={hasta} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Hasta</label>
+                <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} min={desde} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Sucursal</label>
+                <select value={sucursalId} onChange={e => setSucursalId(e.target.value)}>
+                  <option value="">Todas</option>
+                  {sucursales.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Producto</label>
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input className="pl-7" value={productoInput} onChange={e => setProductoInput(e.target.value)} placeholder="Buscar..." />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {METODOS.map(m => (
+                <button key={m.id} onClick={() => setMetodoPago(m.id)}
+                  className={`px-3 py-1 text-xs rounded-lg border transition-all ${metodoPago === m.id
+                    ? 'border-brand-400 text-white font-medium'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
+                  style={metodoPago === m.id ? { background: '#C29C53' } : {}}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="card p-0 overflow-hidden">
           {tab === 'costeo' && <ReporteCosteo recetas={recetas} />}
           {tab === 'inventario' && <ReporteInventario inventario={inventario} />}
-          {tab === 'ventas' && <ReporteVentas ventas={ventas} resumen={resumen} />}
+          {tab === 'ventas' && <ReporteVentas ventas={ventas} resumen={resumen} filtros={filtros} />}
         </div>
       </div>
 
       <div className="reporte-print" style={{ display: 'none' }}>
         {tab === 'costeo' && <ReporteCosteo recetas={recetas} />}
         {tab === 'inventario' && <ReporteInventario inventario={inventario} />}
-        {tab === 'ventas' && <ReporteVentas ventas={ventas} resumen={resumen} />}
+        {tab === 'ventas' && <ReporteVentas ventas={ventas} resumen={resumen} filtros={filtros} />}
       </div>
     </>
   )

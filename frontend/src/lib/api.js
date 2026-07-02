@@ -78,7 +78,10 @@ export const getProrrateo     = (params) => api.get('/fiscal/prorrateo', { param
 
 // ── Ventas ───────────────────────────────────────────────────────────────────
 export const getVentas       = (params) => api.get('/ventas', { params })
-export const getVentaResumen = (fecha)  => api.get('/ventas/resumen', { params: { fecha } })
+export const getVentaResumen = (params) => api.get('/ventas/resumen', { params: typeof params === 'string' ? { fecha: params } : params })
 export const getVentaCierre  = (fecha)  => api.get('/ventas/cierre',  { params: { fecha } })
 export const saveVenta       = (data)   => api.post('/ventas', data)
 export const deleteVenta     = (id)     => api.delete(`/ventas/${id}`)
+
+// ── Sucursales ───────────────────────────────────────────────────────────────
+export const getSucursales = () => api.get('/sucursales')

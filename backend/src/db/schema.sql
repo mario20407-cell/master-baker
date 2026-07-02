@@ -182,6 +182,11 @@ CREATE TABLE IF NOT EXISTS ventas (
   creado_en   TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Agregado despues del release inicial de ventas — nullable porque ventas
+-- previas no tienen sucursal asociada (venta sin sucursal_id = "Sin sucursal").
+ALTER TABLE ventas ADD COLUMN IF NOT EXISTS sucursal_id UUID REFERENCES sucursales(id);
+CREATE INDEX IF NOT EXISTS idx_ventas_sucursal ON ventas(sucursal_id);
+
 CREATE TABLE IF NOT EXISTS venta_items (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id   UUID NOT NULL REFERENCES tenants(id),

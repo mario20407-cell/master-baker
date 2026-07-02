@@ -8,6 +8,39 @@ import { checkStockTerminado } from '../services/alertas.js'
 
 const router = Router()
 
+// Filtros compartidos por GET / y GET /resumen — construye WHERE + params.
+// No aplica default de fecha: cada ruta decide si "sin fecha" significa
+// "todas" (lista) o "hoy en Nicaragua" (resumen).
+function buildFiltros(q, tenantId) {
+  const { fecha, desde, hasta, sucursal_id, producto, canal, metodo_pago } = q
+  const conds  = ['v.tenant_id = $1']
+  const params = [tenantId]
+
+  if (desde && hasta) {
+    params.push(desde); conds.push(`v.fecha >= $${params.length}`)
+    params.push(hasta); conds.push(`v.fecha <= $${params.length}`)
+  } else if (desde) {
+    params.push(desde); conds.push(`v.fecha >= $${params.length}`)
+  } else if (hasta) {
+    params.push(hasta); conds.push(`v.fecha <= $${params.length}`)
+  } else if (fecha) {
+    params.push(fecha); conds.push(`v.fecha = $${params.length}`)
+  }
+
+  if (sucursal_id)  { params.push(sucursal_id);  conds.push(`v.sucursal_id = $${params.length}`) }
+  if (canal)        { params.push(canal);        conds.push(`v.canal = $${params.length}`) }
+  if (metodo_pago)  { params.push(metodo_pago);  conds.push(`v.metodo_pago = $${params.length}`) }
+  if (producto) {
+    params.push(`%${producto}%`)
+    conds.push(`EXISTS (
+      SELECT 1 FROM venta_items vi2
+      WHERE vi2.venta_id = v.id AND vi2.tenant_id = v.tenant_id AND vi2.producto ILIKE $${params.length}
+    )`)
+  }
+
+  return { conds, params }
+}
+
 // ── POST /api/ventas ──────────────────────────────────────────────────────────
 router.post('/', async (req, res, next) => {
   const { items, total, metodo_pago = 'efectivo', canal = 'tienda', cliente = 'Sin nombre', fecha, hora, sucursal_id } = req.body
@@ -24,10 +57,15 @@ router.post('/', async (req, res, next) => {
   try {
     const venta = await transaction(async (client) => {
       const { rows: [v] } = await client.query(`
-        INSERT INTO ventas (tenant_id, fecha, hora, cliente, canal, metodo_pago, total)
-        VALUES ($1, ${fecha ? '$2' : "(NOW() AT TIME ZONE 'America/Managua')::date"}, ${hora ? `'${hora}'::TIME` : "(NOW() AT TIME ZONE 'America/Managua')::time"}, $${fecha ? 3 : 2}, $${fecha ? 4 : 3}, $${fecha ? 5 : 4}, $${fecha ? 6 : 5})
+        INSERT INTO ventas (tenant_id, fecha, hora, cliente, canal, metodo_pago, total, sucursal_id)
+        VALUES (
+          $1,
+          COALESCE($2::date, (NOW() AT TIME ZONE 'America/Managua')::date),
+          COALESCE($3::time, (NOW() AT TIME ZONE 'America/Managua')::time),
+          $4, $5, $6, $7, $8
+        )
         RETURNING *
-      `, fecha ? [tenantId, fecha, cliente, canal, metodo_pago, total] : [tenantId, cliente, canal, metodo_pago, total])
+      `, [tenantId, fecha || null, hora || null, cliente, canal, metodo_pago, total, sucursal_id || null])
 
       if (items.length > 0) {
         // Cada fila de items lleva también tenant_id — 4 params por item ahora.
@@ -86,19 +124,13 @@ router.post('/', async (req, res, next) => {
 // ── GET /api/ventas ───────────────────────────────────────────────────────────
 router.get('/', async (req, res, next) => {
   try {
-    const { fecha, canal, metodo_pago, limit = 100 } = req.query
-    const conds  = ['v.tenant_id = $1']
-    const params = [req.tenantId]
-
-    if (fecha)       { params.push(fecha);       conds.push(`v.fecha = $${params.length}`) }
-    if (canal)       { params.push(canal);        conds.push(`v.canal = $${params.length}`) }
-    if (metodo_pago) { params.push(metodo_pago);  conds.push(`v.metodo_pago = $${params.length}`) }
-
+    const { limit = 200 } = req.query
+    const { conds, params } = buildFiltros(req.query, req.tenantId)
     params.push(parseInt(limit))
 
     const { rows } = await query(`
       SELECT
-        v.*,
+        v.*, s.nombre AS sucursal_nombre,
         COALESCE(
           json_agg(
             json_build_object(
@@ -110,9 +142,10 @@ router.get('/', async (req, res, next) => {
         ) AS items
       FROM ventas v
       LEFT JOIN venta_items vi ON vi.venta_id = v.id AND vi.tenant_id = v.tenant_id
+      LEFT JOIN sucursales s ON s.id = v.sucursal_id AND s.tenant_id = v.tenant_id
       WHERE ${conds.join(' AND ')}
-      GROUP BY v.id
-      ORDER BY v.creado_en DESC
+      GROUP BY v.id, s.nombre
+      ORDER BY v.fecha DESC, v.hora DESC
       LIMIT $${params.length}
     `, params)
 
@@ -123,10 +156,15 @@ router.get('/', async (req, res, next) => {
 // ── GET /api/ventas/resumen ───────────────────────────────────────────────────
 router.get('/resumen', async (req, res, next) => {
   try {
-    const { fecha } = req.query
-    const tenantId  = req.tenantId
-    const params    = fecha ? [tenantId, fecha] : [tenantId]
-    const fechaCond = fecha ? 'v.fecha = $2' : "v.fecha = (NOW() AT TIME ZONE 'America/Managua')::date"
+    const tenantId = req.tenantId
+    // Sin fecha/desde/hasta explícitos, el resumen es del día actual en Nicaragua.
+    const sinFiltroFecha = !req.query.fecha && !req.query.desde && !req.query.hasta
+    const q = sinFiltroFecha ? { ...req.query, desde: undefined, hasta: undefined, fecha: undefined } : req.query
+    const { conds: condsBase, params: paramsBase } = buildFiltros(q, tenantId)
+    const fechaCond = sinFiltroFecha
+      ? [...condsBase, "v.fecha = (NOW() AT TIME ZONE 'America/Managua')::date"]
+      : condsBase
+    const where = fechaCond.join(' AND ')
 
     const { rows: [resumen] } = await query(`
       SELECT
@@ -140,20 +178,34 @@ router.get('/resumen', async (req, res, next) => {
         COALESCE(SUM(CASE WHEN v.canal = 'whatsapp'  THEN v.total ELSE 0 END), 0) AS ing_whatsapp,
         COALESCE(SUM(CASE WHEN v.canal = 'encargo'   THEN v.total ELSE 0 END), 0) AS ing_encargo
       FROM ventas v
-      WHERE v.tenant_id = $1 AND ${fechaCond}
-    `, params)
+      WHERE ${where}
+    `, paramsBase)
 
     const { rows: topProds } = await query(`
       SELECT vi.producto, SUM(vi.cantidad)::INT AS piezas, SUM(vi.subtotal) AS ingresos
       FROM venta_items vi
       JOIN ventas v ON v.id = vi.venta_id AND v.tenant_id = vi.tenant_id
-      WHERE v.tenant_id = $1 AND ${fechaCond}
+      WHERE ${where}
       GROUP BY vi.producto
       ORDER BY piezas DESC
       LIMIT 8
-    `, params)
+    `, paramsBase)
 
-    res.json({ ...resumen, top_productos: topProds, fecha: fecha || new Date().toISOString().slice(0,10) })
+    const { rows: porSucursal } = await query(`
+      SELECT COALESCE(s.nombre, 'Sin sucursal') AS sucursal, COALESCE(SUM(v.total), 0) AS total
+      FROM ventas v
+      LEFT JOIN sucursales s ON s.id = v.sucursal_id AND s.tenant_id = v.tenant_id
+      WHERE ${where}
+      GROUP BY COALESCE(s.nombre, 'Sin sucursal')
+      ORDER BY total DESC
+    `, paramsBase)
+
+    res.json({
+      ...resumen,
+      top_productos: topProds,
+      por_sucursal: porSucursal,
+      fecha: req.query.fecha || (sinFiltroFecha ? new Date().toISOString().slice(0, 10) : null),
+    })
   } catch (e) { next(e) }
 })
 
