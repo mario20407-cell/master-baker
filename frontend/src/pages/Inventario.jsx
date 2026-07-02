@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { getInventario, saveInsumo, deleteInsumo } from '../lib/api'
-import { Package, Plus, Trash2, AlertTriangle } from 'lucide-react'
+import { Package, Plus, Trash2, AlertTriangle, FileSpreadsheet } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ImportExcelModal from '../components/ImportExcelModal'
 
 export default function Inventario() {
   const [insumos, setInsumos] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ nombre: '', existencia: '', unidad: 'kg', consumo_diario: '', punto_reposicion: '', costo_unitario: '' })
+  const [mostrarImport, setMostrarImport] = useState(false)
 
   const cargar = async () => {
     try {
@@ -82,7 +84,12 @@ export default function Inventario() {
       )}
 
       <div className="card">
-        <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2"><Plus size={14} /> Registrar insumo</h3>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2"><Plus size={14} /> Registrar insumo</h3>
+          <button onClick={() => setMostrarImport(true)} className="btn-secondary text-xs py-1.5 flex items-center gap-2">
+            <FileSpreadsheet size={13} /> Importar desde Excel
+          </button>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
           <div className="form-group">
             <label className="form-label">Insumo</label>
@@ -159,6 +166,14 @@ export default function Inventario() {
           </div>
         )}
       </div>
+
+      {mostrarImport && (
+        <ImportExcelModal
+          tipo="inventario"
+          onClose={() => setMostrarImport(false)}
+          onImported={cargar}
+        />
+      )}
     </div>
   )
 }

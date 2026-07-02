@@ -7,7 +7,7 @@ vi.mock('../db/client.js', () => ({
   transaction: vi.fn(),
 }))
 
-import { query } from '../db/client.js'
+import { query, transaction } from '../db/client.js'
 import catalogoRouter from '../routes/catalogo.js'
 
 const app = makeApp(catalogoRouter)
@@ -58,5 +58,55 @@ describe('PUT /api/catalogo/:id', () => {
     const res = await request(app).put('/999').send({ precio: 99, presentacion: 'unidad' })
     expect(res.status).toBe(404)
     expect(res.body.error).toMatch(/no encontrado/i)
+  })
+})
+
+describe('POST /api/catalogo/importar', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  function mockClientWith(insertedFlags) {
+    const clientQuery = vi.fn()
+    insertedFlags.forEach((inserted) => clientQuery.mockResolvedValueOnce({ rows: [{ inserted }] }))
+    transaction.mockImplementation(async (fn) => fn({ query: clientQuery }))
+    return clientQuery
+  }
+
+  it('imports mixed insert/update rows and returns summary', async () => {
+    mockClientWith([true, false])
+    const res = await request(app).post('/importar').send({
+      filas: [
+        { nombre: 'Dona nueva', precio: 15, categoria: 'Donas', presentacion: 'unidad' },
+        { nombre: 'Croissant', precio: 55, categoria: 'Hojaldre', presentacion: 'unidad' },
+      ],
+    })
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ insertados: 1, actualizados: 1, errores: [] })
+  })
+
+  it('collects errors for invalid rows without aborting the batch', async () => {
+    mockClientWith([true])
+    const res = await request(app).post('/importar').send({
+      filas: [
+        { nombre: '', precio: 10 },
+        { nombre: 'Precio invalido', precio: 0 },
+        { nombre: 'Dona valida', precio: 12 },
+      ],
+    })
+    expect(res.status).toBe(200)
+    expect(res.body.insertados).toBe(1)
+    expect(res.body.errores).toHaveLength(2)
+    expect(res.body.errores[0]).toEqual({ fila: 1, motivo: expect.stringMatching(/nombre/i) })
+    expect(res.body.errores[1]).toEqual({ fila: 2, motivo: expect.stringMatching(/precio/i) })
+  })
+
+  it('returns 400 when filas is not an array', async () => {
+    const res = await request(app).post('/importar').send({ filas: 'nope' })
+    expect(res.status).toBe(400)
+  })
+
+  it('scopes the upsert query to the tenant', async () => {
+    const clientQuery = mockClientWith([true])
+    await request(app).post('/importar').send({ filas: [{ nombre: 'Dona', precio: 10 }] })
+    expect(clientQuery).toHaveBeenCalledWith(expect.any(String), ['test-tenant-id', 'Dona', 10, null, 'unidad'])
   })
 })

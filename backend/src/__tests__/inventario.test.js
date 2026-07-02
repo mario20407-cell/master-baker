@@ -7,7 +7,7 @@ vi.mock('../db/client.js', () => ({
   transaction: vi.fn(),
 }))
 
-import { query } from '../db/client.js'
+import { query, transaction } from '../db/client.js'
 import inventarioRouter from '../routes/inventario.js'
 
 const app = makeApp(inventarioRouter)
@@ -43,6 +43,49 @@ describe('POST /api/inventario', () => {
     const res = await request(app).post('/').send({ existencia: 50 })
     expect(res.status).toBe(400)
     expect(res.body.error).toMatch(/nombre/i)
+  })
+})
+
+describe('POST /api/inventario/importar', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  function mockClientWith(insertedFlags) {
+    const clientQuery = vi.fn()
+    insertedFlags.forEach((inserted) => clientQuery.mockResolvedValueOnce({ rows: [{ inserted }] }))
+    transaction.mockImplementation(async (fn) => fn({ query: clientQuery }))
+    return clientQuery
+  }
+
+  it('imports mixed insert/update rows and returns summary', async () => {
+    mockClientWith([true, false])
+    const res = await request(app).post('/importar').send({
+      filas: [
+        { nombre: 'Azucar', existencia: 20, unidad: 'kg', costo_unitario: 15, punto_reposicion: 5 },
+        { nombre: 'Harina', existencia: 50, unidad: 'kg', costo_unitario: 25, punto_reposicion: 10 },
+      ],
+    })
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ insertados: 1, actualizados: 1, errores: [] })
+  })
+
+  it('collects errors for invalid rows without aborting the batch', async () => {
+    mockClientWith([true])
+    const res = await request(app).post('/importar').send({
+      filas: [
+        { nombre: '', existencia: 10, costo_unitario: 5 },
+        { nombre: 'Existencia negativa', existencia: -1, costo_unitario: 5 },
+        { nombre: 'Costo negativo', existencia: 10, costo_unitario: -1 },
+        { nombre: 'Insumo valido', existencia: 10, costo_unitario: 5 },
+      ],
+    })
+    expect(res.status).toBe(200)
+    expect(res.body.insertados).toBe(1)
+    expect(res.body.errores).toHaveLength(3)
+  })
+
+  it('returns 400 when filas is not an array', async () => {
+    const res = await request(app).post('/importar').send({ filas: null })
+    expect(res.status).toBe(400)
   })
 })
 

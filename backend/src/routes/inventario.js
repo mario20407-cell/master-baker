@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query } from '../db/client.js'
+import { query, transaction } from '../db/client.js'
 import { checkInventarioInsumos } from '../services/alertas.js'
 
 const router = Router()
@@ -42,6 +42,55 @@ router.post('/', async (req, res, next) => {
     `, [req.tenantId, nombre, existencia || 0, unidad || 'kg',
         consumo_diario || 0, punto_reposicion || 0, costo_unitario || 0])
     res.status(201).json(rows[0])
+  } catch (e) { next(e) }
+})
+
+// POST /api/inventario/importar — upsert masivo desde Excel
+router.post('/importar', async (req, res, next) => {
+  const { filas } = req.body
+  if (!Array.isArray(filas)) return res.status(400).json({ error: 'filas debe ser un arreglo' })
+
+  const errores = []
+  let insertados = 0
+  let actualizados = 0
+
+  try {
+    await transaction(async (client) => {
+      for (let i = 0; i < filas.length; i++) {
+        const fila = filas[i] || {}
+        const nombre = (fila.nombre || '').toString().trim()
+        const existencia = Number(fila.existencia)
+        const costo_unitario = Number(fila.costo_unitario)
+
+        if (!nombre) {
+          errores.push({ fila: i + 1, motivo: 'nombre es requerido' })
+          continue
+        }
+        if (!(existencia >= 0)) {
+          errores.push({ fila: i + 1, motivo: 'existencia debe ser mayor o igual a 0' })
+          continue
+        }
+        if (!(costo_unitario >= 0)) {
+          errores.push({ fila: i + 1, motivo: 'costo unitario debe ser mayor o igual a 0' })
+          continue
+        }
+
+        const { rows } = await client.query(`
+          INSERT INTO inventario (tenant_id, nombre, existencia, unidad, punto_reposicion, costo_unitario)
+          VALUES ($1,$2,$3,$4,$5,$6)
+          ON CONFLICT (tenant_id, nombre) DO UPDATE SET
+            existencia=EXCLUDED.existencia, unidad=EXCLUDED.unidad,
+            punto_reposicion=EXCLUDED.punto_reposicion, costo_unitario=EXCLUDED.costo_unitario,
+            actualizado_en=NOW()
+          RETURNING (xmax = 0) AS inserted
+        `, [req.tenantId, nombre, existencia, fila.unidad || 'kg',
+            Number(fila.punto_reposicion) || 0, costo_unitario])
+
+        if (rows[0].inserted) insertados++
+        else actualizados++
+      }
+    })
+    res.json({ insertados, actualizados, errores })
   } catch (e) { next(e) }
 })
 

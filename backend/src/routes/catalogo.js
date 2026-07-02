@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query } from '../db/client.js'
+import { query, transaction } from '../db/client.js'
 
 const router = Router()
 
@@ -29,6 +29,48 @@ router.put('/:id', async (req, res, next) => {
     )
     if (!rows.length) return res.status(404).json({ error: 'Producto no encontrado' })
     res.json(rows[0])
+  } catch (e) { next(e) }
+})
+
+// POST /api/catalogo/importar — upsert masivo desde Excel
+router.post('/importar', async (req, res, next) => {
+  const { filas } = req.body
+  if (!Array.isArray(filas)) return res.status(400).json({ error: 'filas debe ser un arreglo' })
+
+  const errores = []
+  let insertados = 0
+  let actualizados = 0
+
+  try {
+    await transaction(async (client) => {
+      for (let i = 0; i < filas.length; i++) {
+        const fila = filas[i] || {}
+        const nombre = (fila.nombre || '').toString().trim()
+        const precio = Number(fila.precio)
+
+        if (!nombre) {
+          errores.push({ fila: i + 1, motivo: 'nombre es requerido' })
+          continue
+        }
+        if (!(precio > 0)) {
+          errores.push({ fila: i + 1, motivo: 'precio debe ser mayor a 0' })
+          continue
+        }
+
+        const { rows } = await client.query(`
+          INSERT INTO productos (tenant_id, nombre, precio, categoria, presentacion)
+          VALUES ($1,$2,$3,$4,$5)
+          ON CONFLICT (tenant_id, nombre) DO UPDATE SET
+            precio=EXCLUDED.precio, categoria=EXCLUDED.categoria,
+            presentacion=EXCLUDED.presentacion, actualizado_en=NOW()
+          RETURNING (xmax = 0) AS inserted
+        `, [req.tenantId, nombre, precio, fila.categoria || null, fila.presentacion || 'unidad'])
+
+        if (rows[0].inserted) insertados++
+        else actualizados++
+      }
+    })
+    res.json({ insertados, actualizados, errores })
   } catch (e) { next(e) }
 })
 

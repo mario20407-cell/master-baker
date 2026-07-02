@@ -37,6 +37,7 @@ api.interceptors.response.use(
 // ── Catálogo ─────────────────────────────────────────────────────────────────
 export const getCatalogo = () => api.get('/catalogo')
 export const updateProducto = (id, data) => api.put(`/catalogo/${id}`, data)
+export const importCatalogo = (filas) => api.post('/catalogo/importar', { filas })
 
 // ── Recetas ──────────────────────────────────────────────────────────────────
 export const getRecetas = () => api.get('/recetas')
@@ -55,6 +56,7 @@ export const getInventario = () => api.get('/inventario')
 export const saveInsumo = (data) => api.post('/inventario', data)
 export const updateInsumo = (id, data) => api.put(`/inventario/${id}`, data)
 export const deleteInsumo = (id) => api.delete(`/inventario/${id}`)
+export const importInventario = (filas) => api.post('/inventario/importar', { filas })
 
 // ── Compras ──────────────────────────────────────────────────────────────────
 export const getCompras = () => api.get('/compras')

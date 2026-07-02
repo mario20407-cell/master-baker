@@ -1,12 +1,14 @@
 // ─── pages/Catalogo.jsx ───────────────────────────────────────────────────────
 import { useState } from 'react'
 import { PRODUCTOS, CATEGORIAS, CAT_COLORS } from '../lib/catalogo'
-import { Search, Calculator, Scale } from 'lucide-react'
+import { Search, Calculator, Scale, FileSpreadsheet } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import ImportExcelModal from '../components/ImportExcelModal'
 
 export function Catalogo() {
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('Todos')
+  const [mostrarImport, setMostrarImport] = useState(false)
   const navigate = useNavigate()
 
   const lista = PRODUCTOS.filter(p =>
@@ -16,12 +18,19 @@ export function Catalogo() {
 
   return (
     <div className="max-w-5xl">
-      <div className="flex gap-3 mb-4">
+      <div className="flex gap-3 mb-4 justify-between">
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input className="pl-8" value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar producto..." />
         </div>
+        <button onClick={() => setMostrarImport(true)} className="btn-secondary text-xs py-1.5 flex items-center gap-2 flex-shrink-0">
+          <FileSpreadsheet size={13} /> Importar desde Excel
+        </button>
       </div>
+
+      {mostrarImport && (
+        <ImportExcelModal tipo="catalogo" onClose={() => setMostrarImport(false)} />
+      )}
       <div className="flex gap-2 flex-wrap mb-4">
         {['Todos', ...CATEGORIAS].map(c => (
           <button key={c} onClick={() => setCat(c)}
