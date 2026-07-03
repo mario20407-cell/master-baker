@@ -2,7 +2,7 @@
 
 ## Proyecto
 
-Sistema de gestión para panadería: costeo de recetas, inventario, ventas, facturación fiscal y asistente IA por WhatsApp.
+Sistema de gestión para panadería: costeo de recetas, inventario, ventas (POS), facturación fiscal y asistente IA por WhatsApp. Desplegado en producción en `masterbaker.store` (frontend en Vercel, proyecto `marquez-app-v27`; backend en Railway; DB en Supabase).
 
 ## Stack
 
@@ -11,8 +11,36 @@ Sistema de gestión para panadería: costeo de recetas, inventario, ventas, fact
 | Frontend | React 18 + Vite + TailwindCSS + React Router |
 | Backend | Node.js (ESM) + Express 4 |
 | Base de datos | PostgreSQL vía Supabase (`pg` pool) |
+| Auth | JWT (`jsonwebtoken`) + `bcryptjs` — implementado y en producción, ver sección Auth |
 | IA | Claude Sonnet (lógica), GPT-4o-mini (chat/WhatsApp), DeepSeek V3/R1 (costeo), Gemini 2.5 Flash (PDFs) |
 | Tests | Vitest + Supertest (backend), Vitest (frontend) |
+
+## Módulos en producción
+
+| Módulo | Ruta frontend | Notas |
+|---|---|---|
+| Dashboard | `/dashboard` | 4 filas: F1 Hero del día (ventas/ingresos/stock crítico, filtrado por fecha Nicaragua), F2 Presupuesto del mes + Caja del día, F3 Alertas activas + Últimas ventas (columna Fecha/Hora en formato "3 jul 07:34"), F4 Análisis colapsable (rentabilidad, categorías, estado de recetas) |
+| Catálogo | `/catalogo` | Lista estática + botón "Importar desde Excel" |
+| Recetas | `/recetas` | Costeo por receta |
+| Costeo / Escalado | `/costeo`, `/escalado` | Módulos en construcción (stubs) |
+| Inventario (insumos) | `/inventario` | CRUD + "Importar desde Excel" (plantillas en `frontend/public/plantillas/`) |
+| Compras | `/compras` | Registrar factura → upsert automático a `inventario` (suma existencia, crea insumo si no existe) |
+| Caja de Producción | `/caja` | Registro de hornadas y ventas del día por lote |
+| Ventas (POS) | `/ventas` | Carrito, selección de sucursal, métodos de pago (efectivo/tarjeta/transferencia), descuenta `inventario_terminado` al vender |
+| Stock Terminado | `/stock` | Inventario de producto terminado multi-sucursal, alertas de stock bajo, distribución entre sucursales |
+| Reportes | `/reportes` | 3 pestañas: Rentabilidad, Inventario, Ventas (con filtros: rango de fecha, sucursal, método de pago, búsqueda de producto — actualización automática, "Exportar PDF" vía `window.print()`) |
+| Usuarios | `/usuarios` | Gestión de usuarios + configuración de alertas WhatsApp (números destino) |
+| Config. Fiscal | `/fiscal` | Régimen cuota fija, prorrateo |
+| Exportar | `/exportar` | Exportación de reportes — **`backend/src/routes/exportar.js` NO filtra por tenant**, bug conocido |
+| Consultar IA | `/ia` | Chat con IA (WhatsApp usa el mismo `aiProvider.js`) |
+| Alertas WhatsApp | — (backend) | `backend/src/services/alertas.js` — dispara alertas de stock bajo (`checkStockTerminado`, `checkInventarioInsumos`) vía Meta Cloud API |
+
+## Auth (implementado, en producción)
+
+- Login con JWT: `POST /api/auth/login` (`backend/src/routes/auth.js`), contraseñas hasheadas con `bcryptjs`.
+- `backend/src/middleware/authMiddleware.js` — `requireAuth` protege rutas; hay verificación de rol (`requireRol('admin')`) usada en endpoints sensibles (ej. distribución de stock entre sucursales).
+- Frontend: `frontend/src/context/AuthContext.jsx` maneja sesión/token (`localStorage: marquez_token`), `Login.jsx` es la pantalla de acceso, rutas protegidas redirigen a `/login` si no hay sesión válida.
+- Interceptor de `frontend/src/lib/api.js` adjunta `Authorization: Bearer <token>` y hace logout automático (redirige a `/login`) en 401.
 
 ## Estructura
 
@@ -72,7 +100,7 @@ DEEPSEEK_API_KEY      DeepSeek V3/R1 (costeo)
 GEMINI_API_KEY        Gemini 2.5 Flash (PDFs)
 WHATSAPP_TOKEN        Meta Cloud API
 WHATSAPP_PHONE_ID     ID del número de WhatsApp
-JWT_SECRET            Para tokens (auth pendiente de implementar)
+JWT_SECRET            Firma de tokens JWT (auth implementado — ver sección Auth)
 
 # Frontend
 VITE_API_URL          URL del backend (default /api en prod)
@@ -97,6 +125,14 @@ npm test              # vitest run (55 tests)
 - **Transacciones**: usar `transaction(async (client) => { ... })` de `db/client.js`.
 - **AI routing**: todo pasa por `aiProvider.js`. `AI_CONFIG.USE_MOCKS = true` para tests sin API keys.
 - **Tests de rutas**: crear mini-app Express con `makeApp(router)` de `src/__tests__/test-utils.js`, mockear `../db/client.js` con `vi.mock()`. NO importar `index.js` en tests (llama a `app.listen()`).
+
+## Pendientes / bugs conocidos
+
+- `exportar.js` no filtra por `tenant_id` — no tocar sin análisis de impacto.
+- Reporte de Rentabilidad: algunos productos muestran márgenes/utilidades absurdamente negativos (costeo de receta mal configurado, no es bug de código).
+- Datos duplicados por typo en Stock Terminado (ej. dos productos casi idénticos con nombre mal escrito) — fragmenta conteos de stock.
+- `backend/src/db/schema.sql` está desincronizado del schema real: no define `sucursales` ni `inventario_terminado` (existen en producción pero no en el archivo). Correr `db:migrate` contra una base nueva desde cero fallaría.
+- Ventas registradas antes de que `ventas.sucursal_id` existiera aparecen como "Sin sucursal" en los reportes — esperado, no recuperable.
 
 ## Reglas de ahorro de tokens
 
