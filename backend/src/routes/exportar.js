@@ -1,7 +1,9 @@
 import { Router } from 'express'
 import { query } from '../db/client.js'
+import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
+router.use(requireAuth)
 
 const csvHeaders = (res, filename) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8')
@@ -26,9 +28,10 @@ router.get('/catalogo', async (req, res, next) => {
       SELECT p.nombre, p.precio, p.presentacion, p.categoria,
         CASE WHEN r.id IS NOT NULL THEN 'Sí' ELSE 'No' END AS tiene_receta
       FROM productos p
-      LEFT JOIN recetas r ON r.producto = p.nombre
-      WHERE p.activo = true ORDER BY p.categoria, p.nombre
-    `)
+      LEFT JOIN recetas r ON r.producto = p.nombre AND r.tenant_id = p.tenant_id
+      WHERE p.activo = true AND p.tenant_id = $1
+      ORDER BY p.categoria, p.nombre
+    `, [req.tenantId])
     csvHeaders(res, 'catalogo_marquez.csv')
     res.write(toRow(['Nombre', 'Precio (C$)', 'Presentación', 'Categoría', 'Tiene receta']))
     rows.forEach(r => res.write(toRow([r.nombre, r.precio, r.presentacion, r.categoria, r.tiene_receta])))
@@ -43,9 +46,10 @@ router.get('/recetas', async (req, res, next) => {
       SELECT r.producto, r.piezas, r.peso_por_pieza, r.merma_pct,
         i.nombre AS ingrediente, i.cantidad, i.unidad, i.precio, i.tipo
       FROM recetas r
-      JOIN ingredientes i ON i.receta_id = r.id
+      JOIN ingredientes i ON i.receta_id = r.id AND i.tenant_id = r.tenant_id
+      WHERE r.tenant_id = $1
       ORDER BY r.producto, i.orden
-    `)
+    `, [req.tenantId])
     csvHeaders(res, 'recetas_marquez.csv')
     res.write(toRow(['Producto', 'Piezas base', 'Peso/pieza (g)', '% Merma',
       'Ingrediente', 'Cantidad', 'Unidad', 'Precio C$/u', 'Tipo']))
@@ -65,8 +69,9 @@ router.get('/costeos', async (req, res, next) => {
         costo_total, costo_unitario, precio_venta, margen_pct, utilidad_neta,
         CASE WHEN aprobado THEN 'Aprobado' ELSE 'Rechazado' END AS estado,
         TO_CHAR(creado_en, 'YYYY-MM-DD HH24:MI') AS fecha
-      FROM costeos ORDER BY creado_en DESC LIMIT 500
-    `)
+      FROM costeos WHERE tenant_id = $1
+      ORDER BY creado_en DESC LIMIT 500
+    `, [req.tenantId])
     csvHeaders(res, 'costeos_marquez.csv')
     res.write(toRow(['Producto', 'Piezas obj.', 'Piezas reales', 'Costo directo',
       'Costo indirecto', 'Costo total', 'Costo unitario', 'Precio venta',
@@ -88,8 +93,9 @@ router.get('/inventario', async (req, res, next) => {
         costo_unitario,
         CASE WHEN consumo_diario > 0 THEN FLOOR(existencia/consumo_diario) ELSE NULL END AS dias_restantes,
         TO_CHAR(actualizado_en, 'YYYY-MM-DD') AS actualizado
-      FROM inventario ORDER BY nombre
-    `)
+      FROM inventario WHERE tenant_id = $1
+      ORDER BY nombre
+    `, [req.tenantId])
     csvHeaders(res, 'inventario_marquez.csv')
     res.write(toRow(['Insumo', 'Existencia', 'Unidad', 'Consumo diario',
       'Punto reposición', 'Costo unitario (C$)', 'Días restantes', 'Actualizado']))
@@ -110,9 +116,10 @@ router.get('/compras', async (req, res, next) => {
         fi.variacion_pct,
         CASE WHEN fi.alerta THEN 'ALERTA' ELSE '' END AS alerta
       FROM facturas f
-      JOIN factura_items fi ON fi.factura_id = f.id
+      JOIN factura_items fi ON fi.factura_id = f.id AND fi.tenant_id = f.tenant_id
+      WHERE f.tenant_id = $1
       ORDER BY f.fecha DESC, f.creado_en DESC
-    `)
+    `, [req.tenantId])
     csvHeaders(res, 'compras_marquez.csv')
     res.write(toRow(['Proveedor', 'Fecha', 'Total factura (C$)', 'Producto',
       'Cantidad', 'Precio actual', 'Precio anterior', 'Variación %', 'Alerta']))
@@ -127,22 +134,24 @@ router.get('/compras', async (req, res, next) => {
 // GET /api/exportar/reporte — reporte ejecutivo completo
 router.get('/reporte', async (req, res, next) => {
   try {
+    const tenantId = req.tenantId
     const [{ rows: resumen }] = await Promise.all([query(`
       SELECT
-        (SELECT COUNT(*) FROM productos WHERE activo) AS total_productos,
-        (SELECT COUNT(*) FROM recetas) AS total_recetas,
-        (SELECT COUNT(*) FROM costeos) AS total_costeos,
-        (SELECT COUNT(*) FROM costeos WHERE aprobado = false) AS costeos_rechazados,
-        (SELECT ROUND(AVG(margen_pct),2) FROM costeos WHERE margen_pct IS NOT NULL) AS margen_promedio,
-        (SELECT SUM(utilidad_neta) FROM costeos WHERE aprobado = true) AS utilidad_total,
-        (SELECT COUNT(*) FROM inventario WHERE consumo_diario > 0 AND existencia/consumo_diario <= 3) AS insumos_criticos
-    `)])
+        (SELECT COUNT(*) FROM productos WHERE activo AND tenant_id = $1) AS total_productos,
+        (SELECT COUNT(*) FROM recetas WHERE tenant_id = $1) AS total_recetas,
+        (SELECT COUNT(*) FROM costeos WHERE tenant_id = $1) AS total_costeos,
+        (SELECT COUNT(*) FROM costeos WHERE aprobado = false AND tenant_id = $1) AS costeos_rechazados,
+        (SELECT ROUND(AVG(margen_pct),2) FROM costeos WHERE margen_pct IS NOT NULL AND tenant_id = $1) AS margen_promedio,
+        (SELECT SUM(utilidad_neta) FROM costeos WHERE aprobado = true AND tenant_id = $1) AS utilidad_total,
+        (SELECT COUNT(*) FROM inventario WHERE consumo_diario > 0 AND existencia/consumo_diario <= 3 AND tenant_id = $1) AS insumos_criticos
+    `, [tenantId])])
 
     const { rows: topCosteos } = await query(`
       SELECT producto, ROUND(AVG(margen_pct),2) AS margen_avg,
         ROUND(AVG(costo_unitario),4) AS cu_avg, COUNT(*) AS veces_costeado
-      FROM costeos GROUP BY producto ORDER BY margen_avg DESC LIMIT 10
-    `)
+      FROM costeos WHERE tenant_id = $1
+      GROUP BY producto ORDER BY margen_avg DESC LIMIT 10
+    `, [tenantId])
 
     csvHeaders(res, 'reporte_ejecutivo_marquez.csv')
 
