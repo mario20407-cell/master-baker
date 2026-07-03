@@ -106,6 +106,9 @@ app.get('/api/health', async (_, res) => {
     },
     auth: {
       jwt_secret: !!process.env.JWT_SECRET,
+      jwt_secret_exists: 'JWT_SECRET' in process.env,
+      jwt_secret_type: typeof process.env.JWT_SECRET,
+      jwt_secret_length: process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0,
     },
     cors_origins: allowedOrigins,
     timestamp: new Date().toISOString(),
