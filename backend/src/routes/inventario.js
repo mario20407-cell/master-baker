@@ -1,8 +1,11 @@
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { checkInventarioInsumos } from '../services/alertas.js'
+import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
+
+router.use(requireAuth)
 
 // GET /api/inventario
 router.get('/', async (req, res, next) => {

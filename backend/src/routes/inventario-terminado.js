@@ -6,7 +6,7 @@ import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 const router = Router()
 
 // GET /api/inventario-terminado?sucursal_id=&producto=
-router.get('/', async (req, res, next) => {
+router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { sucursal_id, producto } = req.query
     let sql = `

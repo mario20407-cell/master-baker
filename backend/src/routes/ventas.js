@@ -5,8 +5,11 @@
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { checkStockTerminado } from '../services/alertas.js'
+import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
+
+router.use(requireAuth)
 
 // Filtros compartidos por GET / y GET /resumen — construye WHERE + params.
 // No aplica default de fecha: cada ruta decide si "sin fecha" significa

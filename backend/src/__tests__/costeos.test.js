@@ -7,6 +7,18 @@ vi.mock('../db/client.js', () => ({
   transaction: vi.fn(),
 }))
 
+vi.mock('../middleware/authMiddleware.js', () => ({
+  requireAuth: (req, res, next) => {
+    req.usuarioId = 'u-1'
+    req.tenantId = 'test-tenant-id'
+    req.rol = 'admin'
+    req.email = 'test@marquez.com'
+    req.nombre = 'Test User'
+    next()
+  },
+  requireRol: () => (req, res, next) => next(),
+}))
+
 import { query } from '../db/client.js'
 import costeosRouter from '../routes/costeos.js'
 

@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import OpenAI from 'openai'
 import { query } from '../db/client.js'
+import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
 
@@ -258,7 +259,7 @@ router.post('/webhook', async (req, res) => {
 })
 
 // ── Endpoint: enviar mensaje manual desde el dashboard ───────────────────────
-router.post('/enviar', async (req, res, next) => {
+router.post('/enviar', requireAuth, async (req, res, next) => {
   const { telefono, mensaje } = req.body
   if (!telefono || !mensaje) {
     return res.status(400).json({ error: 'telefono y mensaje son requeridos' })
@@ -273,19 +274,19 @@ router.post('/enviar', async (req, res, next) => {
 })
 
 // ── Endpoint: ver historial de conversación ───────────────────────────────────
-router.get('/conversacion/:telefono', (req, res) => {
+router.get('/conversacion/:telefono', requireAuth, (req, res) => {
   const historial = conversaciones.get(req.params.telefono) || []
   res.json({ telefono: req.params.telefono, mensajes: historial.length, historial })
 })
 
 // ── Endpoint: limpiar historial ───────────────────────────────────────────────
-router.delete('/conversacion/:telefono', (req, res) => {
+router.delete('/conversacion/:telefono', requireAuth, (req, res) => {
   conversaciones.delete(req.params.telefono)
   res.json({ ok: true, mensaje: 'Historial limpiado' })
 })
 
 // ── Endpoint: status del bot ──────────────────────────────────────────────────
-router.get('/status', async (req, res) => {
+router.get('/status', requireAuth, async (req, res) => {
   const token = await getWAToken(req.tenantId)
   res.json({
     activo:         !!token && !!getWAPhoneId(),

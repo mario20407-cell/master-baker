@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
+import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
 
@@ -19,7 +20,7 @@ router.get('/', async (req, res, next) => {
 })
 
 // PUT /api/catalogo/:id — actualizar precio (solo si pertenece al tenant)
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', requireAuth, async (req, res, next) => {
   const { precio, presentacion } = req.body
   try {
     const { rows } = await query(
@@ -33,7 +34,7 @@ router.put('/:id', async (req, res, next) => {
 })
 
 // POST /api/catalogo/importar — upsert masivo desde Excel
-router.post('/importar', async (req, res, next) => {
+router.post('/importar', requireAuth, async (req, res, next) => {
   const { filas } = req.body
   if (!Array.isArray(filas)) return res.status(400).json({ error: 'filas debe ser un arreglo' })
 

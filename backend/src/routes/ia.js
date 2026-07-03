@@ -1,7 +1,10 @@
 import { Router } from 'express'
 import Anthropic from '@anthropic-ai/sdk'
+import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
+
+router.use(requireAuth)
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const SYSTEM_PROMPT = `Eres el Maestro Panadero IA Marquéz, sistema experto en producción, 

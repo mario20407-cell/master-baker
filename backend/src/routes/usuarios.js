@@ -1,9 +1,10 @@
 import { Router } from 'express'
 import { query } from '../db/client.js'
+import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 
 const router = Router()
 
-router.get('/', async (req, res, next) => {
+router.get('/', requireAuth, requireRol('admin'), async (req, res, next) => {
   try {
     const { rows } = await query(
       'SELECT id, nombre, email, rol, activo, creado_en FROM usuarios WHERE tenant_id = $1 ORDER BY creado_en',
@@ -13,7 +14,7 @@ router.get('/', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-router.post('/', async (req, res, next) => {
+router.post('/', requireAuth, requireRol('admin'), async (req, res, next) => {
   try {
     const { nombre, email, rol = 'operario' } = req.body
     if (!nombre || !email) return res.status(400).json({ error: 'nombre y email requeridos' })
@@ -25,7 +26,7 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-router.get('/tenant-config', async (req, res, next) => {
+router.get('/tenant-config', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await query(
       'SELECT whatsapp_taller, whatsapp_compras, whatsapp_jefe_operaciones FROM tenants WHERE id = $1',
@@ -35,7 +36,7 @@ router.get('/tenant-config', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-router.patch('/tenant-config', async (req, res, next) => {
+router.patch('/tenant-config', requireAuth, requireRol('admin'), async (req, res, next) => {
   try {
     const { whatsapp_taller, whatsapp_compras, whatsapp_jefe_operaciones } = req.body
     const { rows } = await query(
@@ -50,7 +51,7 @@ router.patch('/tenant-config', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-router.patch('/:id', async (req, res, next) => {
+router.patch('/:id', requireAuth, requireRol('admin'), async (req, res, next) => {
   try {
     const { nombre, rol, activo } = req.body
     const { rows } = await query(

@@ -5,10 +5,13 @@
  */
 import { Router } from 'express'
 import { query } from '../db/client.js'
+import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 
 const router = Router()
 
-// ── GET /api/fiscal ───────────────────────────────────────────────────────────
+router.use(requireAuth)
+
+// 💸 GET /api/fiscal ─────────────────────────────────────────────────────────────
 router.get('/', async (req, res, next) => {
   try {
     const { rows } = await query('SELECT * FROM config_fiscal WHERE tenant_id = $1', [req.tenantId])
@@ -17,8 +20,8 @@ router.get('/', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// ── PUT /api/fiscal ───────────────────────────────────────────────────────────
-router.put('/', async (req, res, next) => {
+// 💸 PUT /api/fiscal ─────────────────────────────────────────────────────────────
+router.put('/', requireRol('admin'), async (req, res, next) => {
   const {
     regimen,
     cuota_fija = 0,

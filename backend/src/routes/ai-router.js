@@ -8,8 +8,11 @@ import {
   getProvidersStatus,
   AI_CONFIG,
 } from '../services/ai/aiProvider.js'
+import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
+
+router.use(requireAuth)
 
 // ── Clasificador de tareas ────────────────────────────────────────────────────
 const TASK_TYPES = {
