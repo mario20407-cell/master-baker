@@ -31,7 +31,7 @@ Sistema de gestión para panadería: costeo de recetas, inventario, ventas (POS)
 | Reportes | `/reportes` | 3 pestañas: Rentabilidad, Inventario, Ventas (con filtros: rango de fecha, sucursal, método de pago, búsqueda de producto — actualización automática, "Exportar PDF" vía `window.print()`) |
 | Usuarios | `/usuarios` | Gestión de usuarios + configuración de alertas WhatsApp (números destino) |
 | Config. Fiscal | `/fiscal` | Régimen cuota fija, prorrateo |
-| Exportar | `/exportar` | Exportación de reportes — **`backend/src/routes/exportar.js` NO filtra por tenant**, bug conocido |
+| Exportar | `/exportar` | Exportación CSV (catálogo, recetas, costeos, inventario, compras, reporte ejecutivo) — requiere auth y filtra por `tenant_id` en todas las queries |
 | Consultar IA | `/ia` | Chat con IA (WhatsApp usa el mismo `aiProvider.js`) |
 | Alertas WhatsApp | — (backend) | `backend/src/services/alertas.js` — dispara alertas de stock bajo (`checkStockTerminado`, `checkInventarioInsumos`) vía Meta Cloud API |
 
@@ -75,7 +75,6 @@ marquez-app/
 - **Toda** query filtra por `tenant_id`. Sin excepción.
 - Tenant actual: UUID `00000000-0000-0000-0000-000000000001` (Marquéz).
 - Para tests: enviar header `x-tenant-id: <uuid>` — el middleware lo usa directamente.
-- `exportar.js` NO filtra por tenant — bug conocido, no tocar sin análisis de impacto.
 
 ## Reglas de negocio clave
 
@@ -128,7 +127,6 @@ npm test              # vitest run (55 tests)
 
 ## Pendientes / bugs conocidos
 
-- `exportar.js` no filtra por `tenant_id` — no tocar sin análisis de impacto.
 - Reporte de Rentabilidad: algunos productos muestran márgenes/utilidades absurdamente negativos (costeo de receta mal configurado, no es bug de código).
 - Datos duplicados por typo en Stock Terminado (ej. dos productos casi idénticos con nombre mal escrito) — fragmenta conteos de stock.
 - `backend/src/db/schema.sql` está desincronizado del schema real: no define `sucursales` ni `inventario_terminado` (existen en producción pero no en el archivo). Correr `db:migrate` contra una base nueva desde cero fallaría.
