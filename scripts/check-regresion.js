@@ -2,7 +2,7 @@
 // Regresión básica contra producción — correr antes de cada push
 // Uso: npm run regresion
 
-const BASE    = 'https://master-baker-production-32b2.up.railway.app'
+const BASE    = process.env.REGRESION_BASE || 'https://master-baker-production.up.railway.app'
 const TENANT  = '00000000-0000-0000-0000-000000000001'
 const FRONTEND = 'https://www.masterbaker.store'
 
