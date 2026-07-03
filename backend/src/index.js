@@ -92,7 +92,7 @@ app.get('/api/health', async (_, res) => {
     ['00000000-0000-0000-0000-000000000001']).catch(() => ({ rows: [] }))
   const waToken = rows[0]?.whatsapp_token
   res.json({
-    status: 'ok', version: '2.7',
+    status: 'ok', version: '2.7.1',
     negocio: 'Marquéz Panadería & Repostería',
     ia: {
       openai:    !!process.env.OPENAI_API_KEY,
