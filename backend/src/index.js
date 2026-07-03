@@ -1,7 +1,13 @@
-﻿import dotenv from 'dotenv'
+import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const backendDir = path.resolve(__dirname, '..')
+
 // Load .env (local dev) then .env.txt as fallback for empty/missing vars
-dotenv.config()
-const envTxt = dotenv.config({ path: '.env.txt' })
+dotenv.config({ path: path.join(backendDir, '.env') })
+const envTxt = dotenv.config({ path: path.join(backendDir, '.env.txt') })
 if (envTxt.parsed) {
   for (const [k, v] of Object.entries(envTxt.parsed)) {
     if (!process.env[k] && v) process.env[k] = v
