@@ -6,12 +6,9 @@ export function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Se requiere autenticacion' })
   }
   const token = authHeader.slice(7)
-  if (!process.env.JWT_SECRET) {
-    console.error('[authMiddleware] JWT_SECRET no configurado')
-    return res.status(500).json({ error: 'Error de configuracion del servidor' })
-  }
+  const secret = process.env.JWT_SECRET || 'cambia_esto_por_un_secreto_largo'
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET)
+    const payload = jwt.verify(token, secret)
     req.usuarioId = payload.usuarioId
     req.tenantId  = payload.tenantId
     req.rol       = payload.rol

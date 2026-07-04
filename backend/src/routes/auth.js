@@ -7,6 +7,7 @@ import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 const router = Router()
 
 function generarToken(usuario) {
+  const secret = process.env.JWT_SECRET || 'cambia_esto_por_un_secreto_largo'
   return jwt.sign(
     {
       usuarioId: usuario.id,
@@ -15,7 +16,7 @@ function generarToken(usuario) {
       nombre:    usuario.nombre,
       rol:       usuario.rol,
     },
-    process.env.JWT_SECRET,
+    secret,
     { expiresIn: '8h' }
   )
 }
