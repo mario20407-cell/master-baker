@@ -23,6 +23,8 @@ async function getWAToken(tenantId = '00000000-0000-0000-0000-000000000001') {
 // Historial de conversaciones por número (en memoria, se limpia al reiniciar)
 const conversaciones = new Map()
 const MAX_HISTORIAL = 10
+const OPENAI_TIMEOUT_MS = 12000
+export const MENSAJE_FALLBACK_ERROR = 'Disculpa, tuve un problema para procesar tu mensaje. ¿Puedes intentar de nuevo en un momento?'
 
 // ── Catálogo completo Marquéz ─────────────────────────────────────────────────
 const CATALOGO = `
@@ -178,7 +180,7 @@ async function procesarConIA(telefono, mensajeUsuario) {
     ],
     max_tokens: 300,
     temperature: 0.7,
-  })
+  }, { timeout: OPENAI_TIMEOUT_MS })
 
   const respuesta = res.choices[0].message.content
 
@@ -205,6 +207,26 @@ function respuestaFallback(mensaje) {
     return 'Escribe *menú* para ver todos nuestros productos con precios 😊'
   }
   return '¡Hola! Soy el asistente de *Marquéz Panadería*. Escribe *menú* para ver nuestros productos o dime en qué te puedo ayudar 🥐'
+}
+
+// ── Procesa un mensaje entrante: IA + envío, con fallback si la IA falla ──────
+// Separado del loop del webhook para poder testear el caso de fallo de forma
+// determinística (sin depender del timing fire-and-forget de la respuesta HTTP).
+export async function manejarMensajeEntrante(telefono, texto) {
+  let respuesta
+  try {
+    respuesta = await procesarConIA(telefono, texto)
+  } catch (e) {
+    console.error(`[WhatsApp] Error de IA para ${telefono}:`, e.message)
+    respuesta = MENSAJE_FALLBACK_ERROR
+  }
+
+  try {
+    await enviarMensaje(telefono, respuesta)
+    console.log(`[WhatsApp] Respuesta enviada a ${telefono}`)
+  } catch (e) {
+    console.error(`[WhatsApp] No se pudo entregar la respuesta a ${telefono}:`, e.message)
+  }
 }
 
 // ── Webhook: verificación Meta ────────────────────────────────────────────────
@@ -267,12 +289,7 @@ router.post('/webhook', async (req, res) => {
 
           console.log(`[WhatsApp] Mensaje de ${telefono}: "${texto}"`)
 
-          // Procesar con IA
-          const respuesta = await procesarConIA(telefono, texto)
-
-          // Enviar respuesta
-          await enviarMensaje(telefono, respuesta)
-          console.log(`[WhatsApp] Respuesta enviada a ${telefono}`)
+          await manejarMensajeEntrante(telefono, texto)
         }
       }
     }
