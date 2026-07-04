@@ -13,6 +13,9 @@ if (envTxt.parsed) {
     if (!process.env[k] && v) process.env[k] = v
   }
 }
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET no está configurado. El servidor no puede iniciar de forma segura sin esta clave.')
+}
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
