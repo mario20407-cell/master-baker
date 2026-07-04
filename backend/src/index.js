@@ -101,9 +101,11 @@ app.use('/api/inventario-terminado', inventarioTerminadoRoutes)
 
 // Health check
 app.get('/api/health', async (_, res) => {
-  const { rows } = await query('SELECT whatsapp_token FROM tenants WHERE id = $1',
-    ['00000000-0000-0000-0000-000000000001']).catch(() => ({ rows: [] }))
-  const waToken = rows[0]?.whatsapp_token
+  const dbStatus = await Promise.race([
+    query('SELECT 1').then(() => 'ok'),
+    new Promise(resolve => setTimeout(() => resolve('timeout'), 2000))
+  ]).catch(() => 'error')
+
   res.json({
     status: 'ok', version: '2.7.1',
     negocio: 'Marquéz Panadería & Repostería',
@@ -114,12 +116,13 @@ app.get('/api/health', async (_, res) => {
       gemini:    !!process.env.GEMINI_API_KEY,
     },
     whatsapp: {
-      activo:   !!waToken && !!process.env.WHATSAPP_PHONE_ID,
+      activo:   !!process.env.WHATSAPP_PHONE_ID,
       phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
     },
     auth: {
       jwt_secret: !!process.env.JWT_SECRET,
     },
+    db_status: dbStatus,
     cors_origins: allowedOrigins,
     timestamp: new Date().toISOString(),
   })
