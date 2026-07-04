@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import OpenAI from 'openai'
+import crypto from 'crypto'
 import { query } from '../db/client.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
 
@@ -223,6 +224,29 @@ router.get('/webhook', (req, res) => {
 
 // ── Webhook: recibir mensajes ─────────────────────────────────────────────────
 router.post('/webhook', async (req, res) => {
+  // Validar firma x-hub-signature-256 de Meta
+  const signatureHeader = req.headers['x-hub-signature-256']
+  const appSecret = process.env.META_APP_SECRET
+
+  if (appSecret) {
+    if (!signatureHeader) {
+      console.error('[WhatsApp Webhook] Firma x-hub-signature-256 ausente')
+      return res.status(401).send('Firma ausente')
+    }
+    const signature = signatureHeader.split('=')[1]
+    const expectedSignature = crypto
+      .createHmac('sha256', appSecret)
+      .update(req.rawBody || '')
+      .digest('hex')
+
+    if (signature !== expectedSignature) {
+      console.error('[WhatsApp Webhook] Firma x-hub-signature-256 inválida')
+      return res.status(401).send('Firma inválida')
+    }
+  } else {
+    console.warn('[WhatsApp Webhook] META_APP_SECRET no configurado. Omitiendo validación de firma.')
+  }
+
   // Responder 200 inmediatamente para que Meta no reintente
   res.status(200).send('OK')
 
