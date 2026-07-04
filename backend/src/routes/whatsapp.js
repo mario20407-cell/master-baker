@@ -172,15 +172,23 @@ async function procesarConIA(telefono, mensajeUsuario) {
   }
 
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  const res = await client.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
-      { role: 'system', content: SYSTEM_BOT },
-      ...historial,
-    ],
-    max_tokens: 300,
-    temperature: 0.7,
-  }, { timeout: OPENAI_TIMEOUT_MS })
+  const inicio = Date.now()
+  console.log('[DEBUG] Iniciando llamada a OpenAI', new Date().toISOString())
+  let res
+  try {
+    res = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: SYSTEM_BOT },
+        ...historial,
+      ],
+      max_tokens: 300,
+      temperature: 0.7,
+    }, { timeout: typeof OPENAI_TIMEOUT_MS !== 'undefined' ? OPENAI_TIMEOUT_MS : 10000 })
+  } catch (error) {
+    console.log('[DEBUG] Error después de', Date.now() - inicio, 'ms:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
+    throw error
+  }
 
   const respuesta = res.choices[0].message.content
 
