@@ -5,7 +5,7 @@ import { requireAuth } from '../middleware/authMiddleware.js'
 const router = Router()
 
 // GET /api/catalogo — solo productos del tenant activo
-router.get('/', async (req, res, next) => {
+router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await query(`
       SELECT p.*,

@@ -13,8 +13,13 @@ if (envTxt.parsed) {
     if (!process.env[k] && v) process.env[k] = v
   }
 }
-if (!process.env.JWT_SECRET) {
-  throw new Error('FATAL: JWT_SECRET no está configurado. El servidor no puede iniciar de forma segura sin esta clave.')
+if (process.env.NODE_ENV !== 'test') {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('FATAL: JWT_SECRET no está configurado. El servidor no puede iniciar de forma segura sin esta clave.')
+  }
+  if (!process.env.META_APP_SECRET) {
+    throw new Error('FATAL: META_APP_SECRET no está configurado. El servidor no puede validar firmas de webhook de forma segura.')
+  }
 }
 import express from 'express'
 import cors from 'cors'
@@ -114,9 +119,6 @@ app.get('/api/health', async (_, res) => {
     },
     auth: {
       jwt_secret: !!process.env.JWT_SECRET,
-      jwt_secret_exists: 'JWT_SECRET' in process.env,
-      jwt_secret_type: typeof process.env.JWT_SECRET,
-      jwt_secret_length: process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0,
     },
     cors_origins: allowedOrigins,
     timestamp: new Date().toISOString(),
@@ -129,21 +131,19 @@ app.use((err, req, res, _next) => {
   res.status(err.status || 500).json({ error: err.message || 'Error interno' })
 })
 
-app.listen(PORT, () => {
-  console.log(`\nðŸ¥ Maestro Panadero IA â€” MarquÃ©z v2.7`)
-  console.log(`   Servidor:    http://localhost:${PORT}`)
-  console.log(`   Rutas:       catalogo | recetas | costeos | inventario | compras | ventas | fiscal | ai | whatsapp`)
-  console.log(`   IA activas:`)
-  console.log(`   - GPT-4 mini:       ${process.env.OPENAI_API_KEY    ? 'âœ…' : 'â³ pendiente'}`)
-  console.log(`   - Claude 3.5:       ${process.env.ANTHROPIC_API_KEY ? 'âœ…' : 'â³ pendiente'}`)
-  console.log(`   - DeepSeek V3/R1:   ${process.env.DEEPSEEK_API_KEY  ? 'âœ…' : 'â³ pendiente'}`)
-  console.log(`   - Gemini 1.5 Flash: ${process.env.GEMINI_API_KEY    ? 'âœ…' : 'â³ pendiente'}`)
-  console.log(`   WhatsApp Bot:       ${process.env.WHATSAPP_TOKEN     ? 'âœ… activo' : 'â³ pendiente'}`)
-  console.log(`   Webhook URL:        http://localhost:${PORT}/api/whatsapp/webhook\n`)
-})
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`\n🍞  Maestro Panadero IA — Marquéz v2.7`)
+    console.log(`   Servidor:    http://localhost:${PORT}`)
+    console.log(`   Rutas:       catalogo | recetas | costeos | inventario | compras | ventas | fiscal | ai | whatsapp`)
+    console.log(`   IA activas:`)
+    console.log(`   - GPT-4 mini:       ${process.env.OPENAI_API_KEY    ? '✅' : '⏳ pendiente'}`)
+    console.log(`   - Claude 3.5:       ${process.env.ANTHROPIC_API_KEY ? '✅' : '⏳ pendiente'}`)
+    console.log(`   - DeepSeek V3/R1:   ${process.env.DEEPSEEK_API_KEY  ? '✅' : '⏳ pendiente'}`)
+    console.log(`   - Gemini 1.5 Flash: ${process.env.GEMINI_API_KEY    ? '✅' : '⏳ pendiente'}`)
+    console.log(`   WhatsApp Bot:       ${process.env.WHATSAPP_TOKEN     ? '✅ activo' : '⏳ pendiente'}`)
+    console.log(`   Webhook URL:        http://localhost:${PORT}/api/whatsapp/webhook\n`)
+  })
+}
 
 export default app
-
-
-
-

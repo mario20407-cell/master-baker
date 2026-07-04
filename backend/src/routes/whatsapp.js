@@ -228,23 +228,22 @@ router.post('/webhook', async (req, res) => {
   const signatureHeader = req.headers['x-hub-signature-256']
   const appSecret = process.env.META_APP_SECRET
 
-  if (appSecret) {
-    if (!signatureHeader) {
-      console.error('[WhatsApp Webhook] Firma x-hub-signature-256 ausente')
-      return res.status(401).send('Firma ausente')
-    }
-    const signature = signatureHeader.split('=')[1]
-    const expectedSignature = crypto
-      .createHmac('sha256', appSecret)
-      .update(req.rawBody || '')
-      .digest('hex')
+  if (!signatureHeader) {
+    console.error('[WhatsApp Webhook] Firma x-hub-signature-256 ausente')
+    return res.status(401).send('Firma ausente')
+  }
+  const signature = signatureHeader.split('=')[1] || ''
+  const expectedSignature = crypto
+    .createHmac('sha256', appSecret)
+    .update(req.rawBody || '')
+    .digest('hex')
 
-    if (signature !== expectedSignature) {
-      console.error('[WhatsApp Webhook] Firma x-hub-signature-256 inválida')
-      return res.status(401).send('Firma inválida')
-    }
-  } else {
-    console.warn('[WhatsApp Webhook] META_APP_SECRET no configurado. Omitiendo validación de firma.')
+  const signatureBuffer = Buffer.from(signature, 'utf8')
+  const expectedBuffer = Buffer.from(expectedSignature, 'utf8')
+
+  if (signatureBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
+    console.error('[WhatsApp Webhook] Firma x-hub-signature-256 inválida')
+    return res.status(401).send('Firma inválida')
   }
 
   // Responder 200 inmediatamente para que Meta no reintente

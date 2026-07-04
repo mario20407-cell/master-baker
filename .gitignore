@@ -31,3 +31,7 @@ Thumbs.db
 # Vercel / Railway
 .vercel
 .railway
+
+# Auditorías y exportaciones de texto (Gitleaks y Dumps)
+gitleaks-*.json
+master-baker-export*.txt

@@ -9,6 +9,11 @@ vi.mock('../db/client.js', () => ({
 }))
 
 const SECURED_ENDPOINTS = [
+  // 0. Catalogo
+  { method: 'get', path: '/api/catalogo' },
+  { method: 'put', path: '/api/catalogo/1' },
+  { method: 'post', path: '/api/catalogo/importar' },
+  
   // 1. Recetas
   { method: 'get', path: '/api/recetas' },
   { method: 'post', path: '/api/recetas' },
