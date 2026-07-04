@@ -1,4 +1,4 @@
-﻿import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
@@ -17,6 +17,7 @@ import ConfigFiscal from './pages/ConfigFiscal'
 import CajaProduccion from './pages/CajaProduccion'
 import InventarioTerminado from './pages/InventarioTerminado'
 import Reportes from './pages/Reportes'
+import InboxWhatsApp from './pages/InboxWhatsApp'
 
 function RutaProtegida({ children }) {
   const { usuario, cargando } = useAuth()
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="caja"              element={<CajaProduccion />} />
         <Route path="stock"             element={<InventarioTerminado />} />
         <Route path="reportes"          element={<Reportes />} />
+        <Route path="whatsapp-inbox"    element={<InboxWhatsApp />} />
         <Route path="fiscal"     element={<SoloAdmin><ConfigFiscal /></SoloAdmin>} />
         <Route path="usuarios"   element={<SoloAdmin><Usuarios /></SoloAdmin>} />
       </Route>

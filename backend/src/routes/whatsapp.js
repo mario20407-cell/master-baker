@@ -16,12 +16,10 @@ let _waTokenCache = { value: null, at: 0 }
 async function getWAToken(tenantId = '00000000-0000-0000-0000-000000000001') {
   if (Date.now() - _waTokenCache.at < 5 * 60 * 1000) return _waTokenCache.value
   const { rows } = await query('SELECT whatsapp_token FROM tenants WHERE id = $1', [tenantId])
-  _waTokenCache = { value: rows[0]?.whatsapp_token || null, at: Date.now() }
+  _waTokenCache = { value: rows?.[0]?.whatsapp_token || null, at: Date.now() }
   return _waTokenCache.value
 }
 
-// Historial de conversaciones por número (en memoria, se limpia al reiniciar)
-const conversaciones = new Map()
 const MAX_HISTORIAL = 10
 const OPENAI_TIMEOUT_MS = 12000
 export const MENSAJE_FALLBACK_ERROR = 'Disculpa, tuve un problema para procesar tu mensaje. ¿Puedes intentar de nuevo en un momento?'
@@ -152,24 +150,33 @@ async function enviarMensaje(telefono, texto, tenantId) {
 }
 
 // ── Función: procesar con GPT-4 mini ─────────────────────────────────────────
-async function procesarConIA(telefono, mensajeUsuario) {
+async function procesarConIA(telefono, mensajeUsuario, tenantId = '00000000-0000-0000-0000-000000000001') {
+  // Primero, guardar mensaje del usuario en base de datos
+  await query(
+    'INSERT INTO whatsapp_mensajes (tenant_id, telefono, rol, contenido) VALUES ($1, $2, $3, $4)',
+    [tenantId, telefono, 'user', mensajeUsuario]
+  )
+
   if (!process.env.OPENAI_API_KEY) {
-    return respuestaFallback(mensajeUsuario)
+    const fallbackMsg = respuestaFallback(mensajeUsuario)
+    await query(
+      'INSERT INTO whatsapp_mensajes (tenant_id, telefono, rol, contenido) VALUES ($1, $2, $3, $4)',
+      [tenantId, telefono, 'assistant', fallbackMsg]
+    )
+    return fallbackMsg
   }
 
-  // Recuperar o iniciar historial
-  if (!conversaciones.has(telefono)) {
-    conversaciones.set(telefono, [])
-  }
-  const historial = conversaciones.get(telefono)
-
-  // Agregar mensaje del usuario
-  historial.push({ role: 'user', content: mensajeUsuario })
-
-  // Limitar historial
-  if (historial.length > MAX_HISTORIAL) {
-    historial.splice(0, historial.length - MAX_HISTORIAL)
-  }
+  // Cargar últimos mensajes en orden cronológico
+  const { rows } = await query(
+    `SELECT rol as role, contenido as content FROM (
+       SELECT id, rol, contenido, creado_en 
+       FROM whatsapp_mensajes 
+       WHERE tenant_id = $1 AND telefono = $2 
+       ORDER BY creado_en DESC 
+       LIMIT $3
+     ) sub ORDER BY creado_en ASC`,
+    [tenantId, telefono, MAX_HISTORIAL]
+  )
 
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   const inicio = Date.now()
@@ -180,7 +187,7 @@ async function procesarConIA(telefono, mensajeUsuario) {
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: SYSTEM_BOT },
-        ...historial,
+        ...rows,
       ],
       max_tokens: 300,
       temperature: 0.7,
@@ -192,9 +199,11 @@ async function procesarConIA(telefono, mensajeUsuario) {
 
   const respuesta = res.choices[0].message.content
 
-  // Guardar respuesta en historial
-  historial.push({ role: 'assistant', content: respuesta })
-  conversaciones.set(telefono, historial)
+  // Guardar respuesta de la IA en la base de datos
+  await query(
+    'INSERT INTO whatsapp_mensajes (tenant_id, telefono, rol, contenido) VALUES ($1, $2, $3, $4)',
+    [tenantId, telefono, 'assistant', respuesta]
+  )
 
   return respuesta
 }
@@ -220,17 +229,22 @@ function respuestaFallback(mensaje) {
 // ── Procesa un mensaje entrante: IA + envío, con fallback si la IA falla ──────
 // Separado del loop del webhook para poder testear el caso de fallo de forma
 // determinística (sin depender del timing fire-and-forget de la respuesta HTTP).
-export async function manejarMensajeEntrante(telefono, texto) {
+export async function manejarMensajeEntrante(telefono, texto, tenantId = '00000000-0000-0000-0000-000000000001') {
   let respuesta
   try {
-    respuesta = await procesarConIA(telefono, texto)
+    respuesta = await procesarConIA(telefono, texto, tenantId)
   } catch (e) {
     console.error(`[WhatsApp] Error de IA para ${telefono}:`, e.message)
     respuesta = MENSAJE_FALLBACK_ERROR
+    // Guardar fallback en base de datos si la IA falló para mantener historial consistente
+    await query(
+      'INSERT INTO whatsapp_mensajes (tenant_id, telefono, rol, contenido) VALUES ($1, $2, $3, $4)',
+      [tenantId, telefono, 'assistant', respuesta]
+    ).catch(err => console.error('[WhatsApp] Error al guardar fallback en DB:', err.message))
   }
 
   try {
-    await enviarMensaje(telefono, respuesta)
+    await enviarMensaje(telefono, respuesta, tenantId)
     console.log(`[WhatsApp] Respuesta enviada a ${telefono}`)
   } catch (e) {
     console.error(`[WhatsApp] No se pudo entregar la respuesta a ${telefono}:`, e.message)
@@ -288,6 +302,20 @@ router.post('/webhook', async (req, res) => {
         const value = change.value
         if (!value?.messages?.length) continue
 
+        // Resolver tenant_id de forma dinámica a partir de phone_number_id
+        const phoneId = value.metadata?.phone_number_id
+        let tenantId
+        try {
+          const { rows } = await query('SELECT id FROM tenants WHERE whatsapp_phone_id = $1', [phoneId])
+          tenantId = rows[0]?.id
+        } catch (e) {
+          console.error('[WhatsApp Webhook] Error al consultar tenant_id por phone_number_id:', e.message)
+        }
+        if (!tenantId) {
+          tenantId = '00000000-0000-0000-0000-000000000001'
+          console.warn(`[WhatsApp Webhook] No se encontró un tenant para el phone_number_id: ${phoneId}. Usando tenant de respaldo: ${tenantId}`)
+        }
+
         for (const message of value.messages) {
           // Solo procesar mensajes de texto
           if (message.type !== 'text') continue
@@ -295,9 +323,9 @@ router.post('/webhook', async (req, res) => {
           const telefono = message.from
           const texto    = message.text.body.trim()
 
-          console.log(`[WhatsApp] Mensaje de ${telefono}: "${texto}"`)
+          console.log(`[WhatsApp] Mensaje de ${telefono} para tenant ${tenantId}: "${texto}"`)
 
-          await manejarMensajeEntrante(telefono, texto)
+          await manejarMensajeEntrante(telefono, texto, tenantId)
         }
       }
     }
@@ -315,34 +343,82 @@ router.post('/enviar', requireAuth, async (req, res, next) => {
   try {
     const data = await enviarMensaje(telefono, mensaje, req.tenantId)
     if (!data) return res.status(503).json({ error: 'whatsapp_token no configurado en tenants' })
+    
+    // Guardar el mensaje enviado manualmente en la base de datos
+    await query(
+      'INSERT INTO whatsapp_mensajes (tenant_id, telefono, rol, contenido) VALUES ($1, $2, $3, $4)',
+      [req.tenantId, telefono, 'assistant', mensaje]
+    )
+
     res.json({ ok: true, data })
   } catch (e) {
     res.status(e.status || 500).json({ error: e.message, meta: e.meta || null })
   }
 })
 
+// ── Endpoint: listar conversaciones del tenant ────────────────────────────────
+router.get('/conversaciones', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT 
+        telefono, 
+        COUNT(*) as mensajes, 
+        MAX(creado_en) as actualizado_en,
+        (SELECT contenido FROM whatsapp_mensajes m2 WHERE m2.tenant_id = m1.tenant_id AND m2.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultimo_mensaje,
+        (SELECT rol FROM whatsapp_mensajes m2 WHERE m2.tenant_id = m1.tenant_id AND m2.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as rol_ultimo
+      FROM whatsapp_mensajes m1
+      WHERE tenant_id = $1
+      GROUP BY tenant_id, telefono
+      ORDER BY actualizado_en DESC
+    `, [req.tenantId])
+    res.json(rows)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 // ── Endpoint: ver historial de conversación ───────────────────────────────────
-router.get('/conversacion/:telefono', requireAuth, (req, res) => {
-  const historial = conversaciones.get(req.params.telefono) || []
-  res.json({ telefono: req.params.telefono, mensajes: historial.length, historial })
+router.get('/conversacion/:telefono', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT rol as role, contenido as content, creado_en 
+      FROM (
+        SELECT id, rol, contenido, creado_en 
+        FROM whatsapp_mensajes 
+        WHERE tenant_id = $1 AND telefono = $2 
+        ORDER BY creado_en DESC 
+        LIMIT 100
+      ) sub ORDER BY creado_en ASC
+    `, [req.tenantId, req.params.telefono])
+    res.json({ telefono: req.params.telefono, mensajes: rows.length, historial: rows })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
 })
 
 // ── Endpoint: limpiar historial ───────────────────────────────────────────────
-router.delete('/conversacion/:telefono', requireAuth, (req, res) => {
-  conversaciones.delete(req.params.telefono)
-  res.json({ ok: true, mensaje: 'Historial limpiado' })
+router.delete('/conversacion/:telefono', requireAuth, async (req, res) => {
+  try {
+    await query('DELETE FROM whatsapp_mensajes WHERE tenant_id = $1 AND telefono = $2', [req.tenantId, req.params.telefono])
+    res.json({ ok: true, mensaje: 'Historial limpiado' })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
 })
 
 // ── Endpoint: status del bot ──────────────────────────────────────────────────
 router.get('/status', requireAuth, async (req, res) => {
   const token = await getWAToken(req.tenantId)
+  const countRes = await query('SELECT COUNT(DISTINCT telefono) as count FROM whatsapp_mensajes WHERE tenant_id = $1', [req.tenantId])
+  const conversacionesCount = parseInt(countRes.rows[0]?.count || 0, 10)
+  
   res.json({
     activo:         !!token && !!getWAPhoneId(),
     phone_id:       getWAPhoneId() || 'No configurado',
     token_preview:  token ? token.slice(0, 8) + '...' : 'NO CONFIGURADO',
     ia_activa:      !!process.env.OPENAI_API_KEY,
     modelo:         'gpt-4o-mini',
-    conversaciones: conversaciones.size,
+    conversaciones: conversacionesCount,
     verify_token:   VERIFY_TOKEN,
   })
 })
