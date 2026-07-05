@@ -235,14 +235,31 @@ export async function multimedia(prompt, fileData, mimeType) {
   }
 
   try {
-    const client = getGemini()
-    const model  = client.getGenerativeModel({ model: 'gemini-2.0-flash' })
-    const parts  = [{ text: prompt }]
-    if (fileData) parts.push({ inlineData: { mimeType: mimeType || 'application/pdf', data: fileData } })
+    const key = process.env.GEMINI_API_KEY.trim()
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${key}`
+    
+    const parts = [{ text: prompt }]
+    if (fileData) {
+      parts.push({ inlineData: { mimeType: mimeType || 'application/pdf', data: fileData } })
+    }
 
-    const res = await model.generateContent({ contents: [{ role: 'user', parts }] })
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ role: 'user', parts }] })
+    })
+
+    if (!response.ok) {
+      const errText = await response.text()
+      throw new Error(`Google API status ${response.status}: ${errText}`)
+    }
+
+    const data = await response.json()
+    const txt = data.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!txt) throw new Error('No text returned in Gemini response')
+
     return {
-      respuesta: res.response.text(),
+      respuesta: txt,
       modelo:    'gemini-2.0-flash',
     }
   } catch (err) {
