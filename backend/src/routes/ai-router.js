@@ -223,4 +223,13 @@ router.get('/status', (req, res) => {
   })
 })
 
+router.get('/temp-key-check', (req, res) => {
+  const key = process.env.GEMINI_API_KEY || '';
+  res.json({
+    length: key.length,
+    prefix: key.slice(0, 8),
+    suffix: key.slice(-8)
+  });
+});
+
 export default router
