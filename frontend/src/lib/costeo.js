@@ -63,13 +63,54 @@ export function escalarCantidad(cantidadBase, factor) {
   return num(cantidadBase) * num(factor, 1)
 }
 
+const FACTORES_PESO = {
+  g: 1,
+  kg: 1000,
+  lb: 453.592,
+  oz: 28.3495
+};
+
+const FACTORES_VOLUMEN = {
+  ml: 1,
+  lt: 1000,
+  l: 1000
+};
+
+export function convertirUnidad(cantidad, de, a) {
+  const deNormalized = de?.toLowerCase();
+  const aNormalized = a?.toLowerCase();
+  
+  if (!deNormalized || !aNormalized || deNormalized === aNormalized) {
+    return cantidad;
+  }
+  
+  // Peso
+  if (FACTORES_PESO[deNormalized] && FACTORES_PESO[aNormalized]) {
+    const enGramos = cantidad * FACTORES_PESO[deNormalized];
+    return enGramos / FACTORES_PESO[aNormalized];
+  }
+  
+  // Volumen
+  if (FACTORES_VOLUMEN[deNormalized] && FACTORES_VOLUMEN[aNormalized]) {
+    const enMililitros = cantidad * FACTORES_VOLUMEN[deNormalized];
+    return enMililitros / FACTORES_VOLUMEN[aNormalized];
+  }
+  
+  return cantidad; // No convertible
+}
+
 export function sumarCostosIngredientes(ingredientes = [], factor = 1) {
   const f = num(factor, 1)
   let costoDirecto   = 0
   let costoIndirecto = 0
 
   for (const ing of ingredientes) {
-    const subtotal = num(ing?.cantidad) * f * num(ing?.precio)
+    const cantidadConvertida = convertirUnidad(
+      num(ing?.cantidad),
+      ing?.unidad,
+      ing?.unidad_precio || ing?.unidad
+    )
+    const subtotal = cantidadConvertida * f * num(ing?.precio)
     if (ing?.tipo === 'indirecto') costoIndirecto += subtotal
     else costoDirecto += subtotal
   }

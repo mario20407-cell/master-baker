@@ -3,6 +3,7 @@ import { useRecetas } from '../hooks/useRecetas'
 import { getCatalogo } from '../lib/api'
 import { Plus, Trash2, Edit2, Search, X, Save, ChefHat, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { convertirUnidad } from '../lib/costeo'
 
 export default function Recetas() {
   const { recetas, loading, error, guardar, eliminar, calcularCostos } = useRecetas()
@@ -31,7 +32,7 @@ export default function Recetas() {
     setFormPiezas(100)
     setFormMerma(0)
     setFormNotas('')
-    setFormIngredientes([{ nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo: 'directo' }])
+    setFormIngredientes([{ nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo: 'directo', unidad_precio: 'kg' }])
     setEditando(true)
   }
 
@@ -46,13 +47,14 @@ export default function Recetas() {
       cantidad: i.cantidad,
       unidad: i.unidad,
       precio: i.precio,
-      tipo: i.tipo || 'directo'
+      tipo: i.tipo || 'directo',
+      unidad_precio: i.unidad_precio || i.unidad
     })))
     setEditando(true)
   }
 
   const agregarFilaIngrediente = () => {
-    setFormIngredientes(prev => [...prev, { nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo: 'directo' }])
+    setFormIngredientes(prev => [...prev, { nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo: 'directo', unidad_precio: 'kg' }])
   }
 
   const eliminarFilaIngrediente = (index) => {
@@ -105,7 +107,8 @@ export default function Recetas() {
     return formIngredientes.reduce((sum, ing) => {
       const cant = Number(ing.cantidad) || 0
       const prec = Number(ing.precio) || 0
-      return sum + (cant * prec)
+      const cantConvertida = convertirUnidad(cant, ing.unidad, ing.unidad_precio || ing.unidad)
+      return sum + (cantConvertida * prec)
     }, 0)
   }
 
@@ -191,7 +194,8 @@ export default function Recetas() {
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Ingrediente</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Cantidad</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Unidad</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Precio Unitario (C$)</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Precio Compra (C$)</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Precio Por (Unidad)</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Tipo</th>
                       <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase w-16">Acciones</th>
                     </tr>
@@ -209,6 +213,8 @@ export default function Recetas() {
                           <select className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.unidad} onChange={e => handleIngredienteChange(idx, 'unidad', e.target.value)}>
                             <option value="kg">kg</option>
                             <option value="g">g</option>
+                            <option value="lb">lb</option>
+                            <option value="oz">oz</option>
                             <option value="lt">lt</option>
                             <option value="ml">ml</option>
                             <option value="unidad">unidad</option>
@@ -216,6 +222,17 @@ export default function Recetas() {
                         </td>
                         <td className="px-3 py-2">
                           <input type="number" min="0" step="0.01" className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.precio} onChange={e => handleIngredienteChange(idx, 'precio', e.target.value)} placeholder="Precio" />
+                        </td>
+                        <td className="px-3 py-2">
+                          <select className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.unidad_precio || ing.unidad} onChange={e => handleIngredienteChange(idx, 'unidad_precio', e.target.value)}>
+                            <option value="kg">kg</option>
+                            <option value="g">g</option>
+                            <option value="lb">lb</option>
+                            <option value="oz">oz</option>
+                            <option value="lt">lt</option>
+                            <option value="ml">ml</option>
+                            <option value="unidad">unidad</option>
+                          </select>
                         </td>
                         <td className="px-3 py-2">
                           <select className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.tipo} onChange={e => handleIngredienteChange(idx, 'tipo', e.target.value)}>
