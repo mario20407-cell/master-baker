@@ -36,7 +36,7 @@ export default function Recetas() {
       setFormIngredientes(prev => {
         let cambiado = false
         const actualizados = prev.map(ing => {
-          const matchingInsumo = insumos.find(ins => ins.nombre.toLowerCase() === (ing.nombre || '').toLowerCase())
+          const matchingInsumo = insumos.find(ins => compararNombres(ins.nombre, ing.nombre))
           if (matchingInsumo) {
             const precioCalculado = calcularPrecioPorUnidadReceta(matchingInsumo.costo_unitario, matchingInsumo.unidad, ing.unidad)
             const precioCalculadoRedondo = Number(precioCalculado.toFixed(4))
@@ -73,14 +73,26 @@ export default function Recetas() {
     setFormMerma(r.merma_pct || 0)
     setFormNotas(r.notas || '')
     
-    let mapeados = r.ingredientes.map(i => ({
-      nombre: i.nombre,
-      cantidad: i.cantidad,
-      unidad: i.unidad,
-      precio: i.precio,
-      tipo: i.tipo || 'directo',
-      unidad_precio: i.unidad_precio || i.unidad
-    }))
+    let mapeados = r.ingredientes.map(i => {
+      const matchingInsumo = insumos.find(ins => compararNombres(ins.nombre, i.nombre))
+      let precioCargado = i.precio
+      let unidadPrecioCargado = i.unidad_precio || i.unidad
+
+      if (matchingInsumo) {
+        const precioConvertido = calcularPrecioPorUnidadReceta(matchingInsumo.costo_unitario, matchingInsumo.unidad, i.unidad)
+        precioCargado = Number(precioConvertido.toFixed(4))
+        unidadPrecioCargado = i.unidad
+      }
+
+      return {
+        nombre: i.nombre,
+        cantidad: i.cantidad,
+        unidad: i.unidad,
+        precio: precioCargado,
+        tipo: i.tipo || 'directo',
+        unidad_precio: unidadPrecioCargado
+      }
+    })
 
     const totalHarina = mapeados.reduce((sum, ing) => {
       if ((ing.nombre || '').toLowerCase().includes('harina')) {
@@ -186,6 +198,21 @@ export default function Recetas() {
     return copia
   }
 
+  const normalizarTexto = (str) => {
+    if (!str) return ''
+    return str
+      .toLowerCase()
+      .replace(/\ufffd/g, 'u')
+      .replace(/az.car/g, 'azucar')
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+  }
+
+  const compararNombres = (a, b) => {
+    return normalizarTexto(a) === normalizarTexto(b)
+  }
+
   const calcularPrecioPorUnidadReceta = (precioCompra, unidadCompra, unidadReceta) => {
     if (!precioCompra || !unidadCompra || !unidadReceta) return precioCompra
     const cantEnCompra = convertirUnidad(1, unidadReceta, unidadCompra)
@@ -197,7 +224,7 @@ export default function Recetas() {
       let copia = [...prev]
       if (campo === 'unidad') {
         const ing = copia[index]
-        const matchingInsumo = insumos.find(ins => ins.nombre.toLowerCase() === ing.nombre.toLowerCase())
+        const matchingInsumo = insumos.find(ins => compararNombres(ins.nombre, ing.nombre))
         if (matchingInsumo) {
           const precioConvertido = calcularPrecioPorUnidadReceta(matchingInsumo.costo_unitario, matchingInsumo.unidad, valor)
           copia = copia.map((item, i) => i === index ? {
@@ -213,7 +240,7 @@ export default function Recetas() {
   }
 
   const handleNombreChange = (index, nombre) => {
-    const matchingInsumo = insumos.find(ins => ins.nombre.toLowerCase() === nombre.toLowerCase())
+    const matchingInsumo = insumos.find(ins => compararNombres(ins.nombre, nombre))
     if (matchingInsumo) {
       setFormIngredientes(prev => {
         const unidadReceta = prev[index].unidad || 'kg'
