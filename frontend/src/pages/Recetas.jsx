@@ -246,6 +246,12 @@ export default function Recetas() {
     return `${pct.toFixed(1)}%`
   }
 
+  const esPrecioSospechoso = (ing) => {
+    const prec = Number(ing.precio) || 0
+    const uni = (ing.unidad_precio || ing.unidad || '').toLowerCase()
+    return (uni === 'g' || uni === 'ml') && prec > 1.5
+  }
+
   const listaRecetas = Object.values(recetas).filter(r =>
     r.producto.toLowerCase().includes(busqueda.toLowerCase())
   )
@@ -369,7 +375,22 @@ export default function Recetas() {
                           />
                         </td>
                         <td className="px-3 py-2">
-                          <input type="number" min="0" step="0.01" className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.precio} onChange={e => handleIngredienteChange(idx, 'precio', e.target.value)} placeholder="Precio" />
+                          <div className="relative flex items-center">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className={`w-full border rounded-lg p-1.5 pr-7 text-sm ${esPrecioSospechoso(ing) ? 'border-amber-400 bg-amber-50 focus:ring-amber-400' : 'border-gray-200'}`}
+                              value={ing.precio}
+                              onChange={e => handleIngredienteChange(idx, 'precio', e.target.value)}
+                              placeholder="Precio"
+                            />
+                            {esPrecioSospechoso(ing) && (
+                              <span className="absolute right-2 text-amber-500 cursor-help animate-pulse" title={`¿C$ ${ing.precio} por gramo/ml? El costo parece muy alto. Verifica si es precio por Libra/Kilogramo.`}>
+                                <Info size={15} />
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-3 py-2">
                           <select className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.unidad_precio || ing.unidad} onChange={e => handleIngredienteChange(idx, 'unidad_precio', e.target.value)}>
