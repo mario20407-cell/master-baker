@@ -30,6 +30,32 @@ export default function Recetas() {
       .catch(() => {})
   }, [])
 
+  // Sincronizar precios de ingredientes con el inventario cargado para resolver condiciones de carrera
+  useEffect(() => {
+    if (insumos.length > 0 && formIngredientes.length > 0 && editando) {
+      setFormIngredientes(prev => {
+        let cambiado = false
+        const actualizados = prev.map(ing => {
+          const matchingInsumo = insumos.find(ins => ins.nombre.toLowerCase() === (ing.nombre || '').toLowerCase())
+          if (matchingInsumo) {
+            const precioCalculado = calcularPrecioPorUnidadReceta(matchingInsumo.costo_unitario, matchingInsumo.unidad, ing.unidad)
+            const precioCalculadoRedondo = Number(precioCalculado.toFixed(4))
+            if (ing.precio !== precioCalculadoRedondo || ing.unidad_precio !== ing.unidad) {
+              cambiado = true
+              return {
+                ...ing,
+                precio: precioCalculadoRedondo,
+                unidad_precio: ing.unidad
+              }
+            }
+          }
+          return ing
+        })
+        return cambiado ? actualizados : prev
+      })
+    }
+  }, [insumos, editando])
+
   const abrirCreacion = () => {
     setFormId(null)
     setFormProducto('')
@@ -248,8 +274,7 @@ export default function Recetas() {
     return formIngredientes.reduce((sum, ing) => {
       const cant = Number(ing.cantidad) || 0
       const prec = Number(ing.precio) || 0
-      const cantConvertida = convertirUnidad(cant, ing.unidad, ing.unidad_precio || ing.unidad)
-      return sum + (cantConvertida * prec)
+      return sum + (cant * prec)
     }, 0)
   }
 
