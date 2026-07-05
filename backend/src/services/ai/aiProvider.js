@@ -230,22 +230,58 @@ export async function analisisRazon(messages, system) {
 // ═══════════════════════════════════════════════════════════════════════════════
 export async function multimedia(prompt, fileData, mimeType) {
   if (AI_CONFIG.USE_MOCKS) {
-    console.log(`[MOCK] gemini-2.5-flash ← "${prompt.slice(0, 60)}"`)
+    console.log(`[MOCK] gemini-1.5-flash ← "${prompt.slice(0, 60)}"`)
     return {
       respuesta: JSON.stringify({ mock: true, nota: 'Sin GEMINI_API_KEY.' }),
-      modelo:    'gemini-2.5-flash (mock)',
+      modelo:    'gemini-1.5-flash (mock)',
     }
   }
 
-  const client = getGemini()
-  const model  = client.getGenerativeModel({ model: 'gemini-2.5-flash' })
-  const parts  = [{ text: prompt }]
-  if (fileData) parts.push({ inlineData: { mimeType: mimeType || 'application/pdf', data: fileData } })
+  try {
+    const client = getGemini()
+    const model  = client.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const parts  = [{ text: prompt }]
+    if (fileData) parts.push({ inlineData: { mimeType: mimeType || 'application/pdf', data: fileData } })
 
-  const res = await model.generateContent({ contents: [{ role: 'user', parts }] })
-  return {
-    respuesta: res.response.text(),
-    modelo:    'gemini-2.5-flash',
+    const res = await model.generateContent({ contents: [{ role: 'user', parts }] })
+    return {
+      respuesta: res.response.text(),
+      modelo:    'gemini-1.5-flash',
+    }
+  } catch (err) {
+    console.warn('[multimedia] Error con Gemini, intentando fallback con OpenAI (GPT-4o mini):', err.message)
+    
+    if (process.env.OPENAI_API_KEY && fileData && mimeType && mimeType.startsWith('image/')) {
+      try {
+        const openai = getOpenAI()
+        const res = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:${mimeType};base64,${fileData}`,
+                  }
+                }
+              ]
+            }
+          ],
+          max_tokens: 1024,
+        })
+        return {
+          respuesta: res.choices[0].message.content,
+          modelo:    'gpt-4o-mini (fallback OCR)',
+        }
+      } catch (openAiErr) {
+        console.error('[multimedia] Fallback de OpenAI también falló:', openAiErr.message)
+        throw err
+      }
+    }
+    throw err
   }
 }
 
@@ -276,7 +312,7 @@ export function getProvidersStatus() {
       costo:   '~$0.00055/1K tokens',
       keyVar:  'DEEPSEEK_API_KEY',
     },
-    'gemini-2.5-flash': {
+    'gemini-1.5-flash': {
       activo:  AI_CONFIG.USE_MOCKS ? 'mock' : !!process.env.GEMINI_API_KEY,
       uso:     'PDFs, imágenes, facturas escaneadas',
       costo:   '~$0.000075/1K tokens',
