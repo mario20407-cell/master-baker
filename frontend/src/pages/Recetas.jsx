@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
-import { getCatalogo } from '../lib/api'
+import { getCatalogo, getInventario } from '../lib/api'
 import { Plus, Trash2, Edit2, Search, X, Save, ChefHat, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { convertirUnidad } from '../lib/costeo'
@@ -8,6 +8,7 @@ import { convertirUnidad } from '../lib/costeo'
 export default function Recetas() {
   const { recetas, loading, error, guardar, eliminar, calcularCostos } = useRecetas()
   const [productos, setProductos] = useState([])
+  const [insumos, setInsumos] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [editando, setEditando] = useState(false)
 
@@ -23,6 +24,9 @@ export default function Recetas() {
   useEffect(() => {
     getCatalogo()
       .then(({ data }) => setProductos(data))
+      .catch(() => {})
+    getInventario()
+      .then(({ data }) => setInsumos(data))
       .catch(() => {})
   }, [])
 
@@ -63,6 +67,21 @@ export default function Recetas() {
 
   const handleIngredienteChange = (index, campo, valor) => {
     setFormIngredientes(prev => prev.map((ing, i) => i === index ? { ...ing, [campo]: valor } : ing))
+  }
+
+  const handleNombreChange = (index, nombre) => {
+    const matchingInsumo = insumos.find(ins => ins.nombre.toLowerCase() === nombre.toLowerCase())
+    if (matchingInsumo) {
+      setFormIngredientes(prev => prev.map((ing, i) => i === index ? {
+        ...ing,
+        nombre,
+        precio: matchingInsumo.costo_unitario,
+        unidad_precio: matchingInsumo.unidad,
+        unidad: matchingInsumo.unidad
+      } : ing))
+    } else {
+      handleIngredienteChange(index, 'nombre', nombre)
+    }
   }
 
   const submitReceta = async (e) => {
@@ -204,7 +223,7 @@ export default function Recetas() {
                     {formIngredientes.map((ing, idx) => (
                       <tr key={idx}>
                         <td className="px-3 py-2">
-                          <input type="text" className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.nombre} onChange={e => handleIngredienteChange(idx, 'nombre', e.target.value)} placeholder="Ej. Harina" required />
+                          <input type="text" list="insumos-list" className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.nombre} onChange={e => handleNombreChange(idx, e.target.value)} placeholder="Ej. Harina" required />
                         </td>
                         <td className="px-3 py-2">
                           <input type="number" min="0.0001" step="0.0001" className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.cantidad} onChange={e => handleIngredienteChange(idx, 'cantidad', e.target.value)} placeholder="Cantidad" required />
@@ -249,6 +268,11 @@ export default function Recetas() {
                     ))}
                   </tbody>
                 </table>
+                <datalist id="insumos-list">
+                  {insumos.map((ins, i) => (
+                    <option key={i} value={ins.nombre} />
+                  ))}
+                </datalist>
               </div>
 
               <div className="flex justify-between items-center mt-4 p-4 bg-gray-50 rounded-xl border">
