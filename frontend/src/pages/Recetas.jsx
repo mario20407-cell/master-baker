@@ -131,6 +131,23 @@ export default function Recetas() {
     }, 0)
   }
 
+  // Calcular el peso total de harina para porcentaje de panadero
+  const pesoTotalHarinaForm = formIngredientes.reduce((sum, ing) => {
+    const nombre = (ing.nombre || '').toLowerCase()
+    if (nombre.includes('harina')) {
+      const cant = Number(ing.cantidad) || 0
+      return sum + convertirUnidad(cant, ing.unidad, 'g')
+    }
+    return sum
+  }, 0)
+
+  const obtenerPorcentajePanadero = (ing) => {
+    if (pesoTotalHarinaForm <= 0) return '-'
+    const cantGramos = convertirUnidad(Number(ing.cantidad) || 0, ing.unidad, 'g')
+    const pct = (cantGramos / pesoTotalHarinaForm) * 100
+    return `${pct.toFixed(1)}%`
+  }
+
   const listaRecetas = Object.values(recetas).filter(r =>
     r.producto.toLowerCase().includes(busqueda.toLowerCase())
   )
@@ -213,6 +230,7 @@ export default function Recetas() {
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Ingrediente</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Cantidad</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Unidad</th>
+                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">% Panadero</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Precio Compra (C$)</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Precio Por (Unidad)</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Tipo</th>
@@ -238,6 +256,9 @@ export default function Recetas() {
                             <option value="ml">ml</option>
                             <option value="unidad">unidad</option>
                           </select>
+                        </td>
+                        <td className="px-3 py-2 text-sm text-gray-500 font-semibold">
+                          {obtenerPorcentajePanadero(ing)}
                         </td>
                         <td className="px-3 py-2">
                           <input type="number" min="0" step="0.01" className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.precio} onChange={e => handleIngredienteChange(idx, 'precio', e.target.value)} placeholder="Precio" />
