@@ -230,23 +230,23 @@ export async function analisisRazon(messages, system) {
 // ═══════════════════════════════════════════════════════════════════════════════
 export async function multimedia(prompt, fileData, mimeType) {
   if (AI_CONFIG.USE_MOCKS) {
-    console.log(`[MOCK] gemini-1.5-flash ← "${prompt.slice(0, 60)}"`)
+    console.log(`[MOCK] gemini-2.0-flash ← "${prompt.slice(0, 60)}"`)
     return {
       respuesta: JSON.stringify({ mock: true, nota: 'Sin GEMINI_API_KEY.' }),
-      modelo:    'gemini-1.5-flash (mock)',
+      modelo:    'gemini-2.0-flash (mock)',
     }
   }
 
   try {
     const client = getGemini()
-    const model  = client.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model  = client.getGenerativeModel({ model: 'gemini-2.0-flash' })
     const parts  = [{ text: prompt }]
     if (fileData) parts.push({ inlineData: { mimeType: mimeType || 'application/pdf', data: fileData } })
 
     const res = await model.generateContent({ contents: [{ role: 'user', parts }] })
     return {
       respuesta: res.response.text(),
-      modelo:    'gemini-1.5-flash',
+      modelo:    'gemini-2.0-flash',
     }
   } catch (err) {
     console.warn('[multimedia] Error con Gemini, intentando fallback con OpenAI (GPT-4o mini):', err.message)
@@ -312,7 +312,7 @@ export function getProvidersStatus() {
       costo:   '~$0.00055/1K tokens',
       keyVar:  'DEEPSEEK_API_KEY',
     },
-    'gemini-1.5-flash': {
+    'gemini-2.0-flash': {
       activo:  AI_CONFIG.USE_MOCKS ? 'mock' : !!process.env.GEMINI_API_KEY,
       uso:     'PDFs, imágenes, facturas escaneadas',
       costo:   '~$0.000075/1K tokens',
