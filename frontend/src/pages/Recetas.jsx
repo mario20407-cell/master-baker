@@ -46,39 +46,137 @@ export default function Recetas() {
     setFormPiezas(r.piezas)
     setFormMerma(r.merma_pct || 0)
     setFormNotas(r.notas || '')
-    setFormIngredientes(r.ingredientes.map(i => ({
+    
+    let mapeados = r.ingredientes.map(i => ({
       nombre: i.nombre,
       cantidad: i.cantidad,
       unidad: i.unidad,
       precio: i.precio,
       tipo: i.tipo || 'directo',
       unidad_precio: i.unidad_precio || i.unidad
-    })))
+    }))
+
+    const totalHarina = mapeados.reduce((sum, ing) => {
+      if ((ing.nombre || '').toLowerCase().includes('harina')) {
+        return sum + convertirUnidad(Number(ing.cantidad) || 0, ing.unidad, 'g')
+      }
+      return sum
+    }, 0)
+
+    mapeados = mapeados.map(ing => {
+      const esHarina = (ing.nombre || '').toLowerCase().includes('harina')
+      if (esHarina) {
+        return { ...ing, porcentaje_panadero: 100 }
+      } else if (totalHarina > 0) {
+        const cantGramos = convertirUnidad(Number(ing.cantidad) || 0, ing.unidad, 'g')
+        const pct = (cantGramos / totalHarina) * 100
+        return { ...ing, porcentaje_panadero: Number(pct.toFixed(2)) }
+      }
+      return { ...ing, porcentaje_panadero: '' }
+    })
+
+    setFormIngredientes(mapeados)
     setEditando(true)
   }
 
   const agregarFilaIngrediente = () => {
-    setFormIngredientes(prev => [...prev, { nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo: 'directo', unidad_precio: 'kg' }])
+    setFormIngredientes(prev => [...prev, { nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo: 'directo', unidad_precio: 'kg', porcentaje_panadero: '' }])
   }
 
   const eliminarFilaIngrediente = (index) => {
     setFormIngredientes(prev => prev.filter((_, i) => i !== index))
   }
 
+  const recalcularGramosYPorcentajes = (ingredientes, indexModificado, campoModificado, nuevoValor) => {
+    let copia = ingredientes.map((ing, i) => {
+      if (i === indexModificado) {
+        let val = nuevoValor
+        if (campoModificado === 'cantidad' || campoModificado === 'porcentaje_panadero' || campoModificado === 'precio') {
+          val = nuevoValor === '' ? '' : Number(nuevoValor)
+        }
+        return { ...ing, [campoModificado]: val }
+      }
+      return { ...ing }
+    })
+
+    const calcularHarina = (arr) => arr.reduce((sum, ing) => {
+      if ((ing.nombre || '').toLowerCase().includes('harina')) {
+        return sum + convertirUnidad(Number(ing.cantidad) || 0, ing.unidad, 'g')
+      }
+      return sum
+    }, 0)
+
+    let totalHarina = calcularHarina(copia)
+    const ingMod = copia[indexModificado]
+    const esHarina = (ingMod.nombre || '').toLowerCase().includes('harina')
+
+    if (campoModificado === 'cantidad') {
+      if (esHarina) {
+        totalHarina = calcularHarina(copia)
+        copia = copia.map((ing) => {
+          const esEsteHarina = (ing.nombre || '').toLowerCase().includes('harina')
+          if (!esEsteHarina && totalHarina > 0 && ing.porcentaje_panadero) {
+            const cantGramos = (totalHarina * ing.porcentaje_panadero) / 100
+            const cantUnidad = convertirUnidad(cantGramos, 'g', ing.unidad)
+            return { ...ing, cantidad: Number(cantUnidad.toFixed(4)) }
+          }
+          return ing
+        })
+      } else {
+        if (totalHarina > 0) {
+          const cantGramos = convertirUnidad(Number(ingMod.cantidad) || 0, ingMod.unidad, 'g')
+          const pct = (cantGramos / totalHarina) * 100
+          ingMod.porcentaje_panadero = Number(pct.toFixed(2))
+        }
+      }
+    } else if (campoModificado === 'porcentaje_panadero') {
+      if (!esHarina && totalHarina > 0) {
+        const cantGramos = (totalHarina * (Number(ingMod.porcentaje_panadero) || 0)) / 100
+        const cantUnidad = convertirUnidad(cantGramos, 'g', ingMod.unidad)
+        ingMod.cantidad = Number(cantUnidad.toFixed(4))
+      }
+    } else if (campoModificado === 'nombre' || campoModificado === 'unidad') {
+      totalHarina = calcularHarina(copia)
+      copia = copia.map(ing => {
+        const esEsteHarina = (ing.nombre || '').toLowerCase().includes('harina')
+        if (esEsteHarina) {
+          return { ...ing, porcentaje_panadero: 100 }
+        } else if (totalHarina > 0 && ing.cantidad) {
+          const cantGramos = convertirUnidad(Number(ing.cantidad) || 0, ing.unidad, 'g')
+          const pct = (cantGramos / totalHarina) * 100
+          return { ...ing, porcentaje_panadero: Number(pct.toFixed(2)) }
+        }
+        return ing
+      })
+    }
+
+    copia = copia.map(ing => {
+      if ((ing.nombre || '').toLowerCase().includes('harina')) {
+        return { ...ing, porcentaje_panadero: 100 }
+      }
+      return ing
+    })
+
+    return copia
+  }
+
   const handleIngredienteChange = (index, campo, valor) => {
-    setFormIngredientes(prev => prev.map((ing, i) => i === index ? { ...ing, [campo]: valor } : ing))
+    setFormIngredientes(prev => recalcularGramosYPorcentajes(prev, index, campo, valor))
   }
 
   const handleNombreChange = (index, nombre) => {
     const matchingInsumo = insumos.find(ins => ins.nombre.toLowerCase() === nombre.toLowerCase())
     if (matchingInsumo) {
-      setFormIngredientes(prev => prev.map((ing, i) => i === index ? {
-        ...ing,
-        nombre,
-        precio: matchingInsumo.costo_unitario,
-        unidad_precio: matchingInsumo.unidad,
-        unidad: matchingInsumo.unidad
-      } : ing))
+      setFormIngredientes(prev => {
+        const actualizados = prev.map((ing, i) => i === index ? {
+          ...ing,
+          nombre,
+          precio: matchingInsumo.costo_unitario,
+          unidad_precio: matchingInsumo.unidad,
+          unidad: matchingInsumo.unidad
+        } : ing)
+        return recalcularGramosYPorcentajes(actualizados, index, 'nombre', nombre)
+      })
     } else {
       handleIngredienteChange(index, 'nombre', nombre)
     }
@@ -257,8 +355,18 @@ export default function Recetas() {
                             <option value="unidad">unidad</option>
                           </select>
                         </td>
-                        <td className="px-3 py-2 text-sm text-gray-500 font-semibold">
-                          {obtenerPorcentajePanadero(ing)}
+                        <td className="px-3 py-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            className="w-full border border-gray-200 rounded-lg p-1.5 text-sm"
+                            value={ing.porcentaje_panadero || ''}
+                            onChange={e => handleIngredienteChange(idx, 'porcentaje_panadero', e.target.value)}
+                            placeholder="%"
+                            disabled={!(ing.nombre || '').toLowerCase().includes('harina') && pesoTotalHarinaForm <= 0}
+                            readOnly={(ing.nombre || '').toLowerCase().includes('harina')}
+                          />
                         </td>
                         <td className="px-3 py-2">
                           <input type="number" min="0" step="0.01" className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.precio} onChange={e => handleIngredienteChange(idx, 'precio', e.target.value)} placeholder="Precio" />
