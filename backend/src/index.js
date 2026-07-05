@@ -1,33 +1,10 @@
-import dotenv from 'dotenv'
-import path from 'path'
-import { fileURLToPath } from 'url'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const backendDir = path.resolve(__dirname, '..')
-
-// Load .env (local dev) then .env.txt as fallback for empty/missing vars
-dotenv.config({ path: path.join(backendDir, '.env') })
-const envTxt = dotenv.config({ path: path.join(backendDir, '.env.txt') })
-if (envTxt.parsed) {
-  for (const [k, v] of Object.entries(envTxt.parsed)) {
-    if (!process.env[k] && v) process.env[k] = v
-  }
-}
-if (process.env.NODE_ENV !== 'test') {
-  if (!process.env.JWT_SECRET) {
-    throw new Error('FATAL: JWT_SECRET no está configurado. El servidor no puede iniciar de forma segura sin esta clave.')
-  }
-  if (!process.env.META_APP_SECRET) {
-    throw new Error('FATAL: META_APP_SECRET no está configurado. El servidor no puede validar firmas de webhook de forma segura.')
-  }
-}
+import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
 import rateLimit from 'express-rate-limit'
 
-import authRoutes       from './routes/auth.js'
 import catalogoRoutes   from './routes/catalogo.js'
 import recetasRoutes    from './routes/recetas.js'
 import costeosRoutes    from './routes/costeos.js'
@@ -37,46 +14,29 @@ import exportarRoutes   from './routes/exportar.js'
 import aiRouterRoutes   from './routes/ai-router.js'
 import whatsappRoutes   from './routes/whatsapp.js'
 import fiscalRoutes     from './routes/fiscal.js'
-import usuariosRoutes from './routes/usuarios.js'
 import ventasRoutes     from './routes/ventas.js'
-import lotesRoutes             from './routes/lotes.js'
-import sucursalesRoutes        from './routes/sucursales.js'
-import inventarioTerminadoRoutes from './routes/inventario-terminado.js'
+import authRoutes       from './routes/auth.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
-import { query } from './db/client.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
 
+// Railway corre la app detrás de un proxy/load balancer. Sin esto,
+// express-rate-limit lanza un error (ERR_ERL_UNEXPECTED_X_FORWARDED_FOR)
+// en cada request porque no confía en el header X-Forwarded-For.
+app.set('trust proxy', 1)
 
 app.use(helmet())
-const allowedOrigins = [
-  'https://masterbaker.store',
-  'https://www.masterbaker.store',
-  'https://marquez-app-v27.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:4173',
-  ...( process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(s => s.trim()) : [] ),
-]
-app.use(cors({
-  origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)),
-  credentials: true,
-}))
+app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173', credentials: true }))
 app.use(morgan('dev'))
-app.use(express.json({
-  limit: '10mb',
-  verify: (req, res, buf) => {
-    req.rawBody = buf
-  }
-}))
+app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
 // Rate limiting global
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 500 }))
 
-// Resuelve req.tenantId en cada request â€” DEBE ir antes de las rutas /api
+// Resuelve req.tenantId en cada request — DEBE ir antes de las rutas /api
 app.use(tenantMiddleware)
-
 
 // Rate limiting IA
 const aiLimiter = rateLimit({ windowMs: 60 * 1000, max: 30,
@@ -93,40 +53,27 @@ app.use('/api/exportar',   exportarRoutes)
 app.use('/api/ai',         aiLimiter, aiRouterRoutes)
 app.use('/api/whatsapp',   whatsappRoutes)
 app.use('/api/fiscal',     fiscalRoutes)
-app.use('/api/usuarios', usuariosRoutes)
 app.use('/api/ventas',     ventasRoutes)
-app.use('/api/lotes',               lotesRoutes)
-app.use('/api/sucursales',          sucursalesRoutes)
-app.use('/api/inventario-terminado', inventarioTerminadoRoutes)
 
 // Health check
-app.get('/api/health', async (_, res) => {
-  const dbStatus = await Promise.race([
-    query('SELECT 1').then(() => 'ok'),
-    new Promise(resolve => setTimeout(() => resolve('timeout'), 2000))
-  ]).catch(() => 'error')
-
-  res.json({
-    status: 'ok', version: '2.7.1',
-    negocio: 'Marquéz Panadería & Repostería',
-    ia: {
-      openai:    !!process.env.OPENAI_API_KEY,
-      anthropic: !!process.env.ANTHROPIC_API_KEY,
-      deepseek:  !!process.env.DEEPSEEK_API_KEY,
-      gemini:    !!process.env.GEMINI_API_KEY,
-    },
-    whatsapp: {
-      activo:   !!process.env.WHATSAPP_PHONE_ID,
-      phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
-    },
-    auth: {
-      jwt_secret: !!process.env.JWT_SECRET,
-    },
-    db_status: dbStatus,
-    cors_origins: allowedOrigins,
-    timestamp: new Date().toISOString(),
-  })
-})
+app.get('/api/health', (_, res) => res.json({
+  status: 'ok', version: '3.0',
+  negocio: 'Marquéz Panadería & Repostería',
+  auth: { login: '/api/auth/login', registro_cerrado: true },
+  ia: {
+    openai:    !!process.env.OPENAI_API_KEY,
+    anthropic: !!process.env.ANTHROPIC_API_KEY,
+    deepseek:  !!process.env.DEEPSEEK_API_KEY,
+    gemini:    !!process.env.GEMINI_API_KEY,
+  },
+  whatsapp: {
+    activo:   !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID,
+    phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
+  },
+  admin_pin_configurado: !!process.env.ADMIN_PIN,
+  jwt_configurado:       !!process.env.JWT_SECRET,
+  timestamp: new Date().toISOString(),
+}))
 
 // Errores
 app.use((err, req, res, _next) => {
@@ -134,19 +81,18 @@ app.use((err, req, res, _next) => {
   res.status(err.status || 500).json({ error: err.message || 'Error interno' })
 })
 
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    console.log(`\n🍞  Maestro Panadero IA — Marquéz v2.7`)
-    console.log(`   Servidor:    http://localhost:${PORT}`)
-    console.log(`   Rutas:       catalogo | recetas | costeos | inventario | compras | ventas | fiscal | ai | whatsapp`)
-    console.log(`   IA activas:`)
-    console.log(`   - GPT-4 mini:       ${process.env.OPENAI_API_KEY    ? '✅' : '⏳ pendiente'}`)
-    console.log(`   - Claude 3.5:       ${process.env.ANTHROPIC_API_KEY ? '✅' : '⏳ pendiente'}`)
-    console.log(`   - DeepSeek V3/R1:   ${process.env.DEEPSEEK_API_KEY  ? '✅' : '⏳ pendiente'}`)
-    console.log(`   - Gemini 1.5 Flash: ${process.env.GEMINI_API_KEY    ? '✅' : '⏳ pendiente'}`)
-    console.log(`   WhatsApp Bot:       ${process.env.WHATSAPP_TOKEN     ? '✅ activo' : '⏳ pendiente'}`)
-    console.log(`   Webhook URL:        http://localhost:${PORT}/api/whatsapp/webhook\n`)
-  })
-}
+app.listen(PORT, () => {
+  console.log(`\n🥐 Maestro Panadero IA — Marquéz v3.0`)
+  console.log(`   Servidor:    http://localhost:${PORT}`)
+  console.log(`   Auth:        /api/auth/login | /api/auth/registrar | /api/auth/me`)
+  console.log(`   Rutas:       catalogo | recetas | costeos | inventario | compras | ventas | fiscal | ai | whatsapp`)
+  console.log(`   IA activas:`)
+  console.log(`   - GPT-4 mini:       ${process.env.OPENAI_API_KEY    ? '✅' : '⏳ pendiente'}`)
+  console.log(`   - Claude 3.5:       ${process.env.ANTHROPIC_API_KEY ? '✅' : '⏳ pendiente'}`)
+  console.log(`   - DeepSeek V3/R1:   ${process.env.DEEPSEEK_API_KEY  ? '✅' : '⏳ pendiente'}`)
+  console.log(`   - Gemini 1.5 Flash: ${process.env.GEMINI_API_KEY    ? '✅' : '⏳ pendiente'}`)
+  console.log(`   WhatsApp Bot:       ${process.env.WHATSAPP_TOKEN     ? '✅ activo' : '⏳ pendiente'}`)
+  console.log(`   Webhook URL:        http://localhost:${PORT}/api/whatsapp/webhook\n`)
+})
 
 export default app

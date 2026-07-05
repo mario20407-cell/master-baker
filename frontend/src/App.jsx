@@ -12,13 +12,10 @@ import Compras from './pages/Compras'
 import Ventas from './pages/Ventas'
 import IAChat from './pages/IAChat'
 import Exportar from './pages/Exportar'
-import Usuarios from './pages/Usuarios'
 import ConfigFiscal from './pages/ConfigFiscal'
-import CajaProduccion from './pages/CajaProduccion'
-import InventarioTerminado from './pages/InventarioTerminado'
-import Reportes from './pages/Reportes'
-import InboxWhatsApp from './pages/InboxWhatsApp'
+import Ayuda from './pages/Ayuda'
 
+// Ruta protegida: redirige a /login si no hay sesión activa
 function RutaProtegida({ children }) {
   const { usuario, cargando } = useAuth()
   if (cargando) return (
@@ -33,41 +30,32 @@ function RutaProtegida({ children }) {
   return children
 }
 
-function SoloAdmin({ children }) {
-  const { usuario, cargando } = useAuth()
-  if (cargando) return null
-  if (!usuario || usuario.rol !== 'admin') return <Navigate to="/dashboard" replace />
-  return children
-}
-
 export default function App() {
   return (
     <Routes>
+      {/* Ruta pública */}
       <Route path="/login" element={<Login />} />
+
+      {/* Rutas protegidas */}
       <Route path="/" element={
         <RutaProtegida>
           <Layout />
         </RutaProtegida>
       }>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard"  element={<Dashboard />} />
-        <Route path="catalogo"   element={<Catalogo />} />
-        <Route path="recetas"    element={<Recetas />} />
-        <Route path="costeo"     element={<Costeo />} />
-        <Route path="escalado"   element={<Escalado />} />
-        <Route path="inventario" element={<Inventario />} />
-        <Route path="compras"    element={<Compras />} />
-        <Route path="ventas"     element={<Ventas />} />
-        <Route path="ia"         element={<IAChat />} />
-        <Route path="exportar"      element={<Exportar />} />
-        <Route path="caja"              element={<CajaProduccion />} />
-        <Route path="stock"             element={<InventarioTerminado />} />
-        <Route path="reportes"          element={<Reportes />} />
-        <Route path="whatsapp-inbox"    element={<InboxWhatsApp />} />
-        <Route path="fiscal"     element={<SoloAdmin><ConfigFiscal /></SoloAdmin>} />
-        <Route path="usuarios"   element={<SoloAdmin><Usuarios /></SoloAdmin>} />
+        <Route path="dashboard"    element={<Dashboard />} />
+        <Route path="catalogo"     element={<Catalogo />} />
+        <Route path="recetas"      element={<Recetas />} />
+        <Route path="costeo"       element={<Costeo />} />
+        <Route path="escalado"     element={<Escalado />} />
+        <Route path="inventario"   element={<Inventario />} />
+        <Route path="compras"      element={<Compras />} />
+        <Route path="ventas"       element={<Ventas />} />
+        <Route path="ia"           element={<IAChat />} />
+        <Route path="exportar"     element={<Exportar />} />
+        <Route path="fiscal"       element={<ConfigFiscal />} />
+        <Route path="ayuda"        element={<Ayuda />} />
       </Route>
     </Routes>
   )
 }
-

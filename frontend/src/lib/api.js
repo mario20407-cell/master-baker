@@ -2,7 +2,7 @@ import axios from 'axios'
 import toast from 'react-hot-toast'
 
 const api = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL || '') + '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 })
@@ -35,9 +35,16 @@ api.interceptors.response.use(
 )
 
 // ── Catálogo ─────────────────────────────────────────────────────────────────
+// Las funciones de escritura aceptan `pin` y lo mandan en el header
+// x-admin-pin — el backend lo valida contra ADMIN_PIN antes de aplicar el cambio.
 export const getCatalogo = () => api.get('/catalogo')
-export const updateProducto = (id, data) => api.put(`/catalogo/${id}`, data)
-export const importCatalogo = (filas) => api.post('/catalogo/importar', { filas })
+export const getAuditoriaProductos = (limit) => api.get('/catalogo/auditoria', { params: { limit } })
+export const updateProducto = (id, data, pin) =>
+  api.put(`/catalogo/${id}`, data, { headers: { 'x-admin-pin': pin } })
+export const updateProductosMasivo = (productos, pin) =>
+  api.put('/catalogo/masivo/lista', { productos }, { headers: { 'x-admin-pin': pin } })
+export const updateProductosPorCategoria = (categoria, porcentaje, pin) =>
+  api.put('/catalogo/masivo/categoria', { categoria, porcentaje }, { headers: { 'x-admin-pin': pin } })
 
 // ── Recetas ──────────────────────────────────────────────────────────────────
 export const getRecetas = () => api.get('/recetas')
@@ -53,10 +60,15 @@ export const getCosteos = (params) => api.get('/costeos', { params })
 
 // ── Inventario ───────────────────────────────────────────────────────────────
 export const getInventario = () => api.get('/inventario')
+export const getAuditoriaInsumos = (limit) => api.get('/inventario/auditoria', { params: { limit } })
 export const saveInsumo = (data) => api.post('/inventario', data)
-export const updateInsumo = (id, data) => api.put(`/inventario/${id}`, data)
+export const updateInsumo = (id, data, pin) =>
+  api.put(`/inventario/${id}`, data, { headers: { 'x-admin-pin': pin } })
+export const updateInsumosMasivo = (insumos, pin) =>
+  api.put('/inventario/masivo/lista', { insumos }, { headers: { 'x-admin-pin': pin } })
+export const updateInsumosPorcentaje = (porcentaje, pin) =>
+  api.put('/inventario/masivo/porcentaje', { porcentaje }, { headers: { 'x-admin-pin': pin } })
 export const deleteInsumo = (id) => api.delete(`/inventario/${id}`)
-export const importInventario = (filas) => api.post('/inventario/importar', { filas })
 
 // ── Compras ──────────────────────────────────────────────────────────────────
 export const getCompras = () => api.get('/compras')
@@ -68,7 +80,6 @@ export const chatIA = (messages, context) => api.post('/ia/chat', { messages, co
 // ── Exportar ─────────────────────────────────────────────────────────────────
 export const exportarReporte = (tipo) => api.get(`/exportar/${tipo}`, { responseType: 'blob' })
 
-export const API = api
 export default api
 
 // ── Fiscal DGI ───────────────────────────────────────────────────────────────
@@ -78,10 +89,7 @@ export const getProrrateo     = (params) => api.get('/fiscal/prorrateo', { param
 
 // ── Ventas ───────────────────────────────────────────────────────────────────
 export const getVentas       = (params) => api.get('/ventas', { params })
-export const getVentaResumen = (params) => api.get('/ventas/resumen', { params: typeof params === 'string' ? { fecha: params } : params })
+export const getVentaResumen = (fecha)  => api.get('/ventas/resumen', { params: { fecha } })
 export const getVentaCierre  = (fecha)  => api.get('/ventas/cierre',  { params: { fecha } })
 export const saveVenta       = (data)   => api.post('/ventas', data)
 export const deleteVenta     = (id)     => api.delete(`/ventas/${id}`)
-
-// ── Sucursales ───────────────────────────────────────────────────────────────
-export const getSucursales = () => api.get('/sucursales')

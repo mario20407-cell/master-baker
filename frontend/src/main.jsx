@@ -4,10 +4,10 @@ import { BrowserRouter } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './context/AuthContext'
 import App from './App'
-import { killServiceWorker } from './lib/killServiceWorker'
 import './index.css'
+import { registerSW } from 'virtual:pwa-register'
 
-killServiceWorker()
+registerSW({ immediate: true })
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

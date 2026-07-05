@@ -5,7 +5,7 @@
 //   - Clasificador de complejidad: simple (300 tokens) vs complejo (1024)
 //   - Historial reducido: 4 mensajes para simple, 6 para complejo
 //   - System prompt comprimido sin redundancias
-//   - Modelo corregido: claude-sonnet-4-6
+//   - Modelo corregido: claude-3-5-sonnet-20241022
 
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
@@ -125,10 +125,10 @@ export async function chatCliente(messages, system) {
 // ═══════════════════════════════════════════════════════════════════════════════
 export async function logicaNegocio(messages, system, context = {}) {
   if (AI_CONFIG.USE_MOCKS) {
-    mockLog('claude-sonnet-4-6', messages)
+    mockLog('claude-3-5-sonnet-20241022', messages)
     return {
-      respuesta: `[MOCK Claude Sonnet 4.6] Respuesta simulada. Margen objetivo: 57%.`,
-      modelo: 'claude-sonnet-4-6 (mock)',
+      respuesta: `[MOCK Claude Sonnet 3.5] Respuesta simulada. Margen objetivo: 57%.`,
+      modelo: 'claude-3-5-sonnet-20241022 (mock)',
       tokens: { input_tokens: 0, output_tokens: 0 },
     }
   }
@@ -142,7 +142,7 @@ export async function logicaNegocio(messages, system, context = {}) {
   if (context?.alertas) systemFinal += `\nALERTAS: ${context.alertas}`
 
   const res = await client.messages.create({
-    model:      'claude-sonnet-4-6',
+    model:      'claude-3-5-sonnet-20241022',
     max_tokens,
     system:     systemFinal,
     messages:   messages.slice(-historial),
@@ -150,7 +150,7 @@ export async function logicaNegocio(messages, system, context = {}) {
 
   return {
     respuesta: res.content.filter(b => b.type === 'text').map(b => b.text).join('\n'),
-    modelo:    'claude-sonnet-4-6',
+    modelo:    'claude-3-5-sonnet-20241022',
     tokens:    res.usage,
   }
 }
@@ -225,9 +225,6 @@ export async function analisisRazon(messages, system) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// multimedia — Gemini 2.5 Flash (PDFs, imágenes, facturas)
-// ═══════════════════════════════════════════════════════════════════════════════
 export async function multimedia(prompt, fileData, mimeType) {
   if (AI_CONFIG.USE_MOCKS) {
     console.log(`[MOCK] gemini-2.0-flash ← "${prompt.slice(0, 60)}"`)
@@ -288,7 +285,7 @@ export async function multimedia(prompt, fileData, mimeType) {
 // ── Estado de proveedores ─────────────────────────────────────────────────────
 export function getProvidersStatus() {
   return {
-    'claude-sonnet-4-6': {
+    'claude-3-5-sonnet-20241022': {
       activo:  AI_CONFIG.USE_MOCKS ? 'mock' : !!process.env.ANTHROPIC_API_KEY,
       uso:     'Lógica de negocio, márgenes, decisiones',
       costo:   '~$0.003/1K tokens',

@@ -3,6 +3,8 @@ import { query } from '../db/client.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
+
+// Proteger todas las rutas de exportación con JWT obligatorio
 router.use(requireAuth)
 
 const csvHeaders = (res, filename) => {
@@ -29,8 +31,7 @@ router.get('/catalogo', async (req, res, next) => {
         CASE WHEN r.id IS NOT NULL THEN 'Sí' ELSE 'No' END AS tiene_receta
       FROM productos p
       LEFT JOIN recetas r ON r.producto = p.nombre AND r.tenant_id = p.tenant_id
-      WHERE p.activo = true AND p.tenant_id = $1
-      ORDER BY p.categoria, p.nombre
+      WHERE p.activo = true AND p.tenant_id = $1 ORDER BY p.categoria, p.nombre
     `, [req.tenantId])
     csvHeaders(res, 'catalogo_marquez.csv')
     res.write(toRow(['Nombre', 'Precio (C$)', 'Presentación', 'Categoría', 'Tiene receta']))
@@ -69,7 +70,8 @@ router.get('/costeos', async (req, res, next) => {
         costo_total, costo_unitario, precio_venta, margen_pct, utilidad_neta,
         CASE WHEN aprobado THEN 'Aprobado' ELSE 'Rechazado' END AS estado,
         TO_CHAR(creado_en, 'YYYY-MM-DD HH24:MI') AS fecha
-      FROM costeos WHERE tenant_id = $1
+      FROM costeos 
+      WHERE tenant_id = $1 
       ORDER BY creado_en DESC LIMIT 500
     `, [req.tenantId])
     csvHeaders(res, 'costeos_marquez.csv')
@@ -93,7 +95,8 @@ router.get('/inventario', async (req, res, next) => {
         costo_unitario,
         CASE WHEN consumo_diario > 0 THEN FLOOR(existencia/consumo_diario) ELSE NULL END AS dias_restantes,
         TO_CHAR(actualizado_en, 'YYYY-MM-DD') AS actualizado
-      FROM inventario WHERE tenant_id = $1
+      FROM inventario 
+      WHERE tenant_id = $1 
       ORDER BY nombre
     `, [req.tenantId])
     csvHeaders(res, 'inventario_marquez.csv')
@@ -134,7 +137,6 @@ router.get('/compras', async (req, res, next) => {
 // GET /api/exportar/reporte — reporte ejecutivo completo
 router.get('/reporte', async (req, res, next) => {
   try {
-    const tenantId = req.tenantId
     const [{ rows: resumen }] = await Promise.all([query(`
       SELECT
         (SELECT COUNT(*) FROM productos WHERE activo AND tenant_id = $1) AS total_productos,
@@ -144,14 +146,15 @@ router.get('/reporte', async (req, res, next) => {
         (SELECT ROUND(AVG(margen_pct),2) FROM costeos WHERE margen_pct IS NOT NULL AND tenant_id = $1) AS margen_promedio,
         (SELECT SUM(utilidad_neta) FROM costeos WHERE aprobado = true AND tenant_id = $1) AS utilidad_total,
         (SELECT COUNT(*) FROM inventario WHERE consumo_diario > 0 AND existencia/consumo_diario <= 3 AND tenant_id = $1) AS insumos_criticos
-    `, [tenantId])])
+    `, [req.tenantId])])
 
     const { rows: topCosteos } = await query(`
       SELECT producto, ROUND(AVG(margen_pct),2) AS margen_avg,
         ROUND(AVG(costo_unitario),4) AS cu_avg, COUNT(*) AS veces_costeado
-      FROM costeos WHERE tenant_id = $1
+      FROM costeos 
+      WHERE tenant_id = $1
       GROUP BY producto ORDER BY margen_avg DESC LIMIT 10
-    `, [tenantId])
+    `, [req.tenantId])
 
     csvHeaders(res, 'reporte_ejecutivo_marquez.csv')
 

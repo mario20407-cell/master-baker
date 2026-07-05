@@ -1,14 +1,13 @@
 // ─── pages/Compras.jsx ────────────────────────────────────────────────────────
 import { useState, useEffect } from 'react'
 import api, { getCompras, getInventario, saveFactura } from '../lib/api'
-import { hoyNicaragua } from '../lib/fecha'
 import { Receipt, Plus, Trash2, AlertTriangle, Camera } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export function Compras() {
   const [historial, setHistorial] = useState([])
   const [prov, setProv] = useState('')
-  const [fecha, setFecha] = useState(hoyNicaragua())
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
   const [items, setItems] = useState([{ producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
   const [resultado, setResultado] = useState(null)
   const [insumos, setInsumos] = useState([])
@@ -116,7 +115,6 @@ export function Compras() {
       <div className="card">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Registrar factura de compra</h3>
 
-        {/* Banner de Carga con Cámara / Archivo para OCR */}
         <div className="mb-4 p-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-all text-center">
           <input
             type="file"

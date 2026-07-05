@@ -1,96 +1,87 @@
 import { Router } from 'express'
 import OpenAI from 'openai'
-import crypto from 'crypto'
-import { query } from '../db/client.js'
-import { requireAuth } from '../middleware/authMiddleware.js'
+import { verificarYRegistrarUso } from '../middleware/planMiddleware.js'
 
-const router = Router()
+export const publicRouter = Router()
+export const privateRouter = Router()
 
 // ── Configuración ─────────────────────────────────────────────────────────────
+const WA_TOKEN    = process.env.WHATSAPP_TOKEN
+const WA_PHONE_ID = process.env.WHATSAPP_PHONE_ID
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'marquez_verify_2024'
-const getWAPhoneId = () => process.env.WHATSAPP_PHONE_ID
-const getWAAPI     = () => `https://graph.facebook.com/v20.0/${getWAPhoneId()}/messages`
+const WA_API      = `https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`
 
-// Token leído de DB (cache 5 min para no consultar en cada mensaje)
-let _waTokenCache = { value: null, at: 0 }
-async function getWAToken(tenantId = '00000000-0000-0000-0000-000000000001') {
-  if (Date.now() - _waTokenCache.at < 5 * 60 * 1000) return _waTokenCache.value
-  const { rows } = await query('SELECT whatsapp_token FROM tenants WHERE id = $1', [tenantId])
-  _waTokenCache = { value: rows?.[0]?.whatsapp_token || null, at: Date.now() }
-  return _waTokenCache.value
-}
-
+// Historial de conversaciones por número (en memoria, se limpia al reiniciar)
+const conversaciones = new Map()
 const MAX_HISTORIAL = 10
-const OPENAI_TIMEOUT_MS = 12000
-export const MENSAJE_FALLBACK_ERROR = 'Disculpa, tuve un problema para procesar tu mensaje. ¿Puedes intentar de nuevo en un momento?'
 
 // ── Catálogo completo Marquéz ─────────────────────────────────────────────────
 const CATALOGO = `
 🥐 *MENÚ MARQUÉZ PANADERÍA & REPOSTERÍA*
 
 🧆 *SALADOS*
-• Pico de queso - C$20
-• Maleta de carne - C$35
-• Maleta de pollo - C$30
-• Empanada de queso - C$20
-• Churro de queso - C$20
-• Pan pizza - C$40
-• Choripán - C$30
+- Pico de queso - C$20
+- Maleta de carne - C$35
+- Maleta de pollo - C$30
+- Empanada de queso - C$20
+- Churro de queso - C$20
+- Pan pizza - C$40
+- Choripán - C$30
 
 🍩 *PAN DULCE*
-• Prisionero - C$25
-• Quesadilla - C$30
-• Trenza frita - C$20
-• Repollito - C$20
-• Repodona - C$35
-• Berlinesa - C$35
-• Rol de canela - C$35
-• Chemi - C$25
+- Prisionero - C$25
+- Quesadilla - C$30
+- Trenza frita - C$20
+- Repollito - C$20
+- Repodona - C$35
+- Berlinesa - C$35
+- Rol de canela - C$35
+- Chemi - C$25
 
 🍩 *DONAS*
-• Dona azucarada - C$20
-• Dona de chocolate - C$35
-• Dona glaseada - C$35
+- Dona azucarada - C$20
+- Dona de chocolate - C$35
+- Dona glaseada - C$35
 
 🥐 *HOJALDRE*
-• Pañuelo de piña - C$30
-• Pañuelo dulce de leche - C$35
-• Bolovan - C$50
-• Croissant - C$50
-• Flor de hojaldre - C$40
-• Mil hojas - C$120
-• Palmeritas - C$60
+- Pañuelo de piña - C$30
+- Pañuelo dulce de leche - C$35
+- Bolovan - C$50
+- Croissant - C$50
+- Flor de hojaldre - C$40
+- Mil hojas - C$120
+- Palmeritas - C$60
 
 🍰 *TORTAS*
-• Torta de naranja - C$35
-• Torta de vainilla - C$30
-• Torta de chocolate - C$40
+- Torta de naranja - C$35
+- Torta de vainilla - C$30
+- Torta de chocolate - C$40
 
 🎂 *RINES*
-• Rin de vainilla - C$150
-• Rin de naranja - C$160
-• Rin de chocolate - C$190
+- Rin de vainilla - C$150
+- Rin de naranja - C$160
+- Rin de chocolate - C$190
 
 🍮 *POSTRES*
-• Volteado de piña 2oz - C$75
-• Volteado de piña 4oz - C$170
-• Volteado de piña ½lb - C$320
+- Volteado de piña 2oz - C$75
+- Volteado de piña 4oz - C$170
+- Volteado de piña ½lb - C$320
 
 🍰 *CHEESECAKES*
-• Maracuyá (porción) - C$120 | (libra) - C$1,250
-• Fresa (porción) - C$140 | (libra) - C$1,300
-• Oreo (porción) - C$120 | (libra) - C$1,250
+- Maracuyá (porción) - C$120 | (libra) - C$1,250
+- Fresa (porción) - C$140 | (libra) - C$1,300
+- Oreo (porción) - C$120 | (libra) - C$1,250
 
 🧁 *CUPCAKES*
-• Vainilla - C$25
-• Chocolate - C$30
+- Vainilla - C$25
+- Chocolate - C$30
 
 🍪 *GALLETAS*
-• Avena - C$20
-• Mantequilla - C$20
-• Margarita - C$20
-• Coco - C$35
-• Chocochips - C$40
+- Avena - C$20
+- Mantequilla - C$20
+- Margarita - C$20
+- Coco - C$35
+- Chocochips - C$40
 `
 
 const SYSTEM_BOT = `Eres el asistente virtual de Marquéz Panadería & Repostería en Nicaragua.
@@ -117,17 +108,16 @@ COMANDOS ESPECIALES que debes detectar:
 - Si escribe "ubicacion" o "dirección" → responde que te ubiques por WhatsApp para coordinar`
 
 // ── Función: enviar mensaje a WhatsApp ────────────────────────────────────────
-async function enviarMensaje(telefono, texto, tenantId) {
-  const token = await getWAToken(tenantId)
-  if (!token || !getWAPhoneId()) {
+async function enviarMensaje(telefono, texto) {
+  if (!WA_TOKEN || !WA_PHONE_ID) {
     console.warn('[WhatsApp] Token o Phone ID no configurados')
     return
   }
 
-  const res = await fetch(getWAAPI(), {
+  const res = await fetch(WA_API, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`,
+      'Authorization': `Bearer ${WA_TOKEN}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -140,70 +130,48 @@ async function enviarMensaje(telefono, texto, tenantId) {
 
   const data = await res.json()
   if (!res.ok) {
-    console.error('[WhatsApp] Error al enviar:', JSON.stringify(data))
-    const err = new Error(data.error?.message || 'Error al enviar mensaje')
-    err.status = res.status
-    err.meta = data.error
-    throw err
+    console.error('[WhatsApp] Error al enviar:', data)
+    throw new Error(data.error?.message || 'Error al enviar mensaje')
   }
   return data
 }
 
 // ── Función: procesar con GPT-4 mini ─────────────────────────────────────────
-async function procesarConIA(telefono, mensajeUsuario, tenantId = '00000000-0000-0000-0000-000000000001') {
-  // Primero, guardar mensaje del usuario en base de datos
-  await query(
-    'INSERT INTO whatsapp_mensajes (tenant_id, telefono, rol, contenido) VALUES ($1, $2, $3, $4)',
-    [tenantId, telefono, 'user', mensajeUsuario]
-  )
-
+async function procesarConIA(telefono, mensajeUsuario) {
   if (!process.env.OPENAI_API_KEY) {
-    const fallbackMsg = respuestaFallback(mensajeUsuario)
-    await query(
-      'INSERT INTO whatsapp_mensajes (tenant_id, telefono, rol, contenido) VALUES ($1, $2, $3, $4)',
-      [tenantId, telefono, 'assistant', fallbackMsg]
-    )
-    return fallbackMsg
+    return respuestaFallback(mensajeUsuario)
   }
 
-  // Cargar últimos mensajes en orden cronológico
-  const { rows } = await query(
-    `SELECT rol as role, contenido as content FROM (
-       SELECT id, rol, contenido, creado_en 
-       FROM whatsapp_mensajes 
-       WHERE tenant_id = $1 AND telefono = $2 
-       ORDER BY creado_en DESC 
-       LIMIT $3
-     ) sub ORDER BY creado_en ASC`,
-    [tenantId, telefono, MAX_HISTORIAL]
-  )
+  // Recuperar o iniciar historial
+  if (!conversaciones.has(telefono)) {
+    conversaciones.set(telefono, [])
+  }
+  const historial = conversaciones.get(telefono)
+
+  // Agregar mensaje del usuario
+  historial.push({ role: 'user', content: mensajeUsuario })
+
+  // Limitar historial
+  if (historial.length > MAX_HISTORIAL) {
+    historial.splice(0, historial.length - MAX_HISTORIAL)
+  }
 
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  const inicio = Date.now()
-  console.log('[DEBUG] Iniciando llamada a OpenAI', new Date().toISOString())
-  let res
-  try {
-    res = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: SYSTEM_BOT },
-        ...rows,
-      ],
-      max_tokens: 300,
-      temperature: 0.7,
-    }, { timeout: typeof OPENAI_TIMEOUT_MS !== 'undefined' ? OPENAI_TIMEOUT_MS : 10000 })
-  } catch (error) {
-    console.log('[DEBUG] Error después de', Date.now() - inicio, 'ms:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
-    throw error
-  }
+  const res = await client.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      { role: 'system', content: SYSTEM_BOT },
+      ...historial,
+    ],
+    max_tokens: 300,
+    temperature: 0.7,
+  })
 
   const respuesta = res.choices[0].message.content
 
-  // Guardar respuesta de la IA en la base de datos
-  await query(
-    'INSERT INTO whatsapp_mensajes (tenant_id, telefono, rol, contenido) VALUES ($1, $2, $3, $4)',
-    [tenantId, telefono, 'assistant', respuesta]
-  )
+  // Guardar respuesta en historial
+  historial.push({ role: 'assistant', content: respuesta })
+  conversaciones.set(telefono, historial)
 
   return respuesta
 }
@@ -226,33 +194,8 @@ function respuestaFallback(mensaje) {
   return '¡Hola! Soy el asistente de *Marquéz Panadería*. Escribe *menú* para ver nuestros productos o dime en qué te puedo ayudar 🥐'
 }
 
-// ── Procesa un mensaje entrante: IA + envío, con fallback si la IA falla ──────
-// Separado del loop del webhook para poder testear el caso de fallo de forma
-// determinística (sin depender del timing fire-and-forget de la respuesta HTTP).
-export async function manejarMensajeEntrante(telefono, texto, tenantId = '00000000-0000-0000-0000-000000000001') {
-  let respuesta
-  try {
-    respuesta = await procesarConIA(telefono, texto, tenantId)
-  } catch (e) {
-    console.error(`[WhatsApp] Error de IA para ${telefono}:`, e.message)
-    respuesta = MENSAJE_FALLBACK_ERROR
-    // Guardar fallback en base de datos si la IA falló para mantener historial consistente
-    await query(
-      'INSERT INTO whatsapp_mensajes (tenant_id, telefono, rol, contenido) VALUES ($1, $2, $3, $4)',
-      [tenantId, telefono, 'assistant', respuesta]
-    ).catch(err => console.error('[WhatsApp] Error al guardar fallback en DB:', err.message))
-  }
-
-  try {
-    await enviarMensaje(telefono, respuesta, tenantId)
-    console.log(`[WhatsApp] Respuesta enviada a ${telefono}`)
-  } catch (e) {
-    console.error(`[WhatsApp] No se pudo entregar la respuesta a ${telefono}:`, e.message)
-  }
-}
-
 // ── Webhook: verificación Meta ────────────────────────────────────────────────
-router.get('/webhook', (req, res) => {
+publicRouter.get('/webhook', (req, res) => {
   const mode      = req.query['hub.mode']
   const token     = req.query['hub.verify_token']
   const challenge = req.query['hub.challenge']
@@ -267,29 +210,7 @@ router.get('/webhook', (req, res) => {
 })
 
 // ── Webhook: recibir mensajes ─────────────────────────────────────────────────
-router.post('/webhook', async (req, res) => {
-  // Validar firma x-hub-signature-256 de Meta
-  const signatureHeader = req.headers['x-hub-signature-256']
-  const appSecret = process.env.META_APP_SECRET
-
-  if (!signatureHeader) {
-    console.error('[WhatsApp Webhook] Firma x-hub-signature-256 ausente')
-    return res.status(401).send('Firma ausente')
-  }
-  const signature = signatureHeader.split('=')[1] || ''
-  const expectedSignature = crypto
-    .createHmac('sha256', appSecret)
-    .update(req.rawBody || '')
-    .digest('hex')
-
-  const signatureBuffer = Buffer.from(signature, 'utf8')
-  const expectedBuffer = Buffer.from(expectedSignature, 'utf8')
-
-  if (signatureBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
-    console.error('[WhatsApp Webhook] Firma x-hub-signature-256 inválida')
-    return res.status(401).send('Firma inválida')
-  }
-
+publicRouter.post('/webhook', async (req, res) => {
   // Responder 200 inmediatamente para que Meta no reintente
   res.status(200).send('OK')
 
@@ -297,24 +218,21 @@ router.post('/webhook', async (req, res) => {
     const body = req.body
     if (body.object !== 'whatsapp_business_account') return
 
+    // PENDIENTE: req.tenantId aquí siempre resuelve al default (Marquéz),
+    // porque Meta no manda header x-tenant-id ni subdominio — este webhook
+    // no distingue todavía entre números de WhatsApp de distintos tenants.
+    // Ver nota en tenantMiddleware.js. Hoy no es un problema porque solo
+    // existe un tenant real operando.
+    const chequeoPlan = await verificarYRegistrarUso(req.tenantId, 'whatsapp_bot')
+    if (!chequeoPlan.permitido) {
+      console.warn(`[WhatsApp] Tenant ${req.tenantId} sin acceso al bot según su plan — mensajes ignorados`)
+      return
+    }
+
     for (const entry of body.entry || []) {
       for (const change of entry.changes || []) {
         const value = change.value
         if (!value?.messages?.length) continue
-
-        // Resolver tenant_id de forma dinámica a partir de phone_number_id
-        const phoneId = value.metadata?.phone_number_id
-        let tenantId
-        try {
-          const { rows } = await query('SELECT id FROM tenants WHERE whatsapp_phone_id = $1', [phoneId])
-          tenantId = rows[0]?.id
-        } catch (e) {
-          console.error('[WhatsApp Webhook] Error al consultar tenant_id por phone_number_id:', e.message)
-        }
-        if (!tenantId) {
-          tenantId = '00000000-0000-0000-0000-000000000001'
-          console.warn(`[WhatsApp Webhook] No se encontró un tenant para el phone_number_id: ${phoneId}. Usando tenant de respaldo: ${tenantId}`)
-        }
 
         for (const message of value.messages) {
           // Solo procesar mensajes de texto
@@ -323,9 +241,14 @@ router.post('/webhook', async (req, res) => {
           const telefono = message.from
           const texto    = message.text.body.trim()
 
-          console.log(`[WhatsApp] Mensaje de ${telefono} para tenant ${tenantId}: "${texto}"`)
+          console.log(`[WhatsApp] Mensaje de ${telefono}: "${texto}"`)
 
-          await manejarMensajeEntrante(telefono, texto, tenantId)
+          // Procesar con IA
+          const respuesta = await procesarConIA(telefono, texto)
+
+          // Enviar respuesta
+          await enviarMensaje(telefono, respuesta)
+          console.log(`[WhatsApp] Respuesta enviada a ${telefono}`)
         }
       }
     }
@@ -335,92 +258,42 @@ router.post('/webhook', async (req, res) => {
 })
 
 // ── Endpoint: enviar mensaje manual desde el dashboard ───────────────────────
-router.post('/enviar', requireAuth, async (req, res, next) => {
+privateRouter.post('/enviar', async (req, res, next) => {
   const { telefono, mensaje } = req.body
   if (!telefono || !mensaje) {
     return res.status(400).json({ error: 'telefono y mensaje son requeridos' })
   }
   try {
-    const data = await enviarMensaje(telefono, mensaje, req.tenantId)
-    if (!data) return res.status(503).json({ error: 'whatsapp_token no configurado en tenants' })
-    
-    // Guardar el mensaje enviado manualmente en la base de datos
-    await query(
-      'INSERT INTO whatsapp_mensajes (tenant_id, telefono, rol, contenido) VALUES ($1, $2, $3, $4)',
-      [req.tenantId, telefono, 'assistant', mensaje]
-    )
-
+    const data = await enviarMensaje(telefono, mensaje)
     res.json({ ok: true, data })
-  } catch (e) {
-    res.status(e.status || 500).json({ error: e.message, meta: e.meta || null })
-  }
-})
-
-// ── Endpoint: listar conversaciones del tenant ────────────────────────────────
-router.get('/conversaciones', requireAuth, async (req, res) => {
-  try {
-    const { rows } = await query(`
-      SELECT 
-        telefono, 
-        COUNT(*) as mensajes, 
-        MAX(creado_en) as actualizado_en,
-        (SELECT contenido FROM whatsapp_mensajes m2 WHERE m2.tenant_id = m1.tenant_id AND m2.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as ultimo_mensaje,
-        (SELECT rol FROM whatsapp_mensajes m2 WHERE m2.tenant_id = m1.tenant_id AND m2.telefono = m1.telefono ORDER BY creado_en DESC LIMIT 1) as rol_ultimo
-      FROM whatsapp_mensajes m1
-      WHERE tenant_id = $1
-      GROUP BY tenant_id, telefono
-      ORDER BY actualizado_en DESC
-    `, [req.tenantId])
-    res.json(rows)
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
+  } catch (e) { next(e) }
 })
 
 // ── Endpoint: ver historial de conversación ───────────────────────────────────
-router.get('/conversacion/:telefono', requireAuth, async (req, res) => {
-  try {
-    const { rows } = await query(`
-      SELECT rol as role, contenido as content, creado_en 
-      FROM (
-        SELECT id, rol, contenido, creado_en 
-        FROM whatsapp_mensajes 
-        WHERE tenant_id = $1 AND telefono = $2 
-        ORDER BY creado_en DESC 
-        LIMIT 100
-      ) sub ORDER BY creado_en ASC
-    `, [req.tenantId, req.params.telefono])
-    res.json({ telefono: req.params.telefono, mensajes: rows.length, historial: rows })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
+privateRouter.get('/conversacion/:telefono', (req, res) => {
+  const historial = conversaciones.get(req.params.telefono) || []
+  res.json({ telefono: req.params.telefono, mensajes: historial.length, historial })
 })
 
 // ── Endpoint: limpiar historial ───────────────────────────────────────────────
-router.delete('/conversacion/:telefono', requireAuth, async (req, res) => {
-  try {
-    await query('DELETE FROM whatsapp_mensajes WHERE tenant_id = $1 AND telefono = $2', [req.tenantId, req.params.telefono])
-    res.json({ ok: true, mensaje: 'Historial limpiado' })
-  } catch (e) {
-    res.status(500).json({ error: e.message })
-  }
+privateRouter.delete('/conversacion/:telefono', (req, res) => {
+  conversaciones.delete(req.params.telefono)
+  res.json({ ok: true, mensaje: 'Historial limpiado' })
 })
 
 // ── Endpoint: status del bot ──────────────────────────────────────────────────
-router.get('/status', requireAuth, async (req, res) => {
-  const token = await getWAToken(req.tenantId)
-  const countRes = await query('SELECT COUNT(DISTINCT telefono) as count FROM whatsapp_mensajes WHERE tenant_id = $1', [req.tenantId])
-  const conversacionesCount = parseInt(countRes.rows[0]?.count || 0, 10)
-  
+privateRouter.get('/status', (req, res) => {
   res.json({
-    activo:         !!token && !!getWAPhoneId(),
-    phone_id:       getWAPhoneId() || 'No configurado',
-    token_preview:  token ? token.slice(0, 8) + '...' : 'NO CONFIGURADO',
-    ia_activa:      !!process.env.OPENAI_API_KEY,
-    modelo:         'gpt-4o-mini',
-    conversaciones: conversacionesCount,
-    verify_token:   VERIFY_TOKEN,
+    activo:           !!WA_TOKEN && !!WA_PHONE_ID,
+    phone_id:         WA_PHONE_ID || 'No configurado',
+    ia_activa:        !!process.env.OPENAI_API_KEY,
+    modelo:           'gpt-4o-mini',
+    conversaciones:   conversaciones.size,
+    verify_token:     VERIFY_TOKEN,
   })
 })
 
-export default router
+const mainRouter = Router()
+mainRouter.use(publicRouter)
+mainRouter.use(privateRouter)
+export default mainRouter
