@@ -160,20 +160,44 @@ export default function Recetas() {
     return copia
   }
 
+  const calcularPrecioPorUnidadReceta = (precioCompra, unidadCompra, unidadReceta) => {
+    if (!precioCompra || !unidadCompra || !unidadReceta) return precioCompra
+    const cantEnCompra = convertirUnidad(1, unidadReceta, unidadCompra)
+    return precioCompra * cantEnCompra
+  }
+
   const handleIngredienteChange = (index, campo, valor) => {
-    setFormIngredientes(prev => recalcularGramosYPorcentajes(prev, index, campo, valor))
+    setFormIngredientes(prev => {
+      let copia = [...prev]
+      if (campo === 'unidad') {
+        const ing = copia[index]
+        const matchingInsumo = insumos.find(ins => ins.nombre.toLowerCase() === ing.nombre.toLowerCase())
+        if (matchingInsumo) {
+          const precioConvertido = calcularPrecioPorUnidadReceta(matchingInsumo.costo_unitario, matchingInsumo.unidad, valor)
+          copia = copia.map((item, i) => i === index ? {
+            ...item,
+            unidad: valor,
+            precio: Number(precioConvertido.toFixed(4)),
+            unidad_precio: valor
+          } : item)
+        }
+      }
+      return recalcularGramosYPorcentajes(copia, index, campo, valor)
+    })
   }
 
   const handleNombreChange = (index, nombre) => {
     const matchingInsumo = insumos.find(ins => ins.nombre.toLowerCase() === nombre.toLowerCase())
     if (matchingInsumo) {
       setFormIngredientes(prev => {
+        const unidadReceta = prev[index].unidad || 'kg'
+        const precioConvertido = calcularPrecioPorUnidadReceta(matchingInsumo.costo_unitario, matchingInsumo.unidad, unidadReceta)
         const actualizados = prev.map((ing, i) => i === index ? {
           ...ing,
           nombre,
-          precio: matchingInsumo.costo_unitario,
-          unidad_precio: matchingInsumo.unidad,
-          unidad: matchingInsumo.unidad
+          precio: Number(precioConvertido.toFixed(4)),
+          unidad_precio: unidadReceta,
+          unidad: unidadReceta
         } : ing)
         return recalcularGramosYPorcentajes(actualizados, index, 'nombre', nombre)
       })
@@ -336,7 +360,6 @@ export default function Recetas() {
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Unidad</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">% Panadero</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Precio Compra (C$)</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Precio Por (Unidad)</th>
                       <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Tipo</th>
                       <th className="px-4 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase w-16">Acciones</th>
                     </tr>
@@ -375,34 +398,30 @@ export default function Recetas() {
                           />
                         </td>
                         <td className="px-3 py-2">
-                          <div className="relative flex items-center">
+                          <div className="relative flex flex-col">
                             <input
                               type="number"
                               min="0"
-                              step="0.01"
-                              className={`w-full border rounded-lg p-1.5 pr-7 text-sm ${esPrecioSospechoso(ing) ? 'border-amber-400 bg-amber-50 focus:ring-amber-400' : 'border-gray-200'}`}
+                              step="0.0001"
+                              className={`w-full border rounded-lg p-1.5 text-sm ${esPrecioSospechoso(ing) ? 'border-amber-400 bg-amber-50 focus:ring-amber-400' : 'border-gray-200'}`}
                               value={ing.precio}
                               onChange={e => handleIngredienteChange(idx, 'precio', e.target.value)}
                               placeholder="Precio"
                             />
-                            {esPrecioSospechoso(ing) && (
-                              <span className="absolute right-2 text-amber-500 cursor-help animate-pulse" title={`¿C$ ${ing.precio} por gramo/ml? El costo parece muy alto. Verifica si es precio por Libra/Kilogramo.`}>
-                                <Info size={15} />
-                              </span>
-                            )}
+                            {(() => {
+                              const matchingInsumo = insumos.find(ins => ins.nombre.toLowerCase() === (ing.nombre || '').toLowerCase())
+                              if (matchingInsumo) {
+                                return (
+                                  <span className="text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">
+                                    Comp: C$ {matchingInsumo.costo_unitario} / {matchingInsumo.unidad}
+                                  </span>
+                                )
+                              }
+                              return null
+                            })()}
                           </div>
                         </td>
-                        <td className="px-3 py-2">
-                          <select className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.unidad_precio || ing.unidad} onChange={e => handleIngredienteChange(idx, 'unidad_precio', e.target.value)}>
-                            <option value="kg">kg</option>
-                            <option value="g">g</option>
-                            <option value="lb">lb</option>
-                            <option value="oz">oz</option>
-                            <option value="lt">lt</option>
-                            <option value="ml">ml</option>
-                            <option value="unidad">unidad</option>
-                          </select>
-                        </td>
+
                         <td className="px-3 py-2">
                           <select className="w-full border border-gray-200 rounded-lg p-1.5 text-sm" value={ing.tipo} onChange={e => handleIngredienteChange(idx, 'tipo', e.target.value)}>
                             <option value="directo">Directo</option>
