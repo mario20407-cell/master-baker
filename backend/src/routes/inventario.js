@@ -99,13 +99,19 @@ router.post('/importar', async (req, res, next) => {
 
 // PUT /api/inventario/:id
 router.put('/:id', async (req, res, next) => {
-  const { existencia, consumo_diario, punto_reposicion, costo_unitario } = req.body
+  const { nombre, existencia, unidad, consumo_diario, punto_reposicion, costo_unitario } = req.body
   try {
     const { rows } = await query(`
-      UPDATE inventario SET existencia=$1, consumo_diario=$2,
-        punto_reposicion=$3, costo_unitario=$4, actualizado_en=NOW()
-      WHERE id=$5 AND tenant_id=$6 RETURNING *
-    `, [existencia, consumo_diario, punto_reposicion, costo_unitario, req.params.id, req.tenantId])
+      UPDATE inventario SET 
+        nombre=COALESCE($1, nombre), 
+        existencia=COALESCE($2, existencia), 
+        unidad=COALESCE($3, unidad),
+        consumo_diario=COALESCE($4, consumo_diario), 
+        punto_reposicion=COALESCE($5, punto_reposicion), 
+        costo_unitario=COALESCE($6, costo_unitario), 
+        actualizado_en=NOW()
+      WHERE id=$7 AND tenant_id=$8 RETURNING *
+    `, [nombre, existencia, unidad, consumo_diario, punto_reposicion, costo_unitario, req.params.id, req.tenantId])
     if (!rows.length) return res.status(404).json({ error: 'Insumo no encontrado' })
     res.json(rows[0])
     checkInventarioInsumos(req.tenantId).catch(() => {})
