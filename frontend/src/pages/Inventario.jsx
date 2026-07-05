@@ -129,7 +129,7 @@ export default function Inventario() {
           <div className="form-group">
             <label className="form-label">Unidad</label>
             <select value={form.unidad} onChange={e => setForm(p => ({ ...p, unidad: e.target.value }))}>
-              {['kg','g','L','ml','unidad'].map(u => <option key={u}>{u}</option>)}
+              {['kg','g','lb','oz','L','ml','unidad'].map(u => <option key={u}>{u}</option>)}
             </select>
           </div>
           <div className="form-group">
