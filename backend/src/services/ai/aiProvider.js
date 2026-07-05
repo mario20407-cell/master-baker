@@ -33,7 +33,7 @@ const getDeepSeek = () => {
 
 const getGemini = () => {
   if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY no configurada')
-  return new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  return new GoogleGenerativeAI(process.env.GEMINI_API_KEY.trim())
 }
 
 // ── Clasificador de complejidad ───────────────────────────────────────────────
