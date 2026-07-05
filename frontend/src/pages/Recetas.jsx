@@ -329,7 +329,7 @@ export default function Recetas() {
   }
 
   const listaRecetas = Object.values(recetas).filter(r =>
-    r.producto.toLowerCase().includes(busqueda.toLowerCase())
+    r && r.producto && typeof r.producto === 'string' && r.producto.toLowerCase().includes(busqueda.toLowerCase())
   )
 
   if (loading) return <div className="p-6 text-center text-gray-500">Cargando recetas...</div>

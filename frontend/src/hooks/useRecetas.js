@@ -31,15 +31,19 @@ export function useRecetas() {
   const guardar = async (datos) => {
     try {
       const existente = recetas[datos.producto]
-      let res
+      let nueva
       if (existente?.id) {
-        res = await updateReceta(existente.id, datos)
+        await updateReceta(existente.id, datos)
+        nueva = { ...existente, ...datos }
       } else {
-        res = await saveReceta(datos)
+        const res = await saveReceta(datos)
+        nueva = res.data
       }
-      const nueva = res.data
-      setRecetas(prev => ({ ...prev, [nueva.producto]: nueva }))
-      localStorage.setItem('marquez_recetas', JSON.stringify({ ...recetas, [nueva.producto]: nueva }))
+      setRecetas(prev => {
+        const actualizadas = { ...prev, [nueva.producto]: nueva }
+        localStorage.setItem('marquez_recetas', JSON.stringify(actualizadas))
+        return actualizadas
+      })
       toast.success(`Receta de "${datos.producto}" guardada`)
       return nueva
     } catch (e) {
