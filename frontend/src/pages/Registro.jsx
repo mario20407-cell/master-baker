@@ -54,34 +54,36 @@ export default function Registro() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FAF8F4] dark:bg-navy-950 transition-colors duration-200 py-10 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-navy-950 transition-colors duration-200 py-10 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <img src="/branding/logo-completo.png" alt="Master Baker" className="h-24 mx-auto mb-2" style={{ mixBlendMode: 'multiply' }} />
-          <p className="text-sm font-semibold text-gray-650 dark:text-gray-400">Únete como Socio Fundador de Master Baker</p>
-          <span className="inline-block mt-2 px-3 py-1 bg-amber-50 dark:bg-[#8B6914]/20 text-[#8B6914] dark:text-[#C29C53] border border-[#C29C53]/30 text-xs font-semibold rounded-full">
+          <div className="bg-white/95 p-3 rounded-2xl inline-block shadow-sm mb-3">
+            <img src="/branding/logo-completo.png" alt="Master Baker" className="h-16 mx-auto" />
+          </div>
+          <p className="text-sm font-semibold text-slate-300">Únete como Socio Fundador de Master Baker</p>
+          <span className="inline-block mt-2 px-3 py-1 bg-[#8B6914]/20 text-[#C29C53] border border-[#C29C53]/30 text-xs font-semibold rounded-full">
             Prueba Gratuita de 30 días
           </span>
         </div>
 
-        <div className="bg-[#EBF3FF]/40 dark:bg-navy-900/30 border border-blue-105/60 dark:border-navy-800 rounded-2xl p-4 mb-4 text-xs text-slate-700 dark:text-slate-300 space-y-2">
-          <p className="font-semibold text-sm mb-1 text-blue-900 dark:text-blue-200">📋 Instructivo de Registro:</p>
+        <div className="bg-navy-900/50 border border-[#C29C53]/30 rounded-2xl p-4 mb-4 text-xs text-slate-300 space-y-2">
+          <p className="font-semibold text-sm mb-1 text-white">📋 Instructivo de Registro:</p>
           <ul className="list-disc pl-4 space-y-1">
-            <li><strong className="text-[#8B6914] dark:text-[#C29C53]">Espacio Único:</strong> Al escribir el nombre de tu negocio se creará un espacio de base de datos aislado para tu panadería.</li>
-            <li><strong className="text-[#8B6914] dark:text-[#C29C53]">Primer Usuario:</strong> Te registrarás como Administrador de tu negocio y podrás invitar a tus colaboradores después.</li>
-            <li><strong className="text-[#8B6914] dark:text-[#C29C53]">Código Fundador:</strong> Necesitas ingresar el código provisto para validar tu cuenta.</li>
-            <li><strong className="text-[#8B6914] dark:text-[#C29C53]">Período Demo:</strong> Obtienes 30 días de acceso total gratuito (IA, recetas, inventario, costeos y producción).</li>
+            <li><strong className="text-[#C29C53]">Espacio Único:</strong> Al escribir el nombre de tu negocio se creará un espacio de base de datos aislado para tu panadería.</li>
+            <li><strong className="text-[#C29C53]">Primer Usuario:</strong> Te registrarás como Administrador de tu negocio y podrás invitar a tus colaboradores después.</li>
+            <li><strong className="text-[#C29C53]">Código Fundador:</strong> Necesitas ingresar el código provisto para validar tu cuenta.</li>
+            <li><strong className="text-[#C29C53]">Período Demo:</strong> Obtienes 30 días de acceso total gratuito (IA, recetas, inventario, costeos y producción).</li>
           </ul>
         </div>
 
-        <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-sm border border-gray-105 dark:border-navy-800 p-8 transition-colors duration-200">
-          <h2 className="text-base font-medium text-gray-700 dark:text-gray-250 mb-6 flex items-center gap-2">
+        <div className="bg-navy-900 rounded-2xl shadow-lg border border-navy-800 p-8 transition-colors duration-200">
+          <h2 className="text-base font-medium text-white mb-6 flex items-center gap-2">
             Crear cuenta de negocio
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="form-group">
-              <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
+              <label className="form-label flex items-center gap-1.5 text-xs text-slate-350">
                 <Landmark size={14} className="text-[#C29C53]" /> Nombre del Negocio / Panadería
               </label>
               <input 
@@ -90,12 +92,12 @@ export default function Registro() {
                 onChange={e => setNombreNegocio(e.target.value)}
                 placeholder="Ej. Panadería El Mana" 
                 disabled={cargando} 
-                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
+                className="w-full px-3.5 py-2 border rounded-lg bg-navy-950 border-navy-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
+              <label className="form-label flex items-center gap-1.5 text-xs text-slate-350">
                 <User size={14} className="text-[#C29C53]" /> Nombre del Administrador
               </label>
               <input 
@@ -104,12 +106,12 @@ export default function Registro() {
                 onChange={e => setNombreAdmin(e.target.value)}
                 placeholder="Ej. Juan Pérez" 
                 disabled={cargando} 
-                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
+                className="w-full px-3.5 py-2 border rounded-lg bg-navy-950 border-navy-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
+              <label className="form-label flex items-center gap-1.5 text-xs text-slate-350">
                 <Mail size={14} className="text-[#C29C53]" /> Correo Electrónico
               </label>
               <input 
@@ -118,12 +120,12 @@ export default function Registro() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="correo@ejemplo.com" 
                 disabled={cargando} 
-                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
+                className="w-full px-3.5 py-2 border rounded-lg bg-navy-950 border-navy-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
               />
             </div>
 
             <div className="form-group">
-              <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
+              <label className="form-label flex items-center gap-1.5 text-xs text-slate-350">
                 <Lock size={14} className="text-[#C29C53]" /> Contraseña (Mín. 8 caracteres)
               </label>
               <div className="relative">
@@ -133,7 +135,7 @@ export default function Registro() {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••" 
                   disabled={cargando} 
-                  className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
+                  className="w-full px-3.5 py-2 border rounded-lg bg-navy-950 border-navy-800 text-white placeholder-slate-500 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
                 />
                 <button 
                   type="button" 
@@ -146,7 +148,7 @@ export default function Registro() {
             </div>
 
             <div className="form-group">
-              <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
+              <label className="form-label flex items-center gap-1.5 text-xs text-slate-350">
                 <ShieldCheck size={14} className="text-[#C29C53]" /> Código de Invitación Fundador
               </label>
               <input 
@@ -155,7 +157,7 @@ export default function Registro() {
                 onChange={e => setCodigoInvitacion(e.target.value)}
                 placeholder="Código de acceso" 
                 disabled={cargando} 
-                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
+                className="w-full px-3.5 py-2 border rounded-lg bg-navy-950 border-navy-800 text-white placeholder-slate-500 text-sm tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
               />
             </div>
 
@@ -173,9 +175,9 @@ export default function Registro() {
             </button>
           </form>
 
-          <div className="mt-6 text-center text-xs text-gray-500 dark:text-gray-450">
+          <div className="mt-6 text-center text-xs text-slate-400">
             ¿Ya tienes un negocio registrado?{' '}
-            <Link to="/login" className="text-[#8B6914] dark:text-[#C29C53] hover:underline font-semibold">
+            <Link to="/login" className="text-[#C29C53] hover:text-[#C29C53]/85 hover:underline font-semibold">
               Iniciar Sesión
             </Link>
           </div>
