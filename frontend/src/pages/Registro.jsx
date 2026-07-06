@@ -59,22 +59,22 @@ export default function Registro() {
         <div className="text-center mb-6">
           <img src="/branding/logo-completo.png" alt="Master Baker" className="h-24 mx-auto mb-2" style={{ mixBlendMode: 'multiply' }} />
           <p className="text-sm font-semibold text-gray-650 dark:text-gray-400">Únete como Socio Fundador de Master Baker</p>
-          <span className="inline-block mt-2 px-3 py-1 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-xs font-semibold rounded-full">
+          <span className="inline-block mt-2 px-3 py-1 bg-amber-50 dark:bg-[#8B6914]/20 text-[#8B6914] dark:text-[#C29C53] border border-[#C29C53]/30 text-xs font-semibold rounded-full">
             Prueba Gratuita de 30 días
           </span>
         </div>
 
-        <div className="bg-amber-50/55 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30 rounded-2xl p-4 mb-4 text-xs text-amber-800 dark:text-amber-300 space-y-2">
-          <p className="font-semibold text-sm mb-1 text-amber-900 dark:text-amber-200">📋 Instructivo de Registro:</p>
+        <div className="bg-[#EBF3FF]/40 dark:bg-navy-900/30 border border-blue-105/60 dark:border-navy-800 rounded-2xl p-4 mb-4 text-xs text-slate-700 dark:text-slate-300 space-y-2">
+          <p className="font-semibold text-sm mb-1 text-blue-900 dark:text-blue-200">📋 Instructivo de Registro:</p>
           <ul className="list-disc pl-4 space-y-1">
-            <li><strong>Espacio Único:</strong> Al escribir el nombre de tu negocio se creará un espacio de base de datos aislado para tu panadería.</li>
-            <li><strong>Primer Usuario:</strong> Te registrarás como Administrador de tu negocio y podrás invitar a tus colaboradores después.</li>
-            <li><strong>Código Fundador:</strong> Necesitas ingresar el código provisto para validar tu cuenta.</li>
-            <li><strong>Período Demo:</strong> Obtienes 30 días de acceso total gratuito (IA, recetas, inventario, costeos y producción).</li>
+            <li><strong className="text-[#8B6914] dark:text-[#C29C53]">Espacio Único:</strong> Al escribir el nombre de tu negocio se creará un espacio de base de datos aislado para tu panadería.</li>
+            <li><strong className="text-[#8B6914] dark:text-[#C29C53]">Primer Usuario:</strong> Te registrarás como Administrador de tu negocio y podrás invitar a tus colaboradores después.</li>
+            <li><strong className="text-[#8B6914] dark:text-[#C29C53]">Código Fundador:</strong> Necesitas ingresar el código provisto para validar tu cuenta.</li>
+            <li><strong className="text-[#8B6914] dark:text-[#C29C53]">Período Demo:</strong> Obtienes 30 días de acceso total gratuito (IA, recetas, inventario, costeos y producción).</li>
           </ul>
         </div>
 
-        <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-sm border border-gray-100 dark:border-navy-800 p-8 transition-colors duration-200">
+        <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-sm border border-gray-105 dark:border-navy-800 p-8 transition-colors duration-200">
           <h2 className="text-base font-medium text-gray-700 dark:text-gray-250 mb-6 flex items-center gap-2">
             Crear cuenta de negocio
           </h2>
@@ -82,7 +82,7 @@ export default function Registro() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="form-group">
               <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
-                <Landmark size={14} className="text-amber-600" /> Nombre del Negocio / Panadería
+                <Landmark size={14} className="text-[#C29C53]" /> Nombre del Negocio / Panadería
               </label>
               <input 
                 type="text" 
@@ -90,13 +90,13 @@ export default function Registro() {
                 onChange={e => setNombreNegocio(e.target.value)}
                 placeholder="Ej. Panadería El Mana" 
                 disabled={cargando} 
-                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
               />
             </div>
 
             <div className="form-group">
               <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
-                <User size={14} className="text-amber-600" /> Nombre del Administrador
+                <User size={14} className="text-[#C29C53]" /> Nombre del Administrador
               </label>
               <input 
                 type="text" 
@@ -104,13 +104,13 @@ export default function Registro() {
                 onChange={e => setNombreAdmin(e.target.value)}
                 placeholder="Ej. Juan Pérez" 
                 disabled={cargando} 
-                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
               />
             </div>
 
             <div className="form-group">
               <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
-                <Mail size={14} className="text-amber-600" /> Correo Electrónico
+                <Mail size={14} className="text-[#C29C53]" /> Correo Electrónico
               </label>
               <input 
                 type="email" 
@@ -118,13 +118,13 @@ export default function Registro() {
                 onChange={e => setEmail(e.target.value)}
                 placeholder="correo@ejemplo.com" 
                 disabled={cargando} 
-                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
               />
             </div>
 
             <div className="form-group">
               <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
-                <Lock size={14} className="text-amber-600" /> Contraseña (Mín. 8 caracteres)
+                <Lock size={14} className="text-[#C29C53]" /> Contraseña (Mín. 8 caracteres)
               </label>
               <div className="relative">
                 <input 
@@ -133,7 +133,7 @@ export default function Registro() {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••" 
                   disabled={cargando} 
-                  className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
                 />
                 <button 
                   type="button" 
@@ -147,7 +147,7 @@ export default function Registro() {
 
             <div className="form-group">
               <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
-                <ShieldCheck size={14} className="text-amber-600" /> Código de Invitación Fundador
+                <ShieldCheck size={14} className="text-[#C29C53]" /> Código de Invitación Fundador
               </label>
               <input 
                 type="text" 
@@ -155,7 +155,7 @@ export default function Registro() {
                 onChange={e => setCodigoInvitacion(e.target.value)}
                 placeholder="Código de acceso" 
                 disabled={cargando} 
-                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
               />
             </div>
 
@@ -175,7 +175,7 @@ export default function Registro() {
 
           <div className="mt-6 text-center text-xs text-gray-500 dark:text-gray-450">
             ¿Ya tienes un negocio registrado?{' '}
-            <Link to="/login" className="text-amber-650 hover:underline font-semibold">
+            <Link to="/login" className="text-[#8B6914] dark:text-[#C29C53] hover:underline font-semibold">
               Iniciar Sesión
             </Link>
           </div>
