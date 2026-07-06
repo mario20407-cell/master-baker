@@ -61,8 +61,8 @@ router.put('/masivo/lista', requireRol('admin'), requireAdminPin, async (req, re
 
   for (const p of productos) {
     const pr = parseFloat(p.precio)
-    if (isNaN(pr) || pr <= 0) {
-      return res.status(400).json({ error: 'Todos los productos deben tener un precio válido y mayor a cero' })
+    if (isNaN(pr) || pr <= 0 || pr > 1000000) {
+      return res.status(400).json({ error: 'Todos los productos deben tener un precio válido (mayor a cero y menor a 1,000,000)' })
     }
   }
 
@@ -158,8 +158,8 @@ router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) 
 
   if (precio !== undefined) {
     const pr = parseFloat(precio)
-    if (isNaN(pr) || pr <= 0) {
-      return res.status(400).json({ error: 'El precio debe ser un número válido y mayor a cero' })
+    if (isNaN(pr) || pr <= 0 || pr > 1000000) {
+      return res.status(400).json({ error: 'El precio debe ser un número válido, mayor a cero y menor a 1,000,000' })
     }
   }
   if (nombre !== undefined && !nombre.trim()) {

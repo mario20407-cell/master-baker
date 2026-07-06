@@ -66,9 +66,18 @@ router.post('/', async (req, res, next) => {
   }
   if (costo_unitario !== undefined) {
     const cu = parseFloat(costo_unitario)
-    if (isNaN(cu) || cu < 0) {
-      return res.status(400).json({ error: 'El costo unitario debe ser un número válido y no negativo' })
+    if (isNaN(cu) || cu < 0 || cu > 1000000) {
+      return res.status(400).json({ error: 'El costo unitario debe ser un número válido, no negativo y menor a 1,000,000' })
     }
+  }
+  if (existencia !== undefined && (isNaN(parseFloat(existencia)) || parseFloat(existencia) < 0 || parseFloat(existencia) > 1000000)) {
+    return res.status(400).json({ error: 'La existencia debe ser un número válido, no negativo y menor a 1,000,000' })
+  }
+  if (consumo_diario !== undefined && (isNaN(parseFloat(consumo_diario)) || parseFloat(consumo_diario) < 0 || parseFloat(consumo_diario) > 1000000)) {
+    return res.status(400).json({ error: 'El consumo diario debe ser un número válido, no negativo y menor a 1,000,000' })
+  }
+  if (punto_reposicion !== undefined && (isNaN(parseFloat(punto_reposicion)) || parseFloat(punto_reposicion) < 0 || parseFloat(punto_reposicion) > 1000000)) {
+    return res.status(400).json({ error: 'El punto de reposición debe ser un número válido, no negativo y menor a 1,000,000' })
   }
 
   try {
@@ -94,8 +103,8 @@ router.put('/masivo/lista', requireRol('admin'), requireAdminPin, async (req, re
 
   for (const i of insumos) {
     const cu = parseFloat(i.costo_unitario)
-    if (isNaN(cu) || cu < 0) {
-      return res.status(400).json({ error: 'Todos los insumos deben tener un costo unitario válido y no negativo' })
+    if (isNaN(cu) || cu < 0 || cu > 1000000) {
+      return res.status(400).json({ error: 'Todos los insumos deben tener un costo unitario válido (no negativo y menor a 1,000,000)' })
     }
   }
 
@@ -181,18 +190,18 @@ router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) 
 
   if (costo_unitario !== undefined) {
     const cu = parseFloat(costo_unitario)
-    if (isNaN(cu) || cu < 0) {
-      return res.status(400).json({ error: 'El costo unitario debe ser un número válido y no negativo' })
+    if (isNaN(cu) || cu < 0 || cu > 1000000) {
+      return res.status(400).json({ error: 'El costo unitario debe ser un número válido, no negativo y menor a 1,000,000' })
     }
   }
-  if (existencia !== undefined && (isNaN(parseFloat(existencia)) || parseFloat(existencia) < 0)) {
-    return res.status(400).json({ error: 'La existencia debe ser un número válido y no negativo' })
+  if (existencia !== undefined && (isNaN(parseFloat(existencia)) || parseFloat(existencia) < 0 || parseFloat(existencia) > 1000000)) {
+    return res.status(400).json({ error: 'La existencia debe ser un número válido, no negativo y menor a 1,000,000' })
   }
-  if (consumo_diario !== undefined && (isNaN(parseFloat(consumo_diario)) || parseFloat(consumo_diario) < 0)) {
-    return res.status(400).json({ error: 'El consumo diario debe ser un número válido y no negativo' })
+  if (consumo_diario !== undefined && (isNaN(parseFloat(consumo_diario)) || parseFloat(consumo_diario) < 0 || parseFloat(consumo_diario) > 1000000)) {
+    return res.status(400).json({ error: 'El consumo diario debe ser un número válido, no negativo y menor a 1,000,000' })
   }
-  if (punto_reposicion !== undefined && (isNaN(parseFloat(punto_reposicion)) || parseFloat(punto_reposicion) < 0)) {
-    return res.status(400).json({ error: 'El punto de reposición debe ser un número válido y no negativo' })
+  if (punto_reposicion !== undefined && (isNaN(parseFloat(punto_reposicion)) || parseFloat(punto_reposicion) < 0 || parseFloat(punto_reposicion) > 1000000)) {
+    return res.status(400).json({ error: 'El punto de reposición debe ser un número válido, no negativo y menor a 1,000,000' })
   }
 
   try {
