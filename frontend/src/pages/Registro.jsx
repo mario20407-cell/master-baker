@@ -64,6 +64,16 @@ export default function Registro() {
           </span>
         </div>
 
+        <div className="bg-amber-50/55 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30 rounded-2xl p-4 mb-4 text-xs text-amber-800 dark:text-amber-300 space-y-2">
+          <p className="font-semibold text-sm mb-1 text-amber-900 dark:text-amber-200">📋 Instructivo de Registro:</p>
+          <ul className="list-disc pl-4 space-y-1">
+            <li><strong>Espacio Único:</strong> Al escribir el nombre de tu negocio se creará un espacio de base de datos aislado para tu panadería.</li>
+            <li><strong>Primer Usuario:</strong> Te registrarás como Administrador de tu negocio y podrás invitar a tus colaboradores después.</li>
+            <li><strong>Código Fundador:</strong> Necesitas ingresar el código provisto para validar tu cuenta.</li>
+            <li><strong>Período Demo:</strong> Obtienes 30 días de acceso total gratuito (IA, recetas, inventario, costeos y producción).</li>
+          </ul>
+        </div>
+
         <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-sm border border-gray-100 dark:border-navy-800 p-8 transition-colors duration-200">
           <h2 className="text-base font-medium text-gray-700 dark:text-gray-250 mb-6 flex items-center gap-2">
             Crear cuenta de negocio
