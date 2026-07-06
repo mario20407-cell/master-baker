@@ -156,11 +156,14 @@ export async function logicaNegocio(messages, system, context = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// costeoMasivo — DeepSeek V3
+// costeoMasivo — Claude 3.5 Sonnet (temporalmente, en lugar de DeepSeek V3)
+// NOTA: DEEPSEEK_API_KEY no está configurada. Redirigido a Anthropic para evitar
+// que el botón "Costeo masivo" muestre error al usuario. Revertir cuando haya
+// presupuesto para DeepSeek.
 // ═══════════════════════════════════════════════════════════════════════════════
 export async function costeoMasivo(messages, system, datos) {
   if (AI_CONFIG.USE_MOCKS) {
-    mockLog('deepseek-v3', messages)
+    mockLog('claude-3-5-sonnet (costeo)', messages)
     const costeosSimulados = Array.isArray(datos)
       ? datos.map((r, i) => ({
           producto:      r.producto || r.n || `Producto ${i + 1}`,
@@ -169,58 +172,65 @@ export async function costeoMasivo(messages, system, datos) {
           precio_minimo: 0,
           margen_pct:    57,
           aprobado:      true,
-          nota:          'Mock — sin DEEPSEEK_API_KEY',
+          nota:          'Mock — sin GEMINI/DEEPSEEK',
         }))
       : null
     return {
-      respuesta: costeosSimulados ? JSON.stringify(costeosSimulados) : '[MOCK DeepSeek V3]',
-      modelo:    'deepseek-v3 (mock)',
+      respuesta: costeosSimulados ? JSON.stringify(costeosSimulados) : '[MOCK Claude costeo]',
+      modelo:    'claude-3-5-sonnet-20241022 (mock)',
       tokens:    { input_tokens: 0, output_tokens: 0 },
     }
   }
 
-  const client = getDeepSeek()
+  const client = getAnthropic()
   const prompt = datos
     ? `${messages[messages.length - 1].content}\n\nDATOS:\n${JSON.stringify(datos, null, 2)}`
     : messages[messages.length - 1].content
 
-  const res = await client.chat.completions.create({
-    model:       'deepseek-chat',
-    messages:    [{ role: 'system', content: system }, ...messages.slice(-5, -1), { role: 'user', content: prompt }],
-    max_tokens:  2048,
-    temperature: 0.1,
+  const res = await client.messages.create({
+    model:      'claude-3-5-sonnet-20241022',
+    max_tokens: 2048,
+    system:     system,
+    messages:   [...messages.slice(-5, -1), { role: 'user', content: prompt }],
   })
   return {
-    respuesta: res.choices[0].message.content,
-    modelo:    'deepseek-v3',
+    respuesta: res.content.filter(b => b.type === 'text').map(b => b.text).join('\n'),
+    modelo:    'claude-3-5-sonnet-20241022',
     tokens:    res.usage,
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// analisisRazon — DeepSeek R1
+// analisisRazon — Claude 3.5 Sonnet (temporalmente, en lugar de DeepSeek R1)
+// NOTA: DEEPSEEK_API_KEY no está configurada. Redirigido a Anthropic para evitar
+// que el botón "Análisis profundo" muestre error al usuario. Revertir cuando haya
+// presupuesto para DeepSeek. Claude no expone un campo de "razonamiento" separado
+// como DeepSeek R1, así que se pide explícitamente en el prompt y se devuelve
+// razonamiento: null (el frontend ya maneja ese campo como opcional).
 // ═══════════════════════════════════════════════════════════════════════════════
 export async function analisisRazon(messages, system) {
   if (AI_CONFIG.USE_MOCKS) {
-    mockLog('deepseek-r1', messages)
+    mockLog('claude-3-5-sonnet (analisis)', messages)
     return {
-      respuesta:     '[MOCK DeepSeek R1] Análisis simulado.',
-      razonamiento:  '[MOCK] Paso 1 → Paso 2 → Conclusión.',
-      modelo:        'deepseek-r1 (mock)',
+      respuesta:     '[MOCK Claude análisis] Análisis simulado.',
+      razonamiento:  null,
+      modelo:        'claude-3-5-sonnet-20241022 (mock)',
       tokens:        { input_tokens: 0, output_tokens: 0 },
     }
   }
 
-  const client = getDeepSeek()
-  const res = await client.chat.completions.create({
-    model:    'deepseek-reasoner',
-    messages: [{ role: 'system', content: system }, ...messages.slice(-6)],
+  const client = getAnthropic()
+  const systemFinal = `${system}\n\nPiensa paso a paso antes de responder y estructura tu respuesta con tu razonamiento seguido de la conclusión.`
+  const res = await client.messages.create({
+    model:      'claude-3-5-sonnet-20241022',
     max_tokens: 2048,
+    system:     systemFinal,
+    messages:   messages.slice(-6),
   })
   return {
-    respuesta:    res.choices[0].message.content,
-    razonamiento: res.choices[0].message.reasoning_content || null,
-    modelo:       'deepseek-r1',
+    respuesta:    res.content.filter(b => b.type === 'text').map(b => b.text).join('\n'),
+    razonamiento: null,
+    modelo:       'claude-3-5-sonnet-20241022',
     tokens:       res.usage,
   }
 }
