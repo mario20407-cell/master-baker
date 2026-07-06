@@ -1,10 +1,10 @@
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { requireAdminPin } from '../middleware/adminPinMiddleware.js'
+import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 
 const router = Router()
-
-// Helper: registra un cambio (precio, nombre o categoría) en auditoria_precios.
+router.use(requireAuth)
 // No lanza si falla — la auditoría nunca debe tumbar la escritura real.
 // NOTA: valor_nuevo es NOT NULL en la tabla (pensada originalmente solo
 // para precios) — para cambios de texto (nombre/categoría) se manda 0
@@ -55,9 +55,16 @@ router.get('/auditoria', async (req, res, next) => {
 // "masivo" como si fuera el parámetro :id.
 
 // PUT /api/catalogo/masivo/lista — edición masiva: lista explícita de {id, precio}
-router.put('/masivo/lista', requireAdminPin, async (req, res, next) => {
+router.put('/masivo/lista', requireRol('admin'), requireAdminPin, async (req, res, next) => {
   const { productos = [] } = req.body
   if (!productos.length) return res.status(400).json({ error: 'Se requiere al menos un producto' })
+
+  for (const p of productos) {
+    const pr = parseFloat(p.precio)
+    if (isNaN(pr) || pr <= 0) {
+      return res.status(400).json({ error: 'Todos los productos deben tener un precio válido y mayor a cero' })
+    }
+  }
 
   try {
     const actualizados = await transaction(async (client) => {
@@ -91,7 +98,7 @@ router.put('/masivo/lista', requireAdminPin, async (req, res, next) => {
 })
 
 // PUT /api/catalogo/masivo/categoria — ajuste por porcentaje a toda una categoría
-router.put('/masivo/categoria', requireAdminPin, async (req, res, next) => {
+router.put('/masivo/categoria', requireRol('admin'), requireAdminPin, async (req, res, next) => {
   const { categoria, porcentaje } = req.body
   const pct = parseFloat(porcentaje)
   if (isNaN(pct)) {
@@ -141,16 +148,27 @@ router.put('/masivo/categoria', requireAdminPin, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// PUT /api/catalogo/:id — actualizar un producto individual
-// Soporta cambiar nombre, categoría y/o precio en la misma operación.
-// Cada campo que cambie de valor queda registrado por separado en auditoría.
-router.put('/:id', requireAdminPin, async (req, res, next) => {
+router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!uuidRegex.test(req.params.id)) {
     return res.status(400).json({ error: 'ID de producto inválido' })
   }
 
   const { precio, presentacion, nombre, categoria } = req.body
+
+  if (precio !== undefined) {
+    const pr = parseFloat(precio)
+    if (isNaN(pr) || pr <= 0) {
+      return res.status(400).json({ error: 'El precio debe ser un número válido y mayor a cero' })
+    }
+  }
+  if (nombre !== undefined && !nombre.trim()) {
+    return res.status(400).json({ error: 'El nombre no puede estar vacío' })
+  }
+  if (categoria !== undefined && !categoria.trim()) {
+    return res.status(400).json({ error: 'La categoría no puede estar vacía' })
+  }
+
   try {
     const actualizado = await transaction(async (client) => {
       const { rows: anteriorRows } = await client.query(
