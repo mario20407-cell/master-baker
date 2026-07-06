@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import Registro from './pages/Registro'
 import Dashboard from './pages/Dashboard'
 import Catalogo from './pages/Catalogo'
 import Recetas from './pages/Recetas'
@@ -34,8 +35,9 @@ function RutaProtegida({ children }) {
 export default function App() {
   return (
     <Routes>
-      {/* Ruta pública */}
+      {/* Rutas públicas */}
       <Route path="/login" element={<Login />} />
+      <Route path="/registro" element={<Registro />} />
 
       {/* Rutas protegidas */}
       <Route path="/" element={

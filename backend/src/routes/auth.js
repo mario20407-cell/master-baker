@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import { query } from '../db/client.js'
+import { query, transaction } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 
 const router = Router()
@@ -19,6 +19,76 @@ function generarToken(usuario) {
     { expiresIn: '8h' }
   )
 }
+
+// POST /api/auth/registrar-negocio — Auto-registro público con código de invitación
+router.post('/registrar-negocio', async (req, res, next) => {
+  const { nombreNegocio, nombreAdmin, email, password, codigoInvitacion } = req.body
+
+  const codigoValido = (process.env.INVITATION_CODE || 'FUNDADOR2026').trim().toUpperCase()
+  if (!codigoInvitacion || codigoInvitacion.trim().toUpperCase() !== codigoValido) {
+    return res.status(403).json({ error: 'Código de invitación inválido' })
+  }
+
+  if (!nombreNegocio || !nombreAdmin || !email || !password) {
+    return res.status(400).json({ error: 'Todos los campos son requeridos' })
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' })
+  }
+
+  try {
+    const { rows: emailExists } = await query('SELECT id FROM usuarios WHERE email = $1', [email.toLowerCase().trim()])
+    if (emailExists.length) {
+      return res.status(409).json({ error: 'El correo ya está registrado' })
+    }
+
+    let slug = nombreNegocio.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    if (!slug) slug = 'panaderia'
+
+    const result = await transaction(async (client) => {
+      const { rows: slugCheck } = await client.query('SELECT id FROM tenants WHERE slug = $1', [slug])
+      if (slugCheck.length) {
+        slug = `${slug}-${Math.floor(1000 + Math.random() * 9000)}`
+      }
+
+      const { rows: tenantRows } = await client.query(
+        `INSERT INTO tenants (slug, nombre_negocio, plan, trial_vence_en)
+         VALUES ($1, $2, 'trial', NOW() + INTERVAL '30 days')
+         RETURNING *`,
+        [slug, nombreNegocio.trim()]
+      )
+      const nuevoTenant = tenantRows[0]
+
+      const hash = await bcrypt.hash(password, 12)
+      const { rows: userRows } = await client.query(
+        `INSERT INTO usuarios (tenant_id, email, password_hash, nombre, rol)
+         VALUES ($1, $2, $3, $4, 'admin')
+         RETURNING *`,
+        [nuevoTenant.id, email.toLowerCase().trim(), hash, nombreAdmin.trim()]
+      )
+      const nuevoUsuario = userRows[0]
+
+      return { nuevoTenant, nuevoUsuario }
+    })
+
+    const token = generarToken(result.nuevoUsuario)
+    res.status(201).json({
+      token,
+      usuario: {
+        id:            result.nuevoUsuario.id,
+        email:         result.nuevoUsuario.email,
+        nombre:        result.nuevoUsuario.nombre,
+        rol:           result.nuevoUsuario.rol,
+        tenantId:      result.nuevoTenant.id,
+        tenantNombre:  result.nuevoTenant.nombre_negocio,
+        tenantPlan:    result.nuevoTenant.plan,
+      }
+    })
+  } catch (e) {
+    next(e)
+  }
+})
 
 router.post('/login', async (req, res, next) => {
   const { email, password } = req.body

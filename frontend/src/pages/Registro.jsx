@@ -1,0 +1,176 @@
+import { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import axios from 'axios'
+import toast from 'react-hot-toast'
+import { Eye, EyeOff, ShieldCheck, Landmark, User, Mail, Lock } from 'lucide-react'
+
+export default function Registro() {
+  const { login } = useAuth()
+  const navigate = useNavigate()
+  const [nombreNegocio, setNombreNegocio] = useState('')
+  const [nombreAdmin, setNombreAdmin] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [codigoInvitacion, setCodigoInvitacion] = useState('')
+  const [cargando, setCargando] = useState(false)
+  const [showPass, setShowPass] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!nombreNegocio || !nombreAdmin || !email || !password || !codigoInvitacion) {
+      toast.error('Todos los campos son requeridos')
+      return
+    }
+
+    if (password.length < 8) {
+      toast.error('La contraseña debe tener al menos 8 caracteres')
+      return
+    }
+
+    setCargando(true)
+    try {
+      const response = await axios.post('/api/auth/registrar-negocio', {
+        nombreNegocio,
+        nombreAdmin,
+        email,
+        password,
+        codigoInvitacion
+      })
+
+      const { token } = response.data
+      localStorage.setItem('token', token)
+      
+      // Realizar login automático guardando los datos del usuario en el context
+      await login(email.trim(), password)
+      
+      toast.success('¡Registro Exitoso! Bienvenido a tu demo de 30 días.')
+      navigate('/dashboard', { replace: true })
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Error al procesar el registro')
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#FAF8F4] dark:bg-navy-950 transition-colors duration-200 py-10 px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-6">
+          <img src="/branding/logo-completo.png" alt="Master Baker" className="h-24 mx-auto mb-2" style={{ mixBlendMode: 'multiply' }} />
+          <p className="text-sm font-semibold text-gray-650 dark:text-gray-400">Únete como Socio Fundador de Master Baker</p>
+          <span className="inline-block mt-2 px-3 py-1 bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-xs font-semibold rounded-full">
+            Prueba Gratuita de 30 días
+          </span>
+        </div>
+
+        <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-sm border border-gray-100 dark:border-navy-800 p-8 transition-colors duration-200">
+          <h2 className="text-base font-medium text-gray-700 dark:text-gray-250 mb-6 flex items-center gap-2">
+            Crear cuenta de negocio
+          </h2>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="form-group">
+              <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
+                <Landmark size={14} className="text-amber-600" /> Nombre del Negocio / Panadería
+              </label>
+              <input 
+                type="text" 
+                value={nombreNegocio} 
+                onChange={e => setNombreNegocio(e.target.value)}
+                placeholder="Ej. Panadería El Mana" 
+                disabled={cargando} 
+                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
+                <User size={14} className="text-amber-600" /> Nombre del Administrador
+              </label>
+              <input 
+                type="text" 
+                value={nombreAdmin} 
+                onChange={e => setNombreAdmin(e.target.value)}
+                placeholder="Ej. Juan Pérez" 
+                disabled={cargando} 
+                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
+                <Mail size={14} className="text-amber-600" /> Correo Electrónico
+              </label>
+              <input 
+                type="email" 
+                value={email} 
+                onChange={e => setEmail(e.target.value)}
+                placeholder="correo@ejemplo.com" 
+                disabled={cargando} 
+                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
+                <Lock size={14} className="text-amber-600" /> Contraseña (Mín. 8 caracteres)
+              </label>
+              <div className="relative">
+                <input 
+                  type={showPass ? 'text' : 'password'} 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••" 
+                  disabled={cargando} 
+                  className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPass(p => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-650"
+                >
+                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-450">
+                <ShieldCheck size={14} className="text-amber-600" /> Código de Invitación Fundador
+              </label>
+              <input 
+                type="text" 
+                value={codigoInvitacion} 
+                onChange={e => setCodigoInvitacion(e.target.value)}
+                placeholder="Código de acceso" 
+                disabled={cargando} 
+                className="w-full px-3.5 py-2 border rounded-lg dark:bg-navy-805 dark:border-navy-700 text-sm tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={cargando}
+              className="btn-primary w-full py-2.5 mt-4 flex items-center justify-center gap-2"
+            >
+              {cargando ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Creando negocio...
+                </>
+              ) : 'Registrar Negocio'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center text-xs text-gray-500 dark:text-gray-450">
+            ¿Ya tienes un negocio registrado?{' '}
+            <Link to="/login" className="text-amber-650 hover:underline font-semibold">
+              Iniciar Sesión
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

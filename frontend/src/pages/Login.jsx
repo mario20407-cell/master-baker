@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 import { Eye, EyeOff } from 'lucide-react'
@@ -63,7 +63,13 @@ export default function Login() {
                 </>
               ) : 'Entrar'}
             </button>
-            <button type="button" onClick={() => toast('Para restablecer tu contraseña, contacta al administrador del sistema')} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 mt-2">Olvidé mi contraseña</button>
+            <button type="button" onClick={() => toast('Para restablecer tu contraseña, contacta al administrador del sistema')} className="w-full text-center text-xs text-gray-400 hover:text-gray-655 mt-2">Olvidé mi contraseña</button>
+            <div className="mt-4 pt-4 border-t border-gray-105 dark:border-navy-800 text-center text-xs text-gray-500 dark:text-gray-450">
+              ¿Eres socio fundador?{' '}
+              <Link to="/registro" className="text-amber-655 hover:underline font-semibold">
+                Registra tu negocio
+              </Link>
+            </div>
           </form>
         </div>
         <p className="text-center text-xs text-gray-400 mt-6">
