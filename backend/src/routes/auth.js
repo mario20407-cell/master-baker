@@ -60,6 +60,27 @@ router.post('/registrar-negocio', async (req, res, next) => {
       )
       const nuevoTenant = tenantRows[0]
 
+      // Insertar insumos básicos plantales/básicos por defecto
+      const insumosBasicos = [
+        { nombre: 'Harina de Trigo', unidad: 'kg', costo: 22.00 },
+        { nombre: 'Azúcar', unidad: 'kg', costo: 18.00 },
+        { nombre: 'Sal', unidad: 'kg', costo: 10.00 },
+        { nombre: 'Levadura Seca', unidad: 'g', costo: 0.15 },
+        { nombre: 'Manteca', unidad: 'kg', costo: 45.00 },
+        { nombre: 'Huevo', unidad: 'unidad', costo: 4.50 },
+        { nombre: 'Leche', unidad: 'l', costo: 32.00 },
+        { nombre: 'Mantequilla', unidad: 'kg', costo: 120.00 },
+        { nombre: 'Polvo de hornear', unidad: 'g', costo: 0.25 }
+      ]
+
+      for (const ins of insumosBasicos) {
+        await client.query(
+          `INSERT INTO inventario (tenant_id, nombre, existencia, unidad, consumo_diario, punto_reposicion, costo_unitario)
+           VALUES ($1, $2, 0, $3, 0, 0, $4)`,
+          [nuevoTenant.id, ins.nombre, ins.unidad, ins.costo]
+        )
+      }
+
       const hash = await bcrypt.hash(password, 12)
       const { rows: userRows } = await client.query(
         `INSERT INTO usuarios (tenant_id, email, password_hash, nombre, rol)
