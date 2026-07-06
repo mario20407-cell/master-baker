@@ -121,8 +121,8 @@ router.post('/login', async (req, res, next) => {
       `SELECT u.*, t.nombre_negocio AS tenant_nombre, t.plan AS tenant_plan
        FROM usuarios u
        JOIN tenants t ON t.id = u.tenant_id
-       WHERE u.email = $1 AND u.tenant_id = $2 AND u.activo = true`,
-      [email.toLowerCase().trim(), req.tenantId]
+       WHERE u.email = $1 AND u.activo = true`,
+      [email.toLowerCase().trim()]
     )
     const usuario = rows[0]
     if (!usuario) return res.status(401).json({ error: 'Credenciales incorrectas' })
