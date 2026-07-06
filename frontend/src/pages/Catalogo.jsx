@@ -1,5 +1,5 @@
 // ─── pages/Catalogo.jsx ───────────────────────────────────────────────────────
-// v2.8.1 — Edición protegida con PIN de Admin + historial de auditoría.
+// v2.8.1 — Edición protegida con PIN de Admin + historial de auditoría + Modo Oscuro.
 import { useState, useEffect, useCallback } from 'react'
 import {
   getCatalogo, updateProducto, updateProductosPorCategoria, getAuditoriaProductos,
@@ -120,14 +120,14 @@ export function Catalogo() {
     }
   }
 
-  if (loading) return <div className="text-sm text-gray-400 py-8 text-center">Cargando catálogo…</div>
+  if (loading) return <div className="text-sm text-gray-400 dark:text-gray-500 py-8 text-center">Cargando catálogo…</div>
 
   return (
     <div className="max-w-5xl">
       <div className="flex gap-3 mb-4 items-start flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input className="pl-8" value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar producto..." />
+          <input className="pl-8 w-full" value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar producto..." />
         </div>
         <button onClick={() => setPanelMasivo(p => !p)}
           className="btn-secondary flex items-center gap-1.5 text-xs whitespace-nowrap">
@@ -140,8 +140,8 @@ export function Catalogo() {
       </div>
 
       {panelMasivo && (
-        <div className="card mb-4" style={{ border: '0.5px solid #C29C53' }}>
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Ajustar precios por porcentaje</h3>
+        <div className="card mb-4 border border-[#C29C53] dark:border-brand-600">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">Ajustar precios por porcentaje</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
             <div className="form-group">
               <label className="form-label">Categoría</label>
@@ -159,7 +159,7 @@ export function Catalogo() {
               <RefreshCw size={13} /> Aplicar ajuste
             </button>
           </div>
-          <p className="text-[10px] text-gray-400 mt-2">
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
             Requiere PIN de administrador. Los precios se redondean a 2 decimales.
           </p>
         </div>
@@ -168,13 +168,13 @@ export function Catalogo() {
       {panelAuditoria && (
         <div className="card mb-4">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-sm font-medium text-gray-700">Últimos cambios al catálogo</h3>
-            <button onClick={() => setPanelAuditoria(false)} className="text-gray-400 hover:text-gray-600">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">Últimos cambios al catálogo</h3>
+            <button onClick={() => setPanelAuditoria(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
               <X size={15} />
             </button>
           </div>
           {auditoria.length === 0 ? (
-            <p className="text-xs text-gray-400">Sin cambios registrados todavía.</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">Sin cambios registrados todavía.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="table-base text-xs">
@@ -184,11 +184,11 @@ export function Catalogo() {
                     const esPrecio = a.campo === 'precio' || !a.campo
                     return (
                       <tr key={a.id}>
-                        <td className="text-gray-500">{new Date(a.creado_en).toLocaleString('es-NI', { dateStyle: 'short', timeStyle: 'short' })}</td>
-                        <td>{a.entidad_nombre}</td>
-                        <td className="text-gray-500 capitalize">{a.campo || 'precio'}</td>
-                        <td className="text-right text-gray-400">{esPrecio ? fmt(a.valor_anterior) : (a.valor_anterior_texto || '—')}</td>
-                        <td className="text-right font-medium" style={{ color: '#C29C53' }}>{esPrecio ? fmt(a.valor_nuevo) : (a.valor_nuevo_texto || '—')}</td>
+                        <td className="text-gray-500 dark:text-gray-450">{new Date(a.creado_en).toLocaleString('es-NI', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                        <td className="font-semibold">{a.entidad_nombre}</td>
+                        <td className="text-gray-500 dark:text-gray-450 capitalize">{a.campo || 'precio'}</td>
+                        <td className="text-right text-gray-400 dark:text-gray-500">{esPrecio ? fmt(a.valor_anterior) : (a.valor_anterior_texto || '—')}</td>
+                        <td className="text-right font-bold text-brand-600 dark:text-brand-400">{esPrecio ? fmt(a.valor_nuevo) : (a.valor_nuevo_texto || '—')}</td>
                         <td><span className="badge-gray">{a.metodo === 'individual' ? 'Individual' : a.metodo === 'masivo_lista' ? 'Masivo' : `${a.porcentaje_aplicado > 0 ? '+' : ''}${a.porcentaje_aplicado}%`}</span></td>
                       </tr>
                     )
@@ -204,16 +204,16 @@ export function Catalogo() {
         {['Todos', ...categorias].map(c => (
           <button key={c} onClick={() => setCat(c)}
             className={`px-3 py-1 text-xs rounded-lg border transition-all ${cat === c
-              ? 'border-brand-400 text-white font-medium'
-              : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
-            style={cat === c ? { background: '#C29C53' } : {}}>
+              ? 'border-brand-400 text-white font-medium bg-[#C29C53] dark:bg-brand-600'
+              : 'border-gray-200 dark:border-navy-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-navy-600'}`}
+          >
             {c}
           </button>
         ))}
       </div>
 
       {lista.length === 0 ? (
-        <div className="text-sm text-gray-400 py-8 text-center">Sin productos en esta categoría.</div>
+        <div className="text-sm text-gray-400 dark:text-gray-500 py-8 text-center">Sin productos en esta categoría.</div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {lista.map(p => {
@@ -221,88 +221,92 @@ export function Catalogo() {
             const costoMax = (p.precio * 0.43).toFixed(2)
             const estaEditando = editando === p.id
             return (
-              <div key={p.id} className="card hover:shadow-card-hover transition-shadow">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs px-2 py-0.5 rounded-md font-medium"
-                    style={{ background: color.bg, color: color.text }}>{p.categoria}</span>
-                  {p.tiene_receta && <span className="badge-ok text-[10px]">Receta ✓</span>}
-                </div>
-                <div className="text-sm font-medium text-gray-900 mb-1 leading-tight">
-                  {estaEditando ? (
-                    <input
-                      autoFocus value={nombreTmp} onChange={e => setNombreTmp(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Escape') cancelarEdicion() }}
-                      className="text-sm font-medium w-full py-0.5 mb-1"
-                      placeholder="Nombre del producto"
-                    />
-                  ) : p.nombre}
-                </div>
-
-                {estaEditando && (
-                  <div className="mb-1">
-                    {categoriaNueva ? (
+              <div key={p.id} className="card hover:shadow-card-hover transition-all duration-200 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-medium"
+                      style={{ background: color.bg, color: color.text }}>{p.categoria}</span>
+                    {p.tiene_receta && <span className="badge-ok text-[9px] font-bold">Receta ✓</span>}
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1 leading-tight">
+                    {estaEditando ? (
                       <input
-                        autoFocus value={categoriaTmp} onChange={e => setCategoriaTmp(e.target.value)}
+                        autoFocus value={nombreTmp} onChange={e => setNombreTmp(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Escape') cancelarEdicion() }}
-                        className="text-xs w-full py-0.5"
-                        placeholder="Nombre de la nueva categoría"
+                        className="text-sm font-medium w-full py-0.5 mb-1"
+                        placeholder="Nombre del producto"
                       />
-                    ) : (
-                      <select
-                        value={categoriaTmp}
-                        onChange={e => {
-                          if (e.target.value === '__nueva__') { setCategoriaNueva(true); setCategoriaTmp('') }
-                          else setCategoriaTmp(e.target.value)
+                    ) : p.nombre}
+                  </div>
+
+                  {estaEditando && (
+                    <div className="mb-1">
+                      {categoriaNueva ? (
+                        <input
+                          autoFocus value={categoriaTmp} onChange={e => setCategoriaTmp(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Escape') cancelarEdicion() }}
+                          className="text-xs w-full py-0.5"
+                          placeholder="Nombre de la nueva categoría"
+                        />
+                      ) : (
+                        <select
+                          value={categoriaTmp}
+                          onChange={e => {
+                            if (e.target.value === '__nueva__') { setCategoriaNueva(true); setCategoriaTmp('') }
+                            else setCategoriaTmp(e.target.value)
+                          }}
+                          className="text-xs w-full py-0.5"
+                        >
+                          {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+                          <option value="__nueva__">+ Nueva categoría...</option>
+                        </select>
+                      )}
+                    </div>
+                  )}
+
+                  {estaEditando ? (
+                    <div className="flex items-center gap-1 mb-1">
+                      <input
+                        type="number" value={precioTmp}
+                        onChange={e => setPrecioTmp(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') confirmarEdicion(p)
+                          if (e.key === 'Escape') cancelarEdicion()
                         }}
-                        className="text-xs w-full py-0.5"
-                      >
-                        {categorias.map(c => <option key={c} value={c}>{c}</option>)}
-                        <option value="__nueva__">+ Nueva categoría...</option>
-                      </select>
-                    )}
-                  </div>
-                )}
-
-                {estaEditando ? (
-                  <div className="flex items-center gap-1 mb-1">
-                    <input
-                      type="number" value={precioTmp}
-                      onChange={e => setPrecioTmp(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') confirmarEdicion(p)
-                        if (e.key === 'Escape') cancelarEdicion()
-                      }}
-                      className="text-lg font-semibold w-20 py-0.5"
-                      style={{ color: '#C29C53' }}
-                      step="0.5"
-                    />
-                    <button onClick={() => confirmarEdicion(p)} className="p-1 rounded hover:bg-green-50 text-green-600">
-                      <Check size={14} />
+                        className="text-lg font-bold w-20 py-0.5 text-brand-600 dark:text-brand-400"
+                        step="0.5"
+                      />
+                      <button onClick={() => confirmarEdicion(p)} className="p-1 rounded hover:bg-green-50 dark:hover:bg-green-950/30 text-green-600">
+                        <Check size={14} />
+                      </button>
+                      <button onClick={cancelarEdicion} className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-red-550">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => empezarEdicion(p)} className="flex items-center gap-1.5 mb-1 group">
+                      <span className="text-lg font-bold text-brand-650 dark:text-brand-400">{fmt(p.precio)}</span>
+                      <Pencil size={11} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
                     </button>
-                    <button onClick={cancelarEdicion} className="p-1 rounded hover:bg-red-50 text-red-500">
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <button onClick={() => empezarEdicion(p)} className="flex items-center gap-1.5 mb-1 group">
-                    <span className="text-xl font-semibold" style={{ color: '#C29C53' }}>{fmt(p.precio)}</span>
-                    <Pencil size={11} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
-                  </button>
-                )}
+                  )}
 
-                <div className="text-xs text-gray-400 mb-3">{p.presentacion}</div>
-                <div className="text-xs text-gray-500 mb-3 p-2 rounded-lg" style={{ background: '#FAEEDA' }}>
-                  Costo máx (57%): <strong>C$ {costoMax}</strong>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mb-3">{p.presentacion}</div>
                 </div>
-                <div className="flex gap-1.5">
-                  <button onClick={() => navigate('/costeo', { state: { producto: p.nombre } })}
-                    className="flex-1 btn-primary text-xs py-1.5 flex items-center justify-center gap-1">
-                    <Calculator size={11} /> Costear
-                  </button>
-                  <button onClick={() => navigate('/escalado', { state: { producto: p.nombre } })}
-                    className="flex-1 btn-secondary text-xs py-1.5 flex items-center justify-center gap-1">
-                    <Scale size={11} /> Escalar
-                  </button>
+
+                <div>
+                  <div className="text-[11px] text-gray-500 dark:text-amber-400 mb-3 p-2 rounded-lg bg-[#FAEEDA] dark:bg-amber-950/20">
+                    Costo máx (57%): <strong>C$ {costoMax}</strong>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button onClick={() => navigate('/costeo', { state: { producto: p.nombre } })}
+                      className="flex-1 btn-primary text-xs py-1.5 flex items-center justify-center gap-1">
+                      <Calculator size={11} /> Costear
+                    </button>
+                    <button onClick={() => navigate('/escalado', { state: { producto: p.nombre } })}
+                      className="flex-1 btn-secondary text-xs py-1.5 flex items-center justify-center gap-1">
+                      <Scale size={11} /> Escalar
+                    </button>
+                  </div>
                 </div>
               </div>
             )
