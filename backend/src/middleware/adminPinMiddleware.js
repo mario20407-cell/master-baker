@@ -22,12 +22,9 @@
 export function requireAdminPin(req, res, next) {
   const pinConfigurado = process.env.ADMIN_PIN
 
-  // Si no hay PIN configurado en el servidor, no bloqueamos —
-  // evita que un despliegue sin la variable lista deje el sistema
-  // inutilizable. Se loguea como advertencia para que se note.
   if (!pinConfigurado) {
-    console.warn('⚠️  ADMIN_PIN no configurado — edición de precios sin protección')
-    return next()
+    console.error('⚠️  ADMIN_PIN no configurado en el servidor')
+    return res.status(500).json({ error: 'Error de configuración de seguridad en el servidor (ADMIN_PIN faltante)' })
   }
 
   const pinRecibido = req.headers['x-admin-pin']

@@ -1,4 +1,4 @@
-// pages/Produccion.jsx — v3.0 Órdenes de producción con merma automática
+// pages/Produccion.jsx — v3.0 Órdenes de producción con merma automática y modo oscuro
 import { useState, useEffect, useCallback } from 'react'
 import { Factory, Plus, CheckCircle, AlertTriangle, ChevronDown, Clock, Package } from 'lucide-react'
 import { getRecetas, verificarProduccion, crearOrdenProduccion, getHistorialProduccion } from '../lib/api'
@@ -40,7 +40,7 @@ export default function Produccion() {
   const handleVerificar = async () => {
     if (!producto) { toast.error('Selecciona un producto'); return }
     const p = parseInt(piezas)
-    if (!p || p < 1) { toast.error('Ingresa una cantidad valida'); return }
+    if (!p || p < 1) { toast.error('Ingresa una cantidad válida'); return }
     setVerificando(true)
     setVerificacion(null)
     try {
@@ -74,15 +74,15 @@ export default function Produccion() {
 
       {/* FORMULARIO NUEVA ORDEN */}
       <div className="card">
-        <h3 className="text-sm font-medium text-gray-700 mb-4 flex items-center gap-2">
-          <Factory size={15} /> Nueva orden de producción
+        <h3 className="text-sm font-medium text-[#1B2A4A] dark:text-gray-200 mb-4 flex items-center gap-2">
+          <Factory size={15} className="text-brand-400" /> Nueva orden de producción
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
           <div className="form-group sm:col-span-2">
             <label className="form-label">Producto</label>
             {loadingRec ? (
-              <div className="text-xs text-gray-400 py-2">Cargando recetas...</div>
+              <div className="text-xs text-gray-400 dark:text-gray-500 py-2">Cargando recetas...</div>
             ) : (
               <select value={producto} onChange={e => { setProducto(e.target.value); setVerificacion(null) }}>
                 <option value="">Seleccionar producto...</option>
@@ -116,18 +116,18 @@ export default function Produccion() {
         {/* RESULTADO DE VERIFICACION */}
         {verificacion && (
           <div className="mt-4 space-y-3">
-            <div className={`rounded-xl p-3 flex items-start gap-2 ${verificacion.puede_producir ? 'bg-green-50 border border-green-100' : 'bg-red-50 border border-red-100'}`}>
+            <div className={`rounded-xl p-3 flex items-start gap-2 border ${verificacion.puede_producir ? 'bg-green-50 border-green-100 dark:bg-green-950/20 dark:border-green-800/40' : 'bg-red-50 border-red-100 dark:bg-red-950/20 dark:border-red-800/40'}`}>
               {verificacion.puede_producir
-                ? <CheckCircle size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
-                : <AlertTriangle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />}
+                ? <CheckCircle size={16} className="text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                : <AlertTriangle size={16} className="text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />}
               <div>
-                <div className={`text-sm font-medium ${verificacion.puede_producir ? 'text-green-800' : 'text-red-800'}`}>
+                <div className={`text-sm font-semibold ${verificacion.puede_producir ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}>
                   {verificacion.puede_producir
                     ? `Hay stock suficiente para producir ${verificacion.piezas} piezas de ${verificacion.producto}`
                     : `Stock insuficiente para producir ${verificacion.piezas} piezas`}
                 </div>
                 {recetaSeleccionada && (
-                  <div className="text-xs text-gray-500 mt-0.5">
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                     Factor de escala: x{(verificacion.piezas / verificacion.piezas_base).toFixed(2)} sobre receta base de {verificacion.piezas_base} pzas
                   </div>
                 )}
@@ -149,15 +149,15 @@ export default function Produccion() {
                 <tbody>
                   {verificacion.ingredientes.map(ing => (
                     <tr key={ing.nombre}>
-                      <td>{ing.nombre}</td>
+                      <td className="font-semibold text-gray-700 dark:text-gray-250">{ing.nombre}</td>
                       <td className="text-right">{fmtNum(ing.necesario)} {ing.unidad}</td>
                       <td className="text-right">
                         {ing.sin_inventario
-                          ? <span className="text-gray-400">Sin registro</span>
+                          ? <span className="text-gray-400 dark:text-gray-500">Sin registro</span>
                           : `${fmtNum(ing.disponible)} ${ing.unidad}`}
                       </td>
                       <td className="text-right">
-                        {ing.suficiente ? '—' : <span className="text-red-600 font-medium">{fmtNum(ing.faltante)} {ing.unidad}</span>}
+                        {ing.suficiente ? '—' : <span className="text-red-650 dark:text-red-400 font-bold">{fmtNum(ing.faltante)} {ing.unidad}</span>}
                       </td>
                       <td>
                         {ing.sin_inventario
@@ -173,7 +173,7 @@ export default function Produccion() {
             </div>
 
             {/* BOTONES DE ACCION */}
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-3 pt-2">
               {verificacion.puede_producir ? (
                 <button onClick={() => handleConfirmar(false)} disabled={confirmando}
                   className="btn-primary flex items-center gap-1.5 text-xs">
@@ -182,10 +182,10 @@ export default function Produccion() {
               ) : (
                 <>
                   <button onClick={() => handleConfirmar(true)} disabled={confirmando}
-                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50">
+                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-navy-800 transition-colors">
                     <AlertTriangle size={13} /> {confirmando ? 'Procesando...' : 'Producir de todas formas'}
                   </button>
-                  <span className="text-xs text-gray-400 self-center">El inventario quedara en negativo en los ingredientes faltantes</span>
+                  <span className="text-xs text-gray-450 dark:text-gray-500 self-center">El inventario quedará en negativo en los ingredientes faltantes</span>
                 </>
               )}
             </div>
@@ -195,13 +195,13 @@ export default function Produccion() {
 
       {/* HISTORIAL */}
       <div className="card">
-        <h3 className="text-sm font-medium text-gray-600 mb-3 flex items-center gap-2">
-          <Clock size={14} /> Historial de ordenes
+        <h3 className="text-sm font-medium text-[#1B2A4A] dark:text-gray-200 mb-3 flex items-center gap-2">
+          <Clock size={14} className="text-brand-400" /> Historial de órdenes
         </h3>
         {loadingHist ? (
-          <div className="text-sm text-gray-400">Cargando...</div>
+          <div className="text-sm text-gray-400 dark:text-gray-500">Cargando...</div>
         ) : historial.length === 0 ? (
-          <div className="text-sm text-gray-400 py-4 text-center">Sin ordenes registradas todavia.</div>
+          <div className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">Sin órdenes registradas todavía.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="table-base text-xs">
@@ -211,12 +211,12 @@ export default function Produccion() {
               <tbody>
                 {historial.map(o => (
                   <tr key={o.id}>
-                    <td className="text-gray-500 whitespace-nowrap">{fmtFecha(o.creado_en)}</td>
-                    <td className="font-medium">{o.producto}</td>
-                    <td className="text-right">{o.piezas}</td>
+                    <td className="text-gray-500 dark:text-gray-450 whitespace-nowrap">{fmtFecha(o.creado_en)}</td>
+                    <td className="font-semibold text-gray-700 dark:text-gray-250">{o.producto}</td>
+                    <td className="text-right font-bold">{o.piezas}</td>
                     <td><span className="badge-ok">Completada</span></td>
-                    <td className="text-gray-500">{o.creado_por_nombre || '—'}</td>
-                    <td className="text-gray-400">{o.notas || '—'}</td>
+                    <td className="text-gray-550 dark:text-gray-400">{o.creado_por_nombre || '—'}</td>
+                    <td className="text-gray-400 dark:text-gray-500">{o.notas || '—'}</td>
                   </tr>
                 ))}
               </tbody>

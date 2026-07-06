@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react'
 import { useVentas } from '../hooks/useVentas'
-import { useCatalogo } from '../hooks/useCatalogo'
+import { PRODUCTOS } from '../lib/catalogo'
 import { ShoppingCart, Receipt, BarChart2, Calculator, Search, Plus, Minus, Trash2, CheckCircle, AlertTriangle, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const fmt   = v => 'C$ ' + (parseFloat(v) || 0).toFixed(2)
 const n     = v => parseFloat(v) || 0
+const CATS  = ['Todos', ...[...new Set(PRODUCTOS.map(p => p.cat))].sort()]
 
 // ── Helpers de fecha ──────────────────────────────────────────────────────────
 const HOY_DISPLAY = () => new Date().toLocaleDateString('es-NI')
@@ -31,15 +32,13 @@ function normVenta(v) {
 }
 
 // ── Subcomponentes ────────────────────────────────────────────────────────────
-function CatalogoGrid({ onAdd, productos }) {
+function CatalogoGrid({ onAdd }) {
   const [q,   setQ]   = useState('')
   const [cat, setCat] = useState('Todos')
 
-  const CATS = ['Todos', ...[...new Set(productos.map(p => p.categoria))].sort()]
-
-  const lista = productos.filter(p =>
-    (cat === 'Todos' || p.categoria === cat) &&
-    (!q || p.nombre.toLowerCase().includes(q.toLowerCase()))
+  const lista = PRODUCTOS.filter(p =>
+    (cat === 'Todos' || p.cat === cat) &&
+    (!q || p.n.toLowerCase().includes(q.toLowerCase()))
   )
 
   return (
@@ -60,11 +59,11 @@ function CatalogoGrid({ onAdd, productos }) {
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
         {lista.map(p => (
-          <button key={p.nombre} onClick={() => onAdd(p)}
+          <button key={p.n} onClick={() => onAdd(p)}
             className="text-left p-2 rounded-lg border border-gray-100 hover:border-amber-400 bg-gray-50 hover:bg-amber-50 transition-all">
-            <div className="text-xs font-medium text-gray-800 leading-tight mb-1">{p.nombre}</div>
-            <div className="text-sm font-semibold" style={{ color: '#C29C53' }}>{fmt(p.precio)}</div>
-            <div className="text-[10px] text-gray-400">{p.categoria}</div>
+            <div className="text-xs font-medium text-gray-800 leading-tight mb-1">{p.n}</div>
+            <div className="text-sm font-semibold" style={{ color: '#C29C53' }}>{fmt(p.p)}</div>
+            <div className="text-[10px] text-gray-400">{p.cat}</div>
           </button>
         ))}
       </div>
@@ -166,7 +165,6 @@ export default function Ventas() {
   const [cajaFisico, setCajaFisico] = useState('')  // fix: estado persistente entre tabs
 
   const { ventas: ventasRaw, resumen, registrar, anular, loading: ventaLoading, apiOnline } = useVentas()
-  const { productos } = useCatalogo()
 
   // Normalizar todas las ventas al montar y cuando cambian
   const ventas = ventasRaw.map(normVenta)
@@ -184,9 +182,9 @@ export default function Ventas() {
 
   const addCarrito = (prod) => {
     setCarrito(prev => {
-      const ex = prev.find(i => i.n === prod.nombre)
-      if (ex) return prev.map(i => i.n === prod.nombre ? { ...i, qty: i.qty + 1 } : i)
-      return [...prev, { n: prod.nombre, p: prod.precio, cat: prod.categoria, qty: 1 }]
+      const ex = prev.find(i => i.n === prod.n)
+      if (ex) return prev.map(i => i.n === prod.n ? { ...i, qty: i.qty + 1 } : i)
+      return [...prev, { n: prod.n, p: prod.p, cat: prod.cat, qty: 1 }]
     })
   }
 
@@ -283,7 +281,7 @@ export default function Ventas() {
       {/* NUEVA VENTA */}
       {tab === 'venta' && (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
-          <CatalogoGrid onAdd={addCarrito} productos={productos} />
+          <CatalogoGrid onAdd={addCarrito} />
           <div>
             <div className="card">
               <Carrito items={carrito} onChange={setCarrito} onLimpiar={() => setCarrito([])} />

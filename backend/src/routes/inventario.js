@@ -5,6 +5,8 @@ import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
 
+router.use(requireAuth)
+
 async function registrarAuditoria(client, { tenantId, entidadId, entidadNombre, valorAnterior, valorNuevo, metodo, porcentaje, ip }) {
   try {
     await client.query(`
@@ -57,6 +59,27 @@ router.get('/auditoria', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   const { nombre, existencia, unidad, consumo_diario, punto_reposicion, costo_unitario } = req.body
   if (!nombre) return res.status(400).json({ error: 'nombre es requerido' })
+
+  const ALLOWED_UNITS = ['kg', 'g', 'l', 'ml', 'unidad', 'libra', 'arroba', 'docena', 'caja', 'bolsa']
+  if (unidad && !ALLOWED_UNITS.includes(unidad.toLowerCase())) {
+    return res.status(400).json({ error: `Unidad inválida. Permitidas: ${ALLOWED_UNITS.join(', ')}` })
+  }
+  if (costo_unitario !== undefined) {
+    const cu = parseFloat(costo_unitario)
+    if (isNaN(cu) || cu < 0 || cu > 1000000) {
+      return res.status(400).json({ error: 'El costo unitario debe ser un número válido, no negativo y menor a 1,000,000' })
+    }
+  }
+  if (existencia !== undefined && (isNaN(parseFloat(existencia)) || parseFloat(existencia) < 0 || parseFloat(existencia) > 1000000)) {
+    return res.status(400).json({ error: 'La existencia debe ser un número válido, no negativo y menor a 1,000,000' })
+  }
+  if (consumo_diario !== undefined && (isNaN(parseFloat(consumo_diario)) || parseFloat(consumo_diario) < 0 || parseFloat(consumo_diario) > 1000000)) {
+    return res.status(400).json({ error: 'El consumo diario debe ser un número válido, no negativo y menor a 1,000,000' })
+  }
+  if (punto_reposicion !== undefined && (isNaN(parseFloat(punto_reposicion)) || parseFloat(punto_reposicion) < 0 || parseFloat(punto_reposicion) > 1000000)) {
+    return res.status(400).json({ error: 'El punto de reposición debe ser un número válido, no negativo y menor a 1,000,000' })
+  }
+
   try {
     const { rows } = await query(`
       INSERT INTO inventario (tenant_id, nombre, existencia, unidad, consumo_diario, punto_reposicion, costo_unitario)
@@ -74,9 +97,16 @@ router.post('/', async (req, res, next) => {
 
 // ── Rutas masivas — protegidas con PIN, antes de /:id ──────────────────────
 
-router.put('/masivo/lista', requireAdminPin, async (req, res, next) => {
+router.put('/masivo/lista', requireRol('admin'), requireAdminPin, async (req, res, next) => {
   const { insumos = [] } = req.body
   if (!insumos.length) return res.status(400).json({ error: 'Se requiere al menos un insumo' })
+
+  for (const i of insumos) {
+    const cu = parseFloat(i.costo_unitario)
+    if (isNaN(cu) || cu < 0 || cu > 1000000) {
+      return res.status(400).json({ error: 'Todos los insumos deben tener un costo unitario válido (no negativo y menor a 1,000,000)' })
+    }
+  }
 
   try {
     const actualizados = await transaction(async (client) => {
@@ -109,13 +139,17 @@ router.put('/masivo/lista', requireAdminPin, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-router.put('/masivo/porcentaje', requireAdminPin, async (req, res, next) => {
+router.put('/masivo/porcentaje', requireRol('admin'), requireAdminPin, async (req, res, next) => {
   const { porcentaje } = req.body
-  if (porcentaje === undefined || porcentaje === null) {
-    return res.status(400).json({ error: 'porcentaje es requerido' })
+  const pct = parseFloat(porcentaje)
+  if (isNaN(pct)) {
+    return res.status(400).json({ error: 'porcentaje debe ser un número válido' })
+  }
+  if (pct <= -100 || pct > 500) {
+    return res.status(400).json({ error: 'Ajuste de porcentaje fuera de límites permitidos (-99% a +500%)' })
   }
   try {
-    const factor = 1 + (parseFloat(porcentaje) / 100)
+    const factor = 1 + (pct / 100)
 
     const actualizados = await transaction(async (client) => {
       const { rows: afectados } = await client.query(
@@ -124,6 +158,9 @@ router.put('/masivo/porcentaje', requireAdminPin, async (req, res, next) => {
       const resultados = []
       for (const ins of afectados) {
         const nuevoCosto = Math.round(ins.costo_unitario * factor * 10000) / 10000
+        if (nuevoCosto < 0) {
+          throw new Error(`El ajuste resulta en un costo inválido (C$ ${nuevoCosto}) para ${ins.nombre}`)
+        }
         await client.query(
           'UPDATE inventario SET costo_unitario=$1, actualizado_en=NOW() WHERE id=$2',
           [nuevoCosto, ins.id]
@@ -131,7 +168,7 @@ router.put('/masivo/porcentaje', requireAdminPin, async (req, res, next) => {
         await registrarAuditoria(client, {
           tenantId: req.tenantId, entidadId: ins.id, entidadNombre: ins.nombre,
           valorAnterior: ins.costo_unitario, valorNuevo: nuevoCosto,
-          metodo: 'masivo_porcentaje', porcentaje: parseFloat(porcentaje), ip: req.ip,
+          metodo: 'masivo_porcentaje', porcentaje: pct, ip: req.ip,
         })
         resultados.push({ id: ins.id, nombre: ins.nombre, costo_unitario: nuevoCosto })
       }
@@ -143,8 +180,30 @@ router.put('/masivo/porcentaje', requireAdminPin, async (req, res, next) => {
 })
 
 // PUT /api/inventario/:id — editar insumo individual (protegido con PIN solo si cambia el costo)
-router.put('/:id', requireAdminPin, async (req, res, next) => {
+router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(req.params.id)) {
+    return res.status(400).json({ error: 'ID de insumo inválido' })
+  }
+
   const { existencia, consumo_diario, punto_reposicion, costo_unitario } = req.body
+
+  if (costo_unitario !== undefined) {
+    const cu = parseFloat(costo_unitario)
+    if (isNaN(cu) || cu < 0 || cu > 1000000) {
+      return res.status(400).json({ error: 'El costo unitario debe ser un número válido, no negativo y menor a 1,000,000' })
+    }
+  }
+  if (existencia !== undefined && (isNaN(parseFloat(existencia)) || parseFloat(existencia) < 0 || parseFloat(existencia) > 1000000)) {
+    return res.status(400).json({ error: 'La existencia debe ser un número válido, no negativo y menor a 1,000,000' })
+  }
+  if (consumo_diario !== undefined && (isNaN(parseFloat(consumo_diario)) || parseFloat(consumo_diario) < 0 || parseFloat(consumo_diario) > 1000000)) {
+    return res.status(400).json({ error: 'El consumo diario debe ser un número válido, no negativo y menor a 1,000,000' })
+  }
+  if (punto_reposicion !== undefined && (isNaN(parseFloat(punto_reposicion)) || parseFloat(punto_reposicion) < 0 || parseFloat(punto_reposicion) > 1000000)) {
+    return res.status(400).json({ error: 'El punto de reposición debe ser un número válido, no negativo y menor a 1,000,000' })
+  }
+
   try {
     const actualizado = await transaction(async (client) => {
       const { rows: anteriorRows } = await client.query(
@@ -176,23 +235,6 @@ router.put('/:id', requireAdminPin, async (req, res, next) => {
 })
 
 // DELETE /api/inventario/:id — sin PIN (eliminar no es "editar precio")
-// PATCH /api/inventario/:id/existencia — actualizar existencia y unidad sin PIN
-router.patch('/:id/existencia', requireAuth, async (req, res, next) => {
-  const { existencia, unidad } = req.body
-  if (existencia === undefined || existencia === null) return res.status(400).json({ error: 'existencia es requerida' })
-  const nueva = parseFloat(existencia)
-  if (isNaN(nueva) || nueva < 0) return res.status(400).json({ error: 'existencia invalida' })
-  try {
-    const { rows } = await query(
-      `UPDATE inventario SET existencia=$1, unidad=COALESCE($2, unidad), actualizado_en=NOW()
-       WHERE id=$3 AND tenant_id=$4 RETURNING *`,
-      [nueva, unidad || null, req.params.id, req.tenantId]
-    )
-    if (!rows[0]) return res.status(404).json({ error: 'Insumo no encontrado' })
-    res.json(rows[0])
-  } catch (e) { next(e) }
-})
-
 router.delete('/:id', async (req, res, next) => {
   try {
     const { rowCount } = await query('DELETE FROM inventario WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])

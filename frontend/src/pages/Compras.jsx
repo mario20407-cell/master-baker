@@ -1,88 +1,87 @@
-﻿// ─── pages/Compras.jsx ────────────────────────────────────────────────────────
-import { useState, useEffect, useRef } from 'react'
-import { getCompras, saveFactura } from '../lib/api'
-import { Receipt, Plus, Trash2, AlertTriangle, Camera, Loader2, X } from 'lucide-react'
+// ─── pages/Compras.jsx ────────────────────────────────────────────────────────
+import { useState, useEffect } from 'react'
+import api, { getCompras, getInventario, saveFactura } from '../lib/api'
+import { Receipt, Plus, Trash2, AlertTriangle, Camera } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const API = import.meta.env.VITE_API_URL ?? ''
-
 export function Compras() {
-  const [historial, setHistorial]   = useState([])
-  const [prov, setProv]             = useState('')
-  const [fecha, setFecha]           = useState(new Date().toISOString().split('T')[0])
-  const [items, setItems]           = useState([{ producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
-  const [resultado, setResultado]   = useState(null)
-  const [escaneando, setEscaneando] = useState(false)
-  const [preview, setPreview]       = useState(null)
-  const inputCamRef                 = useRef(null)
+  const [historial, setHistorial] = useState([])
+  const [prov, setProv] = useState('')
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
+  const [items, setItems] = useState([{ producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
+  const [resultado, setResultado] = useState(null)
+  const [insumos, setInsumos] = useState([])
+  const [procesandoIA, setProcesandoIA] = useState(false)
 
   useEffect(() => {
     getCompras().then(r => setHistorial(r.data)).catch(() => {})
+    getInventario().then(r => setInsumos(r.data || [])).catch(() => {})
   }, [])
 
-  const addItem    = () => setItems(p => [...p, { producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
-  const removeItem = (i) => setItems(p => p.filter((_, idx) => idx !== i))
-  const updateItem = (i, f, v) => setItems(p => p.map((x, idx) => idx === i ? { ...x, [f]: v } : x))
-
-  // ── Captura de factura con cámara ─────────────────────────────
-  const abrirCamara = () => inputCamRef.current?.click()
-
-  const procesarImagen = async (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    e.target.value = ''
 
-    // Mostrar preview
+    setProcesandoIA(true)
     const reader = new FileReader()
-    reader.onload = ev => setPreview(ev.target.result)
-    reader.readAsDataURL(file)
+    reader.onload = async () => {
+      try {
+        const base64Content = reader.result.split(',')[1]
+        const mimeType = file.type
 
-    setEscaneando(true)
-    toast('Analizando factura con IA…', { icon: '📷' })
+        const { data } = await api.post('/ai/analizar-pdf', {
+          fileBase64: base64Content,
+          mimeType,
+          tipo: 'factura'
+        })
 
-    try {
-      // Convertir a base64
-      const base64 = await new Promise((res, rej) => {
-        const r = new FileReader()
-        r.onload  = () => res(r.result.split(',')[1])
-        r.onerror = rej
-        r.readAsDataURL(file)
-      })
-
-      // Llamar al backend — evita CORS y mantiene la API key segura
-      const token = localStorage.getItem('marquez_token')
-      const response = await fetch(`${API}/api/compras/escanear`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ imagen: base64, mediaType: file.type || 'image/jpeg' })
-      })
-
-      if (!response.ok) throw new Error(`Error ${response.status}`)
-      const parsed = await response.json()
-
-      // Rellenar formulario con los datos extraídos
-      if (parsed.proveedor) setProv(parsed.proveedor)
-      if (parsed.fecha)     setFecha(parsed.fecha)
-      if (parsed.items?.length) {
-        setItems(parsed.items.map(it => ({
-          producto:        it.producto || '',
-          cantidad:        it.cantidad || 1,
-          precio_actual:   it.precio_actual || '',
-          precio_anterior: ''
-        })))
+        if (data && data.datos) {
+          const parsed = data.datos
+          setProv(parsed.proveedor || '')
+          
+          if (parsed.fecha) {
+            try {
+              const dateObj = new Date(parsed.fecha)
+              if (!isNaN(dateObj.getTime())) {
+                setFecha(dateObj.toISOString().slice(0, 10))
+              }
+            } catch (err) {}
+          }
+          
+          if (parsed.items && parsed.items.length > 0) {
+            const mappedItems = parsed.items.map(it => {
+              const searchName = (it.producto || '').toLowerCase()
+              const match = insumos.find(ins => {
+                const insName = ins.nombre.toLowerCase()
+                return insName.includes(searchName) || searchName.includes(insName)
+              })
+              return {
+                producto: match ? match.nombre : (it.producto || ''),
+                cantidad: it.cantidad || 1,
+                precio_actual: it.precio_unitario || '',
+                precio_anterior: match ? match.costo_unitario : ''
+              }
+            })
+            setItems(mappedItems)
+          }
+          toast.success('Factura procesada y autopoblada con éxito')
+        } else {
+          toast.error('No se pudieron extraer datos de la factura')
+        }
+      } catch (err) {
+        console.error('Error al procesar con IA:', err)
+        toast.error('Error al analizar la factura con IA')
+      } finally {
+        setProcesandoIA(false)
+        e.target.value = ''
       }
-
-      toast.success(`¡Factura escaneada! ${parsed.items?.length || 0} ítems detectados`)
-    } catch (err) {
-      console.error(err)
-      toast.error('No se pudo leer la factura. Ingresa los datos manualmente.')
-    } finally {
-      setEscaneando(false)
     }
+    reader.readAsDataURL(file)
   }
+
+  const addItem = () => setItems(p => [...p, { producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
+  const removeItem = (i) => setItems(p => p.filter((_, idx) => idx !== i))
+  const updateItem = (i, f, v) => setItems(p => p.map((x, idx) => idx === i ? { ...x, [f]: v } : x))
 
   const analizar = async () => {
     const itsValidos = items.filter(i => i.producto && parseFloat(i.precio_actual) > 0)
@@ -97,22 +96,13 @@ export function Compras() {
     setResultado({ items: itsValidos, alertas, total: itsValidos.reduce((s, i) => s + i.cantidad * parseFloat(i.precio_actual), 0) })
 
     try {
-      // Solo muestra el análisis, no guarda aún
-    } catch (e) {}
-  }
-
-  const guardarFactura = async () => {
-    const itsValidos = items.filter(i => i.producto && parseFloat(i.precio_actual) > 0)
-    if (!itsValidos.length) { toast.error('Agrega al menos un producto con precio'); return }
-    try {
-      await saveFactura({ proveedor: prov, fecha, items: itsValidos })
+      const { data } = await saveFactura({ proveedor: prov, fecha, items: itsValidos })
       const r = await getCompras()
       setHistorial(r.data)
-      toast.success('✅ Factura guardada e inventario actualizado')
-      setProv(''); setFecha(new Date().toISOString().split('T')[0])
-      setItems([{ producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
-      setResultado(null)
-    } catch (e) { toast.error('Error al guardar la factura') }
+      toast.success(`Factura guardada — ${data.insumosActualizados} insumos actualizados en inventario`)
+    } catch (e) {
+      toast.error('No se pudo guardar la factura')
+    }
   }
 
   const varPct = (actual, anterior) => {
@@ -122,48 +112,35 @@ export function Compras() {
 
   return (
     <div className="max-w-3xl space-y-4">
-
-      {/* Preview imagen escaneada */}
-      {preview && (
-        <div className="card flex items-start gap-3">
-          <img src={preview} alt="Factura" className="w-24 h-24 object-cover rounded-lg border border-gray-200 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Factura escaneada</span>
-              {escaneando && <Loader2 size={14} className="animate-spin text-amber-500" />}
-            </div>
-            <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-              {escaneando ? 'Extrayendo datos con IA…' : 'Datos extraídos. Revisa y ajusta si es necesario.'}
-            </p>
-          </div>
-          <button onClick={() => setPreview(null)} className="text-gray-400 hover:text-gray-600">
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
       <div className="card">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>Registrar factura de compra</h3>
-          {/* Input oculto para la cámara */}
+        <h3 className="text-sm font-medium text-gray-700 mb-3">Registrar factura de compra</h3>
+
+        <div className="mb-4 p-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-all text-center">
           <input
-            ref={inputCamRef}
             type="file"
-            accept="image/*"
-            capture="environment"
+            accept="image/*,application/pdf"
+            id="scan-factura"
             className="hidden"
-            onChange={procesarImagen}
+            onChange={handleFileChange}
+            disabled={procesandoIA}
           />
-          <button
-            onClick={abrirCamara}
-            disabled={escaneando}
-            className="btn-secondary flex items-center gap-1.5 text-xs"
-            title="Escanear factura con cámara">
-            {escaneando
-              ? <><Loader2 size={13} className="animate-spin" /> Analizando…</>
-              : <><Camera size={13} /> Escanear factura</>
-            }
-          </button>
+          {procesandoIA ? (
+            <div className="flex flex-col items-center justify-center space-y-2 py-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" style={{ borderBottomColor: '#C29C53' }}></div>
+              <p className="text-xs font-medium text-gray-600">Procesando factura con IA de Gemini...</p>
+              <p className="text-[10px] text-gray-400">Extrayendo productos, cantidades y precios automáticamente</p>
+            </div>
+          ) : (
+            <label htmlFor="scan-factura" className="cursor-pointer flex flex-col items-center justify-center space-y-2 py-2">
+              <div className="p-3 bg-white rounded-full shadow-sm text-brand-500 hover:scale-105 transition-transform" style={{ color: '#C29C53' }}>
+                <Camera size={24} />
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-gray-700 block">Escanear / Subir Factura</span>
+                <span className="text-[10px] text-gray-400 block mt-0.5">Toma una foto desde el celular o selecciona un archivo (PDF/Imagen)</span>
+              </div>
+            </label>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-3">
@@ -184,8 +161,7 @@ export function Compras() {
         ))}
         <div className="flex gap-2 mt-2">
           <button onClick={addItem} className="btn-secondary flex items-center gap-1 text-xs"><Plus size={12} /> Ítem</button>
-          <button onClick={analizar} className="btn-secondary flex items-center gap-2"><Receipt size={14} /> Analizar factura</button>
-          <button onClick={guardarFactura} className="btn-primary flex items-center gap-2"><Receipt size={14} /> Guardar en inventario</button>
+          <button onClick={analizar} className="btn-primary flex items-center gap-2"><Receipt size={14} /> Analizar factura</button>
         </div>
       </div>
 
@@ -201,7 +177,7 @@ export function Compras() {
             )
           })}
           <div className="card">
-            <h3 className="text-sm font-medium mb-3" style={{ color: 'var(--color-text)' }}>Análisis — {prov || 'Sin proveedor'} ({fecha})</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Análisis — {prov || 'Sin proveedor'} ({fecha})</h3>
             <table className="table-base">
               <thead><tr><th>Producto</th><th>Cant.</th><th className="text-right">Precio</th><th className="text-right">Subtotal</th><th>Variación</th></tr></thead>
               <tbody>
@@ -227,10 +203,10 @@ export function Compras() {
 
       {historial.length > 0 && (
         <div className="card">
-          <h3 className="text-sm font-medium mb-3" style={{ color: 'var(--color-text-secondary)' }}>Historial de facturas</h3>
+          <h3 className="text-sm font-medium text-gray-600 mb-3">Historial de facturas</h3>
           {historial.slice(0, 5).map((f, i) => (
             <div key={i} className="flex justify-between text-sm py-2 border-b border-gray-50 last:border-0">
-              <span style={{ color: 'var(--color-text)' }}>{f.proveedor} — {f.fecha ? new Date(f.fecha).toLocaleDateString('es-NI') : '-'}</span>
+              <span className="text-gray-700">{f.proveedor} — {f.fecha}</span>
               <span className="font-medium">C$ {parseFloat(f.total).toFixed(2)}</span>
             </div>
           ))}

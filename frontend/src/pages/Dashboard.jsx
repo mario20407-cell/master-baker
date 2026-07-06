@@ -1,4 +1,4 @@
-// pages/Dashboard.jsx — v2.0 rediseno azul marino
+// pages/Dashboard.jsx — v2.0 rediseño con modo oscuro y componentes UI
 import { useState, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { useCatalogo } from '../hooks/useCatalogo'
@@ -47,17 +47,17 @@ export default function Dashboard() {
   const ingresosHoy = resumenVentas?.total_ingresos || 0
 
   if (cargando) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:200, color:'#888B8D', fontSize:13, fontWeight:700 }}>
+    <div className="flex items-center justify-center h-48 text-gray-500 dark:text-gray-400 text-sm font-bold">
       Cargando dashboard...
     </div>
   )
 
   return (
-    <div style={{ maxWidth:1200 }}>
+    <div className="space-y-4 max-w-6xl">
 
       {/* FILA 1 — KPIs principales (4 columnas) */}
       <KpiGrid cols={4}>
-        <KpiCard label='Productos activos' value={productos.length} sub='catalogo Master Baker' color='navy' />
+        <KpiCard label='Productos activos' value={productos.length} sub='catálogo Master Baker' color='navy' />
         <KpiCard label='Recetas guardadas' value={totalRecetas} sub={'de ' + productos.length + ' productos'} color='green' />
         <KpiCard label='Sin receta' value={sinReceta} sub='pendientes' color={sinReceta > 0 ? 'red' : 'green'} />
         <KpiCard label='Alertas de margen' value={alertasMargen.length} sub={alertasMargen.length > 0 ? 'revisar' : 'sin alertas'} color={alertasMargen.length > 0 ? 'amber' : 'green'} />
@@ -66,23 +66,23 @@ export default function Dashboard() {
       {/* FILA 2 — KPIs operativos (3 columnas) */}
       <KpiGrid cols={3}>
         <KpiCard label='Ventas hoy' value={ventasHoy} sub='transacciones' color='navy' />
-        <KpiCard label='Ingresos hoy' value={fmt(ingresosHoy)} sub='ventas del dia' color='blue' />
-        <KpiCard label='Stock critico' value={stockCritico.length} sub={stockCritico.length > 0 ? 'reabastecer' : 'stock OK'} color={stockCritico.length > 0 ? 'red' : 'green'} />
+        <KpiCard label='Ingresos hoy' value={fmt(ingresosHoy)} sub='ventas del día' color='blue' />
+        <KpiCard label='Stock crítico' value={stockCritico.length} sub={stockCritico.length > 0 ? 'reabastecer' : 'stock OK'} color={stockCritico.length > 0 ? 'red' : 'green'} />
       </KpiGrid>
 
       {/* Alerta de margen */}
       {alertasMargen.length > 0 && (
-        <div style={{ background:'#FEF9E7', border:'0.5px solid #D68910', borderRadius:8, padding:'10px 14px', display:'flex', alignItems:'flex-start', gap:10, marginBottom:14 }}>
-          <AlertTriangle size={16} style={{ color:'#D68910', flexShrink:0, marginTop:1 }} />
+        <div className="flex gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-850/50 text-sm">
+          <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
           <div>
-            <div style={{ color:'#854F0B', fontSize:12, fontWeight:700 }}>Productos con margen menos de 60%</div>
-            <div style={{ color:'#D68910', fontSize:11, marginTop:2 }}>{alertasMargen.map(r => r.producto).join(', ')}</div>
+            <div className="font-semibold text-amber-900 dark:text-amber-300">Productos con margen menos de 60%</div>
+            <div className="text-xs text-amber-700 dark:text-amber-400 mt-1">{alertasMargen.map(r => r.producto).join(', ')}</div>
           </div>
         </div>
       )}
 
-      {/* FILA 3 — Rentabilidad + Stock critico */}
-      <Grid cols={2} gap={12} style={{ marginBottom:12 }}>
+      {/* FILA 3 — Rentabilidad + Stock crítico */}
+      <Grid cols={2} gap={4}>
         <Card>
           <CardTitle icon={TrendingUp}>Rentabilidad por producto</CardTitle>
           {topRentables.length === 0
@@ -91,64 +91,74 @@ export default function Dashboard() {
                 {topRentables.map(r => (
                   <MarginBar key={r.producto} label={r.producto} pct={parseFloat(r.margen.toFixed(1))} costo={r.cu.toFixed(2)} />
                 ))}
-                <div style={{ display:'flex', gap:12, marginTop:10, paddingTop:10, borderTop:'0.5px solid #f0f2f5' }}>
-                  <span style={{ fontSize:9, color:'#1A7A4A' }}>Excelente mas de 57%</span>
-                  <span style={{ fontSize:9, color:'#D68910' }}>Aceptable 40-56%</span>
-                  <span style={{ fontSize:9, color:'#C0392B' }}>Critico menos de 40%</span>
+                <div className="flex gap-4 mt-4 pt-3 border-t border-gray-100 dark:border-navy-800 text-[10px] font-medium">
+                  <span className="text-green-600 dark:text-green-400">Excelente más de 57%</span>
+                  <span className="text-amber-600 dark:text-amber-400">Aceptable 40-56%</span>
+                  <span className="text-red-600 dark:text-red-400">Crítico menos de 40%</span>
                 </div>
               </>
           }
         </Card>
         <Card>
-          <CardTitle icon={Package}>Stock critico — Reabastecer</CardTitle>
+          <CardTitle icon={Package}>Stock crítico — Reabastecer</CardTitle>
           {stockCritico.length === 0
             ? <EmptyState icon={Package} title='Stock en buen estado' sub='Todos los insumos tienen existencia' />
-            : stockCritico.map(i => (
-                <div key={i.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'0.5px solid #f0f2f5' }}>
-                  <span style={{ color:'#1B2A4A', fontSize:11, fontWeight:700 }}>{i.nombre}</span>
-                  <StatusBadge status='danger'>{i.existencia || 0} {i.unidad}</StatusBadge>
-                </div>
-              ))
+            : <div className="divide-y divide-gray-150 dark:divide-navy-800/80">
+                {stockCritico.map(i => (
+                  <div key={i.id} className="flex justify-between items-center py-2">
+                    <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-250">{i.nombre}</span>
+                    <StatusBadge status='danger'>{i.existencia || 0} {i.unidad}</StatusBadge>
+                  </div>
+                ))}
+              </div>
           }
         </Card>
       </Grid>
 
-      {/* FILA 4 — Categorias + Estado recetas + Ultimas ventas */}
-      <Grid cols={3} gap={12}>
+      {/* FILA 4 — Categorías + Estado recetas + Últimas ventas */}
+      <Grid cols={3} gap={4}>
         <Card>
-          <CardTitle icon={LayoutDashboard}>Productos por categoria</CardTitle>
+          <CardTitle icon={LayoutDashboard}>Productos por categoría</CardTitle>
           {Object.entries(catCount).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([cat, cnt]) => (
-            <div key={cat} style={{ marginBottom:7 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
-                <span style={{ color:'#1B2A4A', fontSize:10, fontWeight:700 }}>{cat}</span>
-                <span style={{ color:'#888B8D', fontSize:10 }}>{cnt}</span>
+            <div key={cat} className="mb-2.5">
+              <div className="flex justify-between text-[11px] mb-1">
+                <span className="font-semibold text-[#1B2A4A] dark:text-gray-350">{cat}</span>
+                <span className="text-gray-400 dark:text-gray-500">{cnt}</span>
               </div>
-              <div style={{ height:4, background:'#f0f2f5', borderRadius:2, overflow:'hidden' }}>
-                <div style={{ width:`${(cnt/productos.length)*100}%`, height:'100%', background:'#1B2A4A', borderRadius:2 }} />
+              <div className="h-1 bg-gray-150 dark:bg-navy-800 rounded-full overflow-hidden">
+                <div className="h-full bg-brand-400 rounded-full" style={{ width: `${(cnt / productos.length) * 100}%` }} />
               </div>
             </div>
           ))}
         </Card>
         <Card>
           <CardTitle icon={ChefHat}>Estado de recetas</CardTitle>
-          {productos.slice(0, 8).map(p => {
-            const tiene = !!recetas[p.nombre]
-            return (
-              <div key={p.nombre} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 0', borderBottom:'0.5px solid #f0f2f5' }}>
-                <span style={{ color:'#1B2A4A', fontSize:10, fontWeight:700, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nombre}</span>
-                <StatusBadge status={tiene ? 'success' : 'danger'} style={{ marginLeft:6, flexShrink:0 }}>
-                  {tiene ? 'Con receta' : 'Sin receta'}
-                </StatusBadge>
-              </div>
-            )
-          })}
-          {productos.length > 8 && <div style={{ color:'#888B8D', fontSize:9, marginTop:6 }}>+{productos.length - 8} productos mas</div>}
+          <div className="divide-y divide-gray-150 dark:divide-navy-800/80">
+            {productos.slice(0, 8).map(p => {
+              const tiene = !!recetas[p.nombre]
+              return (
+                <div key={p.nombre} className="flex justify-between items-center py-1.5">
+                  <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-250 truncate max-w-[120px]">{p.nombre}</span>
+                  <StatusBadge status={tiene ? 'success' : 'danger'}>
+                    {tiene ? 'Con receta' : 'Sin receta'}
+                  </StatusBadge>
+                </div>
+              )
+            })}
+          </div>
+          {productos.length > 8 && (
+            <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
+              +{productos.length - 8} productos más
+            </div>
+          )}
         </Card>
         <Card>
-          <CardTitle icon={ShoppingCart}>Ultimas ventas</CardTitle>
+          <CardTitle icon={ShoppingCart}>Últimas ventas</CardTitle>
           {ventasHoy === 0
-            ? <EmptyState icon={ShoppingCart} title='Sin ventas hoy' sub='Las ventas apareceran aqui' />
-            : <div style={{ color:'#1B2A4A', fontSize:13, fontWeight:700 }}>{ventasHoy} ventas — {fmt(ingresosHoy)}</div>
+            ? <EmptyState icon={ShoppingCart} title='Sin ventas hoy' sub='Las ventas aparecerán aquí' />
+            : <div className="text-sm font-bold text-[#1B2A4A] dark:text-gray-200">
+                {ventasHoy} ventas — {fmt(ingresosHoy)}
+              </div>
           }
         </Card>
       </Grid>

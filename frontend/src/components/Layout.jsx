@@ -1,178 +1,187 @@
-import { useState } from 'react'
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useState, useEffect } from 'react'
+import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
-  LayoutDashboard, ShoppingCart, BookOpen, Calculator, Scale,
-  Package, ShoppingBag, BarChart2, Bot, Download, Shield,
-  Settings, Users, HelpCircle, CreditCard, LogOut, ChefHat,
-  Receipt, TrendingUp
+  LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
+  Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle,
+  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp
 } from 'lucide-react'
 
-const navItems = [
-  { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/ventas',     icon: ShoppingCart,    label: 'Ventas',    badge: 'NEW' },
-  { to: '/catalogo',   icon: ChefHat,         label: 'Catálogo' },
-  { to: '/recetas',    icon: BookOpen,        label: 'Recetas',   badge: 'CLAVE' },
-  { to: '/costeo',     icon: Calculator,      label: 'Costeo' },
-  { to: '/escalado',   icon: Scale,           label: 'Escalado' },
-  { to: '/inventario', icon: Package,         label: 'Inventario' },
-  { to: '/produccion', icon: TrendingUp,      label: 'Producción', badge: 'NEW' },
-  { to: '/compras',    icon: ShoppingBag,     label: 'Compras' },
-  { to: '/reportes',   icon: BarChart2,       label: 'Reportes' },
-  { to: '/suscripcion',icon: CreditCard,      label: 'Mi Plan' },
-  { to: '/politicas',  icon: Shield,          label: 'Políticas' },
-  { to: '/ia',         icon: Bot,             label: 'Consultar IA' },
-  { to: '/fiscal',     icon: Settings,        label: 'Config. Fiscal', badge: 'DGI', soloAdmin: true },
-  { to: '/usuarios',   icon: Users,           label: 'Usuarios', soloAdmin: true },
-  { to: '/ayuda',      icon: HelpCircle,      label: 'Ayuda' },
-  { to: '/exportar',   icon: Download,        label: 'Exportar' },
+const NAV_GROUPS = [
+  {
+    title: 'Operación',
+    items: [
+      { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',      badge: 'NEW' },
+      { to: '/inventario', icon: Package,          label: 'Inventario' },
+      { to: '/compras',    icon: Receipt,          label: 'Compras' },
+    ]
+  },
+  {
+    title: 'Producción',
+    items: [
+      { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE' },
+      { to: '/produccion', icon: TrendingUp,       label: 'Producción',  badge: 'NEW' },
+      { to: '/costeo',     icon: Calculator,       label: 'Costeo' },
+      { to: '/escalado',   icon: Scale,            label: 'Escalado' },
+    ]
+  },
+  {
+    title: 'Herramientas',
+    items: [
+      { to: '/dashboard',  icon: LayoutDashboard,  label: 'Dashboard' },
+      { to: '/catalogo',   icon: BookOpen,         label: 'Catálogo' },
+      { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
+      { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI' },
+      { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
+      { to: '/exportar',   icon: Download,         label: 'Exportar' },
+    ]
+  }
 ]
 
-const badgeColors = {
-  NEW:  { bg: '#1A7A4A', color: '#fff' },
-  CLAVE:{ bg: '#854F0B', color: '#fff' },
-  DGI:  { bg: '#1B2A4A', color: '#fff' },
-}
+// List representation for locating the current page label
+const ALL_ITEMS = NAV_GROUPS.flatMap(g => g.items)
 
 export default function Layout() {
-  const { usuario, logout } = useAuth()
-  const navigate = useNavigate()
-  const [collapsed, setCollapsed] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('sidebar_collapsed') === 'true'
+    }
+    return false
+  })
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    }
+    return 'light'
+  })
 
-  const handleLogout = () => { logout(); navigate('/login') }
-  const isAdmin = usuario?.rol === 'admin'
-  const initials = usuario?.nombre?.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase() || 'MB'
+  const location = useLocation()
+  const currentPage = ALL_ITEMS.find(n => location.pathname.startsWith(n.to))?.label || 'Master Baker'
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  const toggleSidebarCollapse = () => {
+    setIsCollapsed(prev => {
+      const next = !prev
+      localStorage.setItem('sidebar_collapsed', String(next))
+      return next
+    })
+  }
 
   return (
-    <div style={{ display:'flex', height:'100vh', background:'#f0f2f5', fontFamily:'system-ui,sans-serif' }}>
-
-      {/* SIDEBAR */}
-      <aside style={{
-        width: collapsed ? 56 : 210,
-        minWidth: collapsed ? 56 : 210,
-        background: '#1B2A4A',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'width .2s',
-        overflow: 'hidden',
-        borderRight: '1px solid #263d63'
-      }}>
-
-        {/* Logo */}
-        <div style={{ padding:'14px 16px', borderBottom:'1px solid #263d63', flexShrink:0 }}>
-          {!collapsed && (
-            <>
-              <img src='/branding/logo-completo.png' alt='Master Baker' style={{ height:48, objectFit:'contain' }} />
-              <div style={{ color:'#888B8D', fontSize:10, marginTop:4 }}>{usuario?.negocio || 'Panadería'}</div>
-            </>
+    <div className="flex h-screen bg-gray-50 dark:bg-navy-950 overflow-hidden text-gray-900 dark:text-gray-100 transition-colors duration-200">
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+      
+      <aside className={`fixed lg:static inset-y-0 left-0 z-30 bg-white dark:bg-navy-900 border-r border-gray-100 dark:border-navy-800 flex flex-col transition-all duration-200 lg:translate-x-0 ${isCollapsed ? 'w-16' : 'w-56'} ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        
+        {/* Sidebar Header */}
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100 dark:border-navy-800 min-h-[73px]">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#263D4F' }}>
+            <img src="/branding/logo-emblema.png" alt="Master Baker" className="w-7 h-7 object-contain" />
+          </div>
+          {!isCollapsed && (
+            <div className="transition-opacity duration-150">
+              <div className="text-sm font-semibold leading-tight tracking-wide" style={{ color: '#C29C53' }}>MASTER BAKER</div>
+              <div className="text-[9px] text-gray-400 dark:text-gray-500 leading-tight">Gestión Panadería</div>
+            </div>
           )}
-          {collapsed && <img src='/branding/logo-emblema.png' alt='MB' style={{ height:32, objectFit:'contain' }} />}
+          <button className="ml-auto lg:hidden text-gray-400" onClick={() => setSidebarOpen(false)}>
+            <X size={16} />
+          </button>
         </div>
 
-        {/* Nav */}
-        <nav style={{ flex:1, overflowY:'auto', padding:'8px 0' }}>
-          {navItems.filter(item => !item.soloAdmin || isAdmin).map(({ to, icon: Icon, label, badge }) => (
-            <NavLink key={to} to={to} style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: collapsed ? '8px 16px' : '7px 16px',
-              color: isActive ? '#ffffff' : '#888B8D',
-              background: isActive ? '#243d63' : 'transparent',
-              borderLeft: isActive ? '3px solid #C29C53' : '3px solid transparent',
-              textDecoration: 'none',
-              fontSize: 11,
-              fontWeight: isActive ? 700 : 400,
-              whiteSpace: 'nowrap',
-              transition: 'all .15s'
-            })}>
-              <Icon size={15} style={{ flexShrink:0 }} />
-              {!collapsed && (
-                <>
-                  <span style={{ flex:1 }}>{label}</span>
-                  {badge && (
-                    <span style={{
-                      fontSize:9, fontWeight:700,
-                      padding:'2px 5px', borderRadius:3,
-                      background: badgeColors[badge]?.bg || '#888',
-                      color: badgeColors[badge]?.color || '#fff'
-                    }}>{badge}</span>
-                  )}
-                </>
+        {/* Sidebar Navigation */}
+        <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+          {NAV_GROUPS.map((group, groupIdx) => (
+            <div key={groupIdx} className="space-y-1">
+              {!isCollapsed && (
+                <h3 className="px-3 text-[10px] font-bold text-gray-400 dark:text-navy-400 uppercase tracking-wider mb-2">
+                  {group.title}
+                </h3>
               )}
-            </NavLink>
+              {group.items.map(({ to, icon: Icon, label, badge }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={() => setSidebarOpen(false)}
+                  title={isCollapsed ? label : ''}
+                  className={({ isActive }) => `
+                    flex items-center gap-3 px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors whitespace-nowrap
+                    ${isActive 
+                      ? 'bg-brand-400 text-white hover:bg-brand-600 font-medium' 
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-800'
+                    }
+                    ${isCollapsed ? 'justify-center px-0' : ''}
+                  `}
+                >
+                  <Icon size={18} className="flex-shrink-0" />
+                  {!isCollapsed && <span className="flex-1 text-xs">{label}</span>}
+                  {!isCollapsed && badge && (
+                    <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full"
+                      style={{
+                        background: badge === 'NEW' ? '#3B6D11' : badge === 'DGI' ? '#263D4F' : '#C29C53',
+                        color: '#fff'
+                      }}>
+                      {badge}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 
-        {/* User footer */}
-        {!collapsed && (
-          <div style={{ padding:'10px 16px', borderTop:'1px solid #263d63', flexShrink:0 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <div style={{
-                width:28, height:28, borderRadius:'50%',
-                background:'#C29C53', display:'flex', alignItems:'center',
-                justifyContent:'center', fontSize:10, fontWeight:700,
-                color:'#1B2A4A', flexShrink:0
-              }}>{initials}</div>
-              <div>
-                <div style={{ color:'#e0e2e3', fontSize:10, fontWeight:700 }}>{usuario?.nombre}</div>
-                <div style={{ color:'#888B8D', fontSize:9 }}>{usuario?.rol}</div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t border-gray-100 dark:border-navy-800 flex items-center justify-between">
+          {!isCollapsed && <span className="text-[10px] text-gray-400">v2.7.2</span>}
+          <button 
+            onClick={toggleSidebarCollapse}
+            className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-800 ml-auto"
+          >
+            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+        </div>
       </aside>
 
-      {/* MAIN */}
-      <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
-
-        {/* TOPBAR */}
-        <header style={{
-          background:'#ffffff',
-          padding:'10px 24px',
-          borderBottom:'0.5px solid #c8cbcd',
-          display:'flex',
-          alignItems:'center',
-          justifyContent:'space-between',
-          flexShrink:0
-        }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <button onClick={() => setCollapsed(!collapsed)} style={{
-              border:'none', background:'transparent', cursor:'pointer',
-              color:'#888B8D', padding:4, display:'flex'
-            }}>
-              <LayoutDashboard size={18} />
+      {/* Main Layout Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        
+        {/* Header */}
+        <header className="bg-white dark:bg-navy-900 border-b border-gray-100 dark:border-navy-800 px-4 py-3 flex items-center justify-between flex-shrink-0 transition-colors duration-200">
+          <div className="flex items-center gap-3">
+            <button className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" onClick={() => setSidebarOpen(true)}>
+              <Menu size={20} />
             </button>
-            <div>
-              <div style={{ color:'#1B2A4A', fontSize:14, fontWeight:700 }}>Master Baker</div>
-              <div style={{ color:'#888B8D', fontSize:10 }}>{usuario?.negocio || 'Panel de gestión'}</div>
-            </div>
+            <h1 className="text-sm font-semibold text-gray-850 dark:text-gray-100">{currentPage}</h1>
           </div>
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <span style={{
-              background:'#FBF5E9', color:'#854F0B',
-              fontSize:11, padding:'5px 10px',
-              borderRadius:6, fontWeight:700
-            }}>v3.5</span>
-            <button onClick={handleLogout} style={{
-              display:'flex', alignItems:'center', gap:6,
-              padding:'8px 18px',
-              background:'#C0392B',
-              color:'#fff',
-              border:'none',
-              borderRadius:8,
-              fontSize:13,
-              fontWeight:700,
-              cursor:'pointer'
-            }}>
-              <LogOut size={16} />
-              Cerrar sesión
+
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline-flex text-[11px] px-2.5 py-1 rounded-md font-medium" style={{ background: '#EAF3DE', color: '#27500A' }}>
+              Margen objetivo: ≥57%
+            </span>
+
+            {/* Dark Mode Switcher */}
+            <button 
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="p-1.5 rounded-lg border border-gray-200 dark:border-navy-800 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-800 transition-colors"
+              title="Alternar tema"
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
           </div>
         </header>
 
-        {/* CONTENT */}
-        <main style={{ flex:1, overflowY:'auto', padding:'24px' }}>
+        {/* Dynamic Page Content */}
+        <main className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-navy-950 transition-colors duration-200">
           <Outlet />
         </main>
       </div>

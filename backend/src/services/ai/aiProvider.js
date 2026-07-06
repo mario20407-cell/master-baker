@@ -5,7 +5,7 @@
 //   - Clasificador de complejidad: simple (300 tokens) vs complejo (1024)
 //   - Historial reducido: 4 mensajes para simple, 6 para complejo
 //   - System prompt comprimido sin redundancias
-//   - Modelo corregido: claude-haiku-4-5-20251001
+//   - Modelo corregido: claude-sonnet-5
 
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
@@ -33,7 +33,7 @@ const getDeepSeek = () => {
 
 const getGemini = () => {
   if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY no configurada')
-  return new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  return new GoogleGenerativeAI(process.env.GEMINI_API_KEY.trim())
 }
 
 // ── Clasificador de complejidad ───────────────────────────────────────────────
@@ -125,10 +125,10 @@ export async function chatCliente(messages, system) {
 // ═══════════════════════════════════════════════════════════════════════════════
 export async function logicaNegocio(messages, system, context = {}) {
   if (AI_CONFIG.USE_MOCKS) {
-    mockLog('claude-haiku-4-5-20251001', messages)
+    mockLog('claude-sonnet-5', messages)
     return {
-      respuesta: `[MOCK Claude Sonnet 4.6] Respuesta simulada. Margen objetivo: 57%.`,
-      modelo: 'claude-haiku-4-5-20251001 (mock)',
+      respuesta: `[MOCK Claude Sonnet 3.5] Respuesta simulada. Margen objetivo: 57%.`,
+      modelo: 'claude-sonnet-5 (mock)',
       tokens: { input_tokens: 0, output_tokens: 0 },
     }
   }
@@ -142,7 +142,7 @@ export async function logicaNegocio(messages, system, context = {}) {
   if (context?.alertas) systemFinal += `\nALERTAS: ${context.alertas}`
 
   const res = await client.messages.create({
-    model:      'claude-haiku-4-5-20251001',
+    model:      'claude-sonnet-5',
     max_tokens,
     system:     systemFinal,
     messages:   messages.slice(-historial),
@@ -150,17 +150,20 @@ export async function logicaNegocio(messages, system, context = {}) {
 
   return {
     respuesta: res.content.filter(b => b.type === 'text').map(b => b.text).join('\n'),
-    modelo:    'claude-haiku-4-5-20251001',
+    modelo:    'claude-sonnet-5',
     tokens:    res.usage,
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// costeoMasivo — DeepSeek V3
+// costeoMasivo — Claude 3.5 Sonnet (temporalmente, en lugar de DeepSeek V3)
+// NOTA: DEEPSEEK_API_KEY no está configurada. Redirigido a Anthropic para evitar
+// que el botón "Costeo masivo" muestre error al usuario. Revertir cuando haya
+// presupuesto para DeepSeek.
 // ═══════════════════════════════════════════════════════════════════════════════
 export async function costeoMasivo(messages, system, datos) {
   if (AI_CONFIG.USE_MOCKS) {
-    mockLog('deepseek-v3', messages)
+    mockLog('claude-sonnet-5 (costeo)', messages)
     const costeosSimulados = Array.isArray(datos)
       ? datos.map((r, i) => ({
           producto:      r.producto || r.n || `Producto ${i + 1}`,
@@ -169,90 +172,147 @@ export async function costeoMasivo(messages, system, datos) {
           precio_minimo: 0,
           margen_pct:    57,
           aprobado:      true,
-          nota:          'Mock — sin DEEPSEEK_API_KEY',
+          nota:          'Mock — sin GEMINI/DEEPSEEK',
         }))
       : null
     return {
-      respuesta: costeosSimulados ? JSON.stringify(costeosSimulados) : '[MOCK DeepSeek V3]',
-      modelo:    'deepseek-v3 (mock)',
+      respuesta: costeosSimulados ? JSON.stringify(costeosSimulados) : '[MOCK Claude costeo]',
+      modelo:    'claude-sonnet-5 (mock)',
       tokens:    { input_tokens: 0, output_tokens: 0 },
     }
   }
 
-  const client = getDeepSeek()
+  const client = getAnthropic()
   const prompt = datos
     ? `${messages[messages.length - 1].content}\n\nDATOS:\n${JSON.stringify(datos, null, 2)}`
     : messages[messages.length - 1].content
 
-  const res = await client.chat.completions.create({
-    model:       'deepseek-chat',
-    messages:    [{ role: 'system', content: system }, ...messages.slice(-5, -1), { role: 'user', content: prompt }],
-    max_tokens:  2048,
-    temperature: 0.1,
+  const res = await client.messages.create({
+    model:      'claude-sonnet-5',
+    max_tokens: 2048,
+    system:     system,
+    messages:   [...messages.slice(-5, -1), { role: 'user', content: prompt }],
   })
   return {
-    respuesta: res.choices[0].message.content,
-    modelo:    'deepseek-v3',
+    respuesta: res.content.filter(b => b.type === 'text').map(b => b.text).join('\n'),
+    modelo:    'claude-sonnet-5',
     tokens:    res.usage,
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// analisisRazon — DeepSeek R1
+// analisisRazon — Claude 3.5 Sonnet (temporalmente, en lugar de DeepSeek R1)
+// NOTA: DEEPSEEK_API_KEY no está configurada. Redirigido a Anthropic para evitar
+// que el botón "Análisis profundo" muestre error al usuario. Revertir cuando haya
+// presupuesto para DeepSeek. Claude no expone un campo de "razonamiento" separado
+// como DeepSeek R1, así que se pide explícitamente en el prompt y se devuelve
+// razonamiento: null (el frontend ya maneja ese campo como opcional).
 // ═══════════════════════════════════════════════════════════════════════════════
 export async function analisisRazon(messages, system) {
   if (AI_CONFIG.USE_MOCKS) {
-    mockLog('deepseek-r1', messages)
+    mockLog('claude-sonnet-5 (analisis)', messages)
     return {
-      respuesta:     '[MOCK DeepSeek R1] Análisis simulado.',
-      razonamiento:  '[MOCK] Paso 1 → Paso 2 → Conclusión.',
-      modelo:        'deepseek-r1 (mock)',
+      respuesta:     '[MOCK Claude análisis] Análisis simulado.',
+      razonamiento:  null,
+      modelo:        'claude-sonnet-5 (mock)',
       tokens:        { input_tokens: 0, output_tokens: 0 },
     }
   }
 
-  const client = getDeepSeek()
-  const res = await client.chat.completions.create({
-    model:    'deepseek-reasoner',
-    messages: [{ role: 'system', content: system }, ...messages.slice(-6)],
+  const client = getAnthropic()
+  const systemFinal = `${system}\n\nPiensa paso a paso antes de responder y estructura tu respuesta con tu razonamiento seguido de la conclusión.`
+  const res = await client.messages.create({
+    model:      'claude-sonnet-5',
     max_tokens: 2048,
+    system:     systemFinal,
+    messages:   messages.slice(-6),
   })
   return {
-    respuesta:    res.choices[0].message.content,
-    razonamiento: res.choices[0].message.reasoning_content || null,
-    modelo:       'deepseek-r1',
+    respuesta:    res.content.filter(b => b.type === 'text').map(b => b.text).join('\n'),
+    razonamiento: null,
+    modelo:       'claude-sonnet-5',
     tokens:       res.usage,
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// multimedia — Gemini 2.5 Flash (PDFs, imágenes, facturas)
-// ═══════════════════════════════════════════════════════════════════════════════
 export async function multimedia(prompt, fileData, mimeType) {
   if (AI_CONFIG.USE_MOCKS) {
-    console.log(`[MOCK] gemini-2.5-flash ← "${prompt.slice(0, 60)}"`)
+    console.log(`[MOCK] gemini-2.0-flash ← "${prompt.slice(0, 60)}"`)
     return {
       respuesta: JSON.stringify({ mock: true, nota: 'Sin GEMINI_API_KEY.' }),
-      modelo:    'gemini-2.5-flash (mock)',
+      modelo:    'gemini-2.0-flash (mock)',
     }
   }
 
-  const client = getGemini()
-  const model  = client.getGenerativeModel({ model: 'gemini-2.5-flash' })
-  const parts  = [{ text: prompt }]
-  if (fileData) parts.push({ inlineData: { mimeType: mimeType || 'application/pdf', data: fileData } })
+  try {
+    const key = process.env.GEMINI_API_KEY.trim()
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${key}`
+    
+    const parts = [{ text: prompt }]
+    if (fileData) {
+      parts.push({ inlineData: { mimeType: mimeType || 'application/pdf', data: fileData } })
+    }
 
-  const res = await model.generateContent({ contents: [{ role: 'user', parts }] })
-  return {
-    respuesta: res.response.text(),
-    modelo:    'gemini-2.5-flash',
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ role: 'user', parts }] })
+    })
+
+    if (!response.ok) {
+      const errText = await response.text()
+      throw new Error(`Google API status ${response.status}: ${errText}`)
+    }
+
+    const data = await response.json()
+    const txt = data.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!txt) throw new Error('No text returned in Gemini response')
+
+    return {
+      respuesta: txt,
+      modelo:    'gemini-2.0-flash',
+    }
+  } catch (err) {
+    console.warn('[multimedia] Error con Gemini, intentando fallback con OpenAI (GPT-4o mini):', err.message)
+    
+    if (process.env.OPENAI_API_KEY && fileData && mimeType && mimeType.startsWith('image/')) {
+      try {
+        const openai = getOpenAI()
+        const res = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:${mimeType};base64,${fileData}`,
+                  }
+                }
+              ]
+            }
+          ],
+          max_tokens: 1024,
+        })
+        return {
+          respuesta: res.choices[0].message.content,
+          modelo:    'gpt-4o-mini (fallback OCR)',
+        }
+      } catch (openAiErr) {
+        console.error('[multimedia] Fallback de OpenAI también falló:', openAiErr.message)
+        throw err
+      }
+    }
+    throw err
   }
 }
 
 // ── Estado de proveedores ─────────────────────────────────────────────────────
 export function getProvidersStatus() {
   return {
-    'claude-haiku-4-5-20251001': {
+    'claude-sonnet-5': {
       activo:  AI_CONFIG.USE_MOCKS ? 'mock' : !!process.env.ANTHROPIC_API_KEY,
       uso:     'Lógica de negocio, márgenes, decisiones',
       costo:   '~$0.003/1K tokens',
@@ -276,7 +336,7 @@ export function getProvidersStatus() {
       costo:   '~$0.00055/1K tokens',
       keyVar:  'DEEPSEEK_API_KEY',
     },
-    'gemini-2.5-flash': {
+    'gemini-2.0-flash': {
       activo:  AI_CONFIG.USE_MOCKS ? 'mock' : !!process.env.GEMINI_API_KEY,
       uso:     'PDFs, imágenes, facturas escaneadas',
       costo:   '~$0.000075/1K tokens',
@@ -286,4 +346,3 @@ export function getProvidersStatus() {
 }
 
 export default { AI_CONFIG, chatCliente, logicaNegocio, costeoMasivo, analisisRazon, multimedia, getProvidersStatus }
-

@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      includeAssets: ['branding/logo-emblema.png', 'branding/logo-completo.png'],
       manifest: {
         name: 'Master Baker — Gestión Inteligente de Panadería',
         short_name: 'Master Baker',

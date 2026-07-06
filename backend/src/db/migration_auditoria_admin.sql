@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS auditoria_precios (
   campo           VARCHAR(30) NOT NULL DEFAULT 'precio',
   valor_anterior  NUMERIC(12,4),
   valor_nuevo     NUMERIC(12,4) NOT NULL,
+  valor_anterior_texto VARCHAR(255),
+  valor_nuevo_texto    VARCHAR(255),
   metodo          VARCHAR(20) NOT NULL DEFAULT 'individual'
                     CHECK (metodo IN ('individual', 'masivo_lista', 'masivo_porcentaje')),
   porcentaje_aplicado NUMERIC(6,2),        -- solo si metodo = masivo_porcentaje

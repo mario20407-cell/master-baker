@@ -71,11 +71,24 @@ export async function verificarYRegistrarUso(tenantId, nombreFuncion) {
       return { permitido: true }
     }
 
-    const { rows: tenantRows } = await query('SELECT plan FROM tenants WHERE id = $1', [tenantId])
+    const { rows: tenantRows } = await query('SELECT plan, trial_vence_en FROM tenants WHERE id = $1', [tenantId])
     const tenant = tenantRows[0]
     if (!tenant) {
       console.error(`[planMiddleware] Tenant ${tenantId} no encontrado — dejando pasar (fail-open)`)
       return { permitido: true }
+    }
+
+    // Verificar si el plan demo/trial ha vencido
+    if (tenant.plan === 'trial' && tenant.trial_vence_en && new Date() > new Date(tenant.trial_vence_en)) {
+      return {
+        permitido: false,
+        status: 403,
+        body: {
+          error: 'Tu demo de 30 días de Master Baker ha expirado. Por favor, contacta a soporte para activar tu plan.',
+          plan_actual: 'trial',
+          vencido: true
+        }
+      }
     }
 
     const planes = await obtenerDefinicionPlanes()

@@ -7,54 +7,12 @@
  * queries directas futuras, pero aquí basta filtrar por receta.tenant_id.
  */
 import { Router } from 'express'
-import xss from 'xss'
 import { query, transaction } from '../db/client.js'
+import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
 
-// Helper: resuelve sub-recetas recursivamente (máximo 3 niveles)
-async function resolverSubRecetas(ingredientes, tenantId, nivel = 0) {
-  if (nivel >= 3 || !ingredientes?.length) return ingredientes
-  
-  const resultado = []
-  for (const ing of ingredientes) {
-    if (ing.tipo !== 'subreceta' || !ing.subreceta_nombre) {
-      resultado.push(ing)
-      continue
-    }
-    
-    const { rows: subRows } = await query(`
-      SELECT r.piezas,
-        json_agg(json_build_object(
-          'nombre', i.nombre, 'cantidad', i.cantidad, 'unidad', i.unidad,
-          'precio', COALESCE(inv.costo_unitario, i.precio, 0),
-          'tipo', i.tipo, 'unidad_inventario', COALESCE(i.unidad_inventario, inv.unidad),
-          'subreceta_nombre', i.subreceta_nombre
-        ) ORDER BY i.orden) FILTER (WHERE i.id IS NOT NULL) AS ingredientes
-      FROM recetas r
-      LEFT JOIN ingredientes i ON i.receta_id = r.id
-      LEFT JOIN inventario inv ON LOWER(TRIM(inv.nombre)) = LOWER(TRIM(i.nombre)) AND inv.tenant_id = r.tenant_id
-      WHERE r.producto = $1 AND r.tenant_id = $2
-      GROUP BY r.id
-    `, [ing.subreceta_nombre, tenantId])
-    
-    if (!subRows.length) { resultado.push(ing); continue }
-    
-    const sub = subRows[0]
-    const subIngs = await resolverSubRecetas(sub.ingredientes || [], tenantId, nivel + 1)
-    const factor = parseFloat(ing.cantidad) || 1
-    const piezasSub = parseFloat(sub.piezas) || 1
-    
-    for (const si of subIngs) {
-      resultado.push({
-        ...si,
-        cantidad: (parseFloat(si.cantidad) * factor) / piezasSub,
-        _de_subreceta: ing.subreceta_nombre
-      })
-    }
-  }
-  return resultado
-}
+router.use(requireAuth)
 
 // GET /api/recetas — todas las recetas del tenant, con ingredientes
 router.get('/', async (req, res, next) => {
@@ -64,28 +22,18 @@ router.get('/', async (req, res, next) => {
         json_agg(
           json_build_object(
             'id', i.id, 'nombre', i.nombre, 'cantidad', i.cantidad,
-            'unidad', i.unidad,
-            'precio', COALESCE(inv.costo_unitario, i.precio, 0),
-            'precio_inventario', inv.costo_unitario,
-            'tipo', i.tipo,
-            'unidad_inventario', COALESCE(i.unidad_inventario, inv.unidad),
-            'subreceta_nombre', i.subreceta_nombre
+            'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo
           ) ORDER BY i.orden
         ) FILTER (WHERE i.id IS NOT NULL) AS ingredientes,
         p.precio AS pventa, p.presentacion, p.categoria
       FROM recetas r
       LEFT JOIN ingredientes i ON i.receta_id = r.id
-      LEFT JOIN inventario inv ON LOWER(TRIM(inv.nombre)) = LOWER(TRIM(i.nombre)) AND inv.tenant_id = r.tenant_id
       LEFT JOIN productos p ON p.nombre = r.producto AND p.tenant_id = r.tenant_id
       WHERE r.tenant_id = $1
       GROUP BY r.id, p.precio, p.presentacion, p.categoria
       ORDER BY r.producto
     `, [req.tenantId])
-    const recetasResueltas = await Promise.all(recetas.map(async r => {
-      const ings = await resolverSubRecetas(r.ingredientes || [], req.tenantId)
-      return { ...r, ingredientes: ings }
-    }))
-    res.json(recetasResueltas)
+    res.json(recetas.map(r => ({ ...r, ingredientes: r.ingredientes || [] })))
   } catch (e) { next(e) }
 })
 
@@ -96,25 +44,18 @@ router.get('/:producto', async (req, res, next) => {
       SELECT r.*,
         json_agg(json_build_object(
           'id', i.id, 'nombre', i.nombre, 'cantidad', i.cantidad,
-          'unidad', i.unidad,
-          'precio', COALESCE(inv.costo_unitario, i.precio, 0),
-          'precio_inventario', inv.costo_unitario,
-          'tipo', i.tipo,
-          'unidad_inventario', COALESCE(i.unidad_inventario, inv.unidad),
-          'subreceta_nombre', i.subreceta_nombre
+          'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo
         ) ORDER BY i.orden) FILTER (WHERE i.id IS NOT NULL) AS ingredientes,
         p.precio AS pventa, p.presentacion, p.categoria
       FROM recetas r
       LEFT JOIN ingredientes i ON i.receta_id = r.id
-      LEFT JOIN inventario inv ON LOWER(TRIM(inv.nombre)) = LOWER(TRIM(i.nombre)) AND inv.tenant_id = r.tenant_id
       LEFT JOIN productos p ON p.nombre = r.producto AND p.tenant_id = r.tenant_id
       WHERE r.producto = $1 AND r.tenant_id = $2
       GROUP BY r.id, p.precio, p.presentacion, p.categoria
     `, [decodeURIComponent(req.params.producto), req.tenantId])
 
     if (!rows.length) return res.status(404).json({ error: 'Receta no encontrada' })
-    const ings = await resolverSubRecetas(rows[0].ingredientes || [], req.tenantId)
-    res.json({ ...rows[0], ingredientes: ings })
+    res.json({ ...rows[0], ingredientes: rows[0].ingredientes || [] })
   } catch (e) { next(e) }
 })
 
@@ -126,6 +67,7 @@ router.post('/', async (req, res, next) => {
 
   try {
     const receta = await transaction(async (client) => {
+      // Upsert receta — el conflicto ahora es por (tenant_id, producto)
       const { rows: [r] } = await client.query(`
         INSERT INTO recetas (tenant_id, producto, piezas, peso_por_pieza, merma_pct, notas)
         VALUES ($1, $2, $3, $4, $5, $6)
@@ -140,23 +82,21 @@ router.post('/', async (req, res, next) => {
 
       await client.query('DELETE FROM ingredientes WHERE receta_id = $1', [r.id])
       if (ingredientes.length) {
-        const vals = ingredientes.map((ing, idx) => `($${idx*9+1},$${idx*9+2},$${idx*9+3},$${idx*9+4},$${idx*9+5},$${idx*9+6},$${idx*9+7},$${idx*9+8},$${idx*9+9})`)
-        const params = ingredientes.flatMap(ing => [tenantId, r.id, ing.nombre, ing.cantidad, ing.unidad, ing.precio || 0, ing.tipo || 'directo', ing.unidad_inventario || null, ing.subreceta_nombre || null])
-        await client.query(`INSERT INTO ingredientes (tenant_id, receta_id, nombre, cantidad, unidad, precio, tipo, unidad_inventario, subreceta_nombre) VALUES ${vals}`, params)
+        // 7 columnas por fila ahora: tenant_id + receta_id + 5 campos del ingrediente
+        const vals = ingredientes.map((ing, idx) => `($${idx * 7 + 1}, $${idx * 7 + 2}, $${idx * 7 + 3}, $${idx * 7 + 4}, $${idx * 7 + 5}, $${idx * 7 + 6}, $${idx * 7 + 7})`)
+        const params = ingredientes.flatMap(ing => [tenantId, r.id, ing.nombre, ing.cantidad, ing.unidad, ing.precio || 0, ing.tipo || 'directo'])
+        await client.query(`INSERT INTO ingredientes (tenant_id, receta_id, nombre, cantidad, unidad, precio, tipo) VALUES ${vals}`, params)
       }
       return r
     })
 
     const { rows } = await query(`
       SELECT r.*, json_agg(json_build_object(
-        'nombre', i.nombre, 'cantidad', i.cantidad, 'unidad', i.unidad,
-        'precio', COALESCE(inv.costo_unitario, i.precio, 0),
-        'tipo', i.tipo, 'unidad_inventario', COALESCE(i.unidad_inventario, inv.unidad)
+        'nombre', i.nombre, 'cantidad', i.cantidad, 'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo
       )) FILTER (WHERE i.id IS NOT NULL) AS ingredientes,
       p.precio AS pventa, p.presentacion, p.categoria
       FROM recetas r
       LEFT JOIN ingredientes i ON i.receta_id = r.id
-      LEFT JOIN inventario inv ON LOWER(TRIM(inv.nombre)) = LOWER(TRIM(i.nombre)) AND inv.tenant_id = r.tenant_id
       LEFT JOIN productos p ON p.nombre = r.producto AND p.tenant_id = r.tenant_id
       WHERE r.id = $1 GROUP BY r.id, p.precio, p.presentacion, p.categoria
     `, [receta.id])
@@ -165,7 +105,7 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// PUT /api/recetas/:id
+// PUT /api/recetas/:id — actualizar por ID (solo si pertenece al tenant)
 router.put('/:id', async (req, res, next) => {
   const { piezas, peso_por_pieza, merma_pct, notas, ingredientes = [] } = req.body
   const tenantId = req.tenantId
@@ -180,10 +120,10 @@ router.put('/:id', async (req, res, next) => {
 
       await client.query('DELETE FROM ingredientes WHERE receta_id=$1', [req.params.id])
       if (ingredientes.length) {
-        const vals = ingredientes.map((_, i) => `($${i*9+1},$${i*9+2},$${i*9+3},$${i*9+4},$${i*9+5},$${i*9+6},$${i*9+7},$${i*9+8},$${i*9+9})`)
+        const vals = ingredientes.map((_, i) => `($${i*7+1},$${i*7+2},$${i*7+3},$${i*7+4},$${i*7+5},$${i*7+6},$${i*7+7})`)
         await client.query(
-          `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo,unidad_inventario,subreceta_nombre) VALUES ${vals}`,
-          ingredientes.flatMap(i => [tenantId, req.params.id, i.nombre, i.cantidad, i.unidad, i.precio||0, i.tipo||'directo', i.unidad_inventario||null, i.subreceta_nombre||null])
+          `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo) VALUES ${vals}`,
+          ingredientes.flatMap(i => [tenantId, req.params.id, i.nombre, i.cantidad, i.unidad, i.precio||0, i.tipo||'directo'])
         )
       }
       return true
@@ -203,7 +143,7 @@ router.delete('/:id', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// POST /api/recetas/import-csv
+// POST /api/recetas/import-csv — importar múltiples recetas desde CSV
 router.post('/import-csv', async (req, res, next) => {
   const { filas = [] } = req.body
   const tenantId = req.tenantId
@@ -232,10 +172,10 @@ router.post('/import-csv', async (req, res, next) => {
           ON CONFLICT (tenant_id, producto) DO UPDATE SET actualizado_en=NOW() RETURNING *
         `, [tenantId, producto])
         await client.query('DELETE FROM ingredientes WHERE receta_id=$1', [r.id])
-        const vals = ingredientes.map((_, i) => `($${i*8+1},$${i*8+2},$${i*8+3},$${i*8+4},$${i*8+5},$${i*8+6},$${i*8+7},$${i*8+8})`)
+        const vals = ingredientes.map((_, i) => `($${i*7+1},$${i*7+2},$${i*7+3},$${i*7+4},$${i*7+5},$${i*7+6},$${i*7+7})`)
         await client.query(
-          `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo,unidad_inventario) VALUES ${vals}`,
-          ingredientes.flatMap(i => [tenantId, r.id, i.nombre, i.cantidad, i.unidad, i.precio, i.tipo, i.unidad_inventario||null])
+          `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo) VALUES ${vals}`,
+          ingredientes.flatMap(i => [tenantId, r.id, i.nombre, i.cantidad, i.unidad, i.precio, i.tipo])
         )
       })
       importadas++

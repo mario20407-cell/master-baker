@@ -2,7 +2,8 @@ import { Router } from 'express'
 import OpenAI from 'openai'
 import { verificarYRegistrarUso } from '../middleware/planMiddleware.js'
 
-const router = Router()
+export const publicRouter = Router()
+export const privateRouter = Router()
 
 // ── Configuración ─────────────────────────────────────────────────────────────
 const WA_TOKEN    = process.env.WHATSAPP_TOKEN
@@ -194,7 +195,7 @@ function respuestaFallback(mensaje) {
 }
 
 // ── Webhook: verificación Meta ────────────────────────────────────────────────
-router.get('/webhook', (req, res) => {
+publicRouter.get('/webhook', (req, res) => {
   const mode      = req.query['hub.mode']
   const token     = req.query['hub.verify_token']
   const challenge = req.query['hub.challenge']
@@ -209,7 +210,7 @@ router.get('/webhook', (req, res) => {
 })
 
 // ── Webhook: recibir mensajes ─────────────────────────────────────────────────
-router.post('/webhook', async (req, res) => {
+publicRouter.post('/webhook', async (req, res) => {
   // Responder 200 inmediatamente para que Meta no reintente
   res.status(200).send('OK')
 
@@ -257,7 +258,7 @@ router.post('/webhook', async (req, res) => {
 })
 
 // ── Endpoint: enviar mensaje manual desde el dashboard ───────────────────────
-router.post('/enviar', async (req, res, next) => {
+privateRouter.post('/enviar', async (req, res, next) => {
   const { telefono, mensaje } = req.body
   if (!telefono || !mensaje) {
     return res.status(400).json({ error: 'telefono y mensaje son requeridos' })
@@ -269,19 +270,19 @@ router.post('/enviar', async (req, res, next) => {
 })
 
 // ── Endpoint: ver historial de conversación ───────────────────────────────────
-router.get('/conversacion/:telefono', (req, res) => {
+privateRouter.get('/conversacion/:telefono', (req, res) => {
   const historial = conversaciones.get(req.params.telefono) || []
   res.json({ telefono: req.params.telefono, mensajes: historial.length, historial })
 })
 
 // ── Endpoint: limpiar historial ───────────────────────────────────────────────
-router.delete('/conversacion/:telefono', (req, res) => {
+privateRouter.delete('/conversacion/:telefono', (req, res) => {
   conversaciones.delete(req.params.telefono)
   res.json({ ok: true, mensaje: 'Historial limpiado' })
 })
 
 // ── Endpoint: status del bot ──────────────────────────────────────────────────
-router.get('/status', (req, res) => {
+privateRouter.get('/status', (req, res) => {
   res.json({
     activo:           !!WA_TOKEN && !!WA_PHONE_ID,
     phone_id:         WA_PHONE_ID || 'No configurado',
@@ -292,4 +293,7 @@ router.get('/status', (req, res) => {
   })
 })
 
-export default router
+const mainRouter = Router()
+mainRouter.use(publicRouter)
+mainRouter.use(privateRouter)
+export default mainRouter

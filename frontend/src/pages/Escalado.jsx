@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { useFiscalConfig } from '../hooks/useFiscalConfig'
-import { useCatalogo } from '../hooks/useCatalogo'
+import { PRODUCTOS } from '../lib/catalogo'
 import { Scale, Plus, Trash2, AlertTriangle, CheckCircle, Shield } from 'lucide-react'
 import { calcularCosteoReceta } from '../lib/costeo'
 import toast from 'react-hot-toast'
@@ -10,10 +10,9 @@ const fmt = v => 'C$ ' + (parseFloat(v) || 0).toFixed(2)
 
 export default function Escalado() {
   const { recetas }              = useRecetas()
-  const { productos }            = useCatalogo()
   const { config: configFiscal } = useFiscalConfig()
 
-  const [prodNombre, setProdNombre] = useState('')
+  const [prodIdx,    setProdIdx]    = useState('')
   const [base,       setBase]       = useState('')
   const [target,     setTarget]     = useState('')
   const [peso,       setPeso]       = useState('')
@@ -23,14 +22,14 @@ export default function Escalado() {
   ])
   const [resultado, setResultado] = useState(null)
 
-  const prod   = prodNombre ? productos.find(p => p.nombre === prodNombre) : null
-  const receta = prod ? recetas[prod.nombre] : null
+  const prod   = prodIdx !== '' ? PRODUCTOS[parseInt(prodIdx)] : null
+  const receta = prod ? recetas[prod.n] : null
 
-  const handleProdChange = (nombre) => {
-    setProdNombre(nombre)
+  const handleProdChange = (idx) => {
+    setProdIdx(idx)
     setResultado(null)
-    if (!nombre) return
-    const r = recetas[nombre]
+    if (idx === '') return
+    const r = recetas[PRODUCTOS[parseInt(idx)].n]
     if (r) {
       setBase(r.piezas)
       setPeso(r.peso_por_pieza || '')
@@ -95,9 +94,9 @@ export default function Escalado() {
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="form-group">
             <label className="form-label">Producto (opcional)</label>
-            <select value={prodNombre} onChange={e => handleProdChange(e.target.value)}>
+            <select value={prodIdx} onChange={e => handleProdChange(e.target.value)}>
               <option value="">— Sin seleccionar —</option>
-              {productos.map((p) => <option key={p.nombre} value={p.nombre}>{p.nombre}</option>)}
+              {PRODUCTOS.map((p, i) => <option key={i} value={i}>{p.n}</option>)}
             </select>
           </div>
           <div className="form-group">
@@ -126,7 +125,7 @@ export default function Escalado() {
             <label className="form-label">Precio de venta (C$)</label>
             <input type="number" value={prod?.p || ''} readOnly
               className="bg-gray-50 text-gray-500 cursor-not-allowed"
-              placeholder={prod ? `${prod.precio} (del catálogo)` : 'Selecciona producto'} />
+              placeholder={prod ? `${prod.p} (del catálogo)` : 'Selecciona producto'} />
           </div>
         </div>
 
