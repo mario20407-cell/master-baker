@@ -39,7 +39,7 @@ export default function Registro() {
       })
 
       const { token } = response.data
-      localStorage.setItem('token', token)
+      localStorage.setItem('marquez_token', token)
       
       // Realizar login automático guardando los datos del usuario en el context
       await login(email.trim(), password)
