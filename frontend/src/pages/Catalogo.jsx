@@ -67,7 +67,6 @@ export function Catalogo() {
     if (!nuevoNombre) { toast.error('El nombre no puede quedar vacío'); return }
     const nuevaCategoria = categoriaTmp.trim()
     if (!nuevaCategoria) { toast.error('La categoría no puede quedar vacía'); return }
-
     setPinAccion(() => async (pin) => {
       try {
         await updateProducto(p.id, {
@@ -78,10 +77,9 @@ export function Catalogo() {
           ? { ...x, precio: nuevoPrecio, nombre: nuevoNombre, categoria: nuevaCategoria }
           : x))
         toast.success(`${nuevoNombre} actualizado`)
+        setEditando(null)
       } catch (e) {
         toast.error(e.response?.data?.error || 'No se pudo guardar el producto')
-      } finally {
-        setEditando(null)
       }
     })
   }

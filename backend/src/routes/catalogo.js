@@ -93,12 +93,16 @@ router.put('/masivo/lista', requireAdminPin, async (req, res, next) => {
 // PUT /api/catalogo/masivo/categoria — ajuste por porcentaje a toda una categoría
 router.put('/masivo/categoria', requireAdminPin, async (req, res, next) => {
   const { categoria, porcentaje } = req.body
-  if (porcentaje === undefined || porcentaje === null) {
-    return res.status(400).json({ error: 'porcentaje es requerido' })
+  const pct = parseFloat(porcentaje)
+  if (isNaN(pct)) {
+    return res.status(400).json({ error: 'porcentaje debe ser un número válido' })
+  }
+  if (pct <= -100 || pct > 500) {
+    return res.status(400).json({ error: 'Ajuste de porcentaje fuera de límites permitidos (-99% a +500%)' })
   }
 
   try {
-    const factor = 1 + (parseFloat(porcentaje) / 100)
+    const factor = 1 + (pct / 100)
 
     const actualizados = await transaction(async (client) => {
       const params = [req.tenantId]
@@ -115,6 +119,9 @@ router.put('/masivo/categoria', requireAdminPin, async (req, res, next) => {
       const resultados = []
       for (const prod of afectados) {
         const nuevoPrecio = Math.round(prod.precio * factor * 100) / 100
+        if (nuevoPrecio <= 0) {
+          throw new Error(`El ajuste resulta en un precio inválido (C$ ${nuevoPrecio}) para ${prod.nombre}`)
+        }
         await client.query(
           'UPDATE productos SET precio=$1, actualizado_en=NOW() WHERE id=$2',
           [nuevoPrecio, prod.id]
@@ -138,6 +145,11 @@ router.put('/masivo/categoria', requireAdminPin, async (req, res, next) => {
 // Soporta cambiar nombre, categoría y/o precio en la misma operación.
 // Cada campo que cambie de valor queda registrado por separado en auditoría.
 router.put('/:id', requireAdminPin, async (req, res, next) => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(req.params.id)) {
+    return res.status(400).json({ error: 'ID de producto inválido' })
+  }
+
   const { precio, presentacion, nombre, categoria } = req.body
   try {
     const actualizado = await transaction(async (client) => {
