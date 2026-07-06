@@ -3,10 +3,12 @@
  * v3.2 — Busqueda de ingredientes insensible a tildes y mayusculas.
  */
 import { Router } from 'express'
+import { requireAuth } from '../middleware/authMiddleware.js'
 import { query, transaction } from '../db/client.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
+router.use(requireAuth)
 
 // Normaliza texto: quita tildes y pasa a minusculas para comparacion flexible
 const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()

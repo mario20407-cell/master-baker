@@ -3,9 +3,11 @@
  * v2.8 — Multi-tenant: toda query filtra y escribe con tenant_id.
  */
 import { Router } from 'express'
+import { requireAuth } from '../middleware/authMiddleware.js'
 import { query, transaction } from '../db/client.js'
 
 const router = Router()
+router.use(requireAuth)
 
 // ── POST /api/ventas ──────────────────────────────────────────────────────────
 router.post('/', async (req, res, next) => {

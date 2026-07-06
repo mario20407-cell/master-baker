@@ -1,7 +1,9 @@
 import { Router } from 'express'
+import { requireAuth } from '../middleware/authMiddleware.js'
 import { query, transaction } from '../db/client.js'
 
 const router = Router()
+router.use(requireAuth)
 
 // GET /api/compras
 router.get('/', async (req, res, next) => {

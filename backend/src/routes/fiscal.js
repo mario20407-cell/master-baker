@@ -3,10 +3,12 @@
  * v3.0 — requireAuth en GET y PUT. requireRol('admin') en PUT.
  */
 import { Router } from 'express'
+import { requireAuth } from '../middleware/authMiddleware.js'
 import { query } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 
 const router = Router()
+router.use(requireAuth)
 
 // GET /api/fiscal — cualquier usuario autenticado puede leer
 router.get('/', requireAuth, async (req, res, next) => {
