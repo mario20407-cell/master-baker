@@ -14,6 +14,7 @@ export default function Inventario() {
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({ nombre: '', existencia: '', unidad: 'kg', consumo_diario: '', punto_reposicion: '', costo_unitario: '' })
   const [editandoId, setEditandoId] = useState(null)
+  const [editandoInsumoId, setEditandoInsumoId] = useState(null)
   const [costoTmp, setCostoTmp] = useState('')
   const [panelMasivo, setPanelMasivo] = useState(false)
   const [pctMasivo, setPctMasivo] = useState('')
@@ -33,27 +34,59 @@ export default function Inventario() {
 
   useEffect(() => { cargar() }, [])
 
+  const handleCancelarEdicion = () => {
+    setEditandoInsumoId(null)
+    setForm({ nombre: '', existencia: '', unidad: 'kg', consumo_diario: '', punto_reposicion: '', costo_unitario: '' })
+  }
+
+  const handleEditarFila = (ins) => {
+    setEditandoInsumoId(ins.id)
+    setForm({
+      nombre: ins.nombre,
+      existencia: String(ins.existencia),
+      unidad: ins.unidad,
+      consumo_diario: String(ins.consumo_diario || 0),
+      punto_reposicion: String(ins.punto_reposicion || 0),
+      costo_unitario: String(ins.costo_unitario || 0)
+    })
+  }
+
   const handleGuardar = async () => {
     if (!form.nombre || !form.existencia) { toast.error('Nombre y existencia son requeridos'); return }
-    try {
-      await saveInsumo({
-        nombre: form.nombre,
-        existencia: parseFloat(form.existencia),
-        unidad: form.unidad,
-        consumo_diario: parseFloat(form.consumo_diario) || 0,
-        punto_reposicion: parseFloat(form.punto_reposicion) || 0,
-        costo_unitario: parseFloat(form.costo_unitario) || 0,
+    const payload = {
+      nombre: form.nombre,
+      existencia: parseFloat(form.existencia),
+      unidad: form.unidad,
+      consumo_diario: parseFloat(form.consumo_diario) || 0,
+      punto_reposicion: parseFloat(form.punto_reposicion) || 0,
+      costo_unitario: parseFloat(form.costo_unitario) || 0,
+    }
+
+    if (editandoInsumoId) {
+      setPinAccion(() => async (pin) => {
+        try {
+          await updateInsumo(editandoInsumoId, payload, pin)
+          await cargar()
+          handleCancelarEdicion()
+          toast.success('Insumo actualizado')
+        } catch (e) {
+          toast.error(e.response?.data?.error || 'No se pudo actualizar el insumo')
+        }
       })
-      await cargar()
-      setForm({ nombre: '', existencia: '', unidad: 'kg', consumo_diario: '', punto_reposicion: '', costo_unitario: '' })
-      toast.success('Insumo guardado')
-    } catch (e) {
-      const nuevo = { ...form, id: Date.now(), dias_restantes: form.consumo_diario > 0 ? Math.floor(form.existencia / form.consumo_diario) : null }
-      const lista = [...insumos.filter(i => i.nombre !== form.nombre), nuevo]
-      setInsumos(lista)
-      localStorage.setItem('marquez_inventario', JSON.stringify(lista))
-      setForm({ nombre: '', existencia: '', unidad: 'kg', consumo_diario: '', punto_reposicion: '', costo_unitario: '' })
-      toast.success('Insumo guardado localmente')
+    } else {
+      try {
+        await saveInsumo(payload)
+        await cargar()
+        handleCancelarEdicion()
+        toast.success('Insumo guardado')
+      } catch (e) {
+        const nuevo = { ...payload, id: Date.now(), dias_restantes: payload.consumo_diario > 0 ? Math.floor(payload.existencia / payload.consumo_diario) : null }
+        const lista = [...insumos.filter(i => i.nombre !== form.nombre), nuevo]
+        setInsumos(lista)
+        localStorage.setItem('marquez_inventario', JSON.stringify(lista))
+        handleCancelarEdicion()
+        toast.success('Insumo guardado localmente')
+      }
     }
   }
 
@@ -155,7 +188,16 @@ export default function Inventario() {
       )}
 
       <div className="card">
-        <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2"><Plus size={14} /> Registrar insumo</h3>
+        <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Plus size={14} /> {editandoInsumoId ? 'Editar insumo' : 'Registrar insumo'}
+          </span>
+          {editandoInsumoId && (
+            <button onClick={handleCancelarEdicion} className="text-xs text-red-500 hover:underline">
+              Cancelar edición
+            </button>
+          )}
+        </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
           <div className="form-group">
             <label className="form-label">Insumo</label>
@@ -185,7 +227,7 @@ export default function Inventario() {
           </div>
         </div>
         <button onClick={handleGuardar} className="btn-primary flex items-center gap-2">
-          <Plus size={14} /> Guardar insumo
+          <Plus size={14} /> {editandoInsumoId ? 'Actualizar insumo' : 'Guardar insumo'}
         </button>
       </div>
 
@@ -300,9 +342,17 @@ export default function Inventario() {
                           </button>
                         )}
                       </td>
-                      <td>
+                      <td className="flex items-center gap-1">
+                        <button onClick={() => handleEditarFila(inv)}
+                          className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-amber-600 transition-colors"
+                          title="Editar insumo"
+                        >
+                          <Pencil size={13} />
+                        </button>
                         <button onClick={() => handleEliminar(inv.id, inv.nombre)}
-                          className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
+                          className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                          title="Eliminar insumo"
+                        >
                           <Trash2 size={13} />
                         </button>
                       </td>
