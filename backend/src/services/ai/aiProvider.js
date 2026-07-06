@@ -5,7 +5,7 @@
 //   - Clasificador de complejidad: simple (300 tokens) vs complejo (1024)
 //   - Historial reducido: 4 mensajes para simple, 6 para complejo
 //   - System prompt comprimido sin redundancias
-//   - Modelo corregido: claude-3-5-sonnet-20241022
+//   - Modelo corregido: claude-sonnet-5
 
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
@@ -125,10 +125,10 @@ export async function chatCliente(messages, system) {
 // ═══════════════════════════════════════════════════════════════════════════════
 export async function logicaNegocio(messages, system, context = {}) {
   if (AI_CONFIG.USE_MOCKS) {
-    mockLog('claude-3-5-sonnet-20241022', messages)
+    mockLog('claude-sonnet-5', messages)
     return {
       respuesta: `[MOCK Claude Sonnet 3.5] Respuesta simulada. Margen objetivo: 57%.`,
-      modelo: 'claude-3-5-sonnet-20241022 (mock)',
+      modelo: 'claude-sonnet-5 (mock)',
       tokens: { input_tokens: 0, output_tokens: 0 },
     }
   }
@@ -142,7 +142,7 @@ export async function logicaNegocio(messages, system, context = {}) {
   if (context?.alertas) systemFinal += `\nALERTAS: ${context.alertas}`
 
   const res = await client.messages.create({
-    model:      'claude-3-5-sonnet-20241022',
+    model:      'claude-sonnet-5',
     max_tokens,
     system:     systemFinal,
     messages:   messages.slice(-historial),
@@ -150,7 +150,7 @@ export async function logicaNegocio(messages, system, context = {}) {
 
   return {
     respuesta: res.content.filter(b => b.type === 'text').map(b => b.text).join('\n'),
-    modelo:    'claude-3-5-sonnet-20241022',
+    modelo:    'claude-sonnet-5',
     tokens:    res.usage,
   }
 }
@@ -163,7 +163,7 @@ export async function logicaNegocio(messages, system, context = {}) {
 // ═══════════════════════════════════════════════════════════════════════════════
 export async function costeoMasivo(messages, system, datos) {
   if (AI_CONFIG.USE_MOCKS) {
-    mockLog('claude-3-5-sonnet (costeo)', messages)
+    mockLog('claude-sonnet-5 (costeo)', messages)
     const costeosSimulados = Array.isArray(datos)
       ? datos.map((r, i) => ({
           producto:      r.producto || r.n || `Producto ${i + 1}`,
@@ -177,7 +177,7 @@ export async function costeoMasivo(messages, system, datos) {
       : null
     return {
       respuesta: costeosSimulados ? JSON.stringify(costeosSimulados) : '[MOCK Claude costeo]',
-      modelo:    'claude-3-5-sonnet-20241022 (mock)',
+      modelo:    'claude-sonnet-5 (mock)',
       tokens:    { input_tokens: 0, output_tokens: 0 },
     }
   }
@@ -188,14 +188,14 @@ export async function costeoMasivo(messages, system, datos) {
     : messages[messages.length - 1].content
 
   const res = await client.messages.create({
-    model:      'claude-3-5-sonnet-20241022',
+    model:      'claude-sonnet-5',
     max_tokens: 2048,
     system:     system,
     messages:   [...messages.slice(-5, -1), { role: 'user', content: prompt }],
   })
   return {
     respuesta: res.content.filter(b => b.type === 'text').map(b => b.text).join('\n'),
-    modelo:    'claude-3-5-sonnet-20241022',
+    modelo:    'claude-sonnet-5',
     tokens:    res.usage,
   }
 }
@@ -210,11 +210,11 @@ export async function costeoMasivo(messages, system, datos) {
 // ═══════════════════════════════════════════════════════════════════════════════
 export async function analisisRazon(messages, system) {
   if (AI_CONFIG.USE_MOCKS) {
-    mockLog('claude-3-5-sonnet (analisis)', messages)
+    mockLog('claude-sonnet-5 (analisis)', messages)
     return {
       respuesta:     '[MOCK Claude análisis] Análisis simulado.',
       razonamiento:  null,
-      modelo:        'claude-3-5-sonnet-20241022 (mock)',
+      modelo:        'claude-sonnet-5 (mock)',
       tokens:        { input_tokens: 0, output_tokens: 0 },
     }
   }
@@ -222,7 +222,7 @@ export async function analisisRazon(messages, system) {
   const client = getAnthropic()
   const systemFinal = `${system}\n\nPiensa paso a paso antes de responder y estructura tu respuesta con tu razonamiento seguido de la conclusión.`
   const res = await client.messages.create({
-    model:      'claude-3-5-sonnet-20241022',
+    model:      'claude-sonnet-5',
     max_tokens: 2048,
     system:     systemFinal,
     messages:   messages.slice(-6),
@@ -230,7 +230,7 @@ export async function analisisRazon(messages, system) {
   return {
     respuesta:    res.content.filter(b => b.type === 'text').map(b => b.text).join('\n'),
     razonamiento: null,
-    modelo:       'claude-3-5-sonnet-20241022',
+    modelo:       'claude-sonnet-5',
     tokens:       res.usage,
   }
 }
@@ -312,7 +312,7 @@ export async function multimedia(prompt, fileData, mimeType) {
 // ── Estado de proveedores ─────────────────────────────────────────────────────
 export function getProvidersStatus() {
   return {
-    'claude-3-5-sonnet-20241022': {
+    'claude-sonnet-5': {
       activo:  AI_CONFIG.USE_MOCKS ? 'mock' : !!process.env.ANTHROPIC_API_KEY,
       uso:     'Lógica de negocio, márgenes, decisiones',
       costo:   '~$0.003/1K tokens',
