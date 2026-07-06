@@ -17,6 +17,17 @@ import fiscalRoutes     from './routes/fiscal.js'
 import ventasRoutes     from './routes/ventas.js'
 import authRoutes       from './routes/auth.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
+import { query } from './db/client.js'
+
+// Asegurar columnas de auditoría en producción de forma no bloqueante
+query(`
+  ALTER TABLE auditoria_precios ADD COLUMN IF NOT EXISTS valor_anterior_texto VARCHAR(255);
+  ALTER TABLE auditoria_precios ADD COLUMN IF NOT EXISTS valor_nuevo_texto VARCHAR(255);
+`).then(() => {
+  console.log('   Auditoría:   Columnas de texto verificadas/añadidas')
+}).catch(err => {
+  console.warn('   Auditoría:   (Aviso) No se pudieron verificar columnas:', err.message)
+})
 
 const app = express()
 const PORT = process.env.PORT || 3001

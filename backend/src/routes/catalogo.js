@@ -9,9 +9,11 @@ const router = Router()
 // NOTA: valor_nuevo es NOT NULL en la tabla (pensada originalmente solo
 // para precios) — para cambios de texto (nombre/categoría) se manda 0
 // como relleno numérico; el dato real vive en valor_nuevo_texto.
+
+
 async function registrarAuditoria(client, { tenantId, tipo, entidadId, entidadNombre, campo, valorAnterior, valorNuevo, valorAnteriorTexto, valorNuevoTexto, metodo, porcentaje, ip }) {
   try {
-    await client.query(`
+    await query(`
       INSERT INTO auditoria_precios
         (tenant_id, tipo, entidad_id, entidad_nombre, campo, valor_anterior, valor_nuevo, valor_anterior_texto, valor_nuevo_texto, metodo, porcentaje_aplicado, ip_origen)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
@@ -20,8 +22,6 @@ async function registrarAuditoria(client, { tenantId, tipo, entidadId, entidadNo
     console.error('No se pudo registrar auditoría de cambio:', e.message)
   }
 }
-
-// GET /api/catalogo — solo productos del tenant activo (lectura libre, sin PIN)
 router.get('/', async (req, res, next) => {
   try {
     const { rows } = await query(`
