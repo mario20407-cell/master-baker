@@ -3,7 +3,7 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle,
-  Sun, Moon, ChevronLeft, ChevronRight
+  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp
 } from 'lucide-react'
 
 const NAV_GROUPS = [
@@ -19,6 +19,7 @@ const NAV_GROUPS = [
     title: 'Producción',
     items: [
       { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE' },
+      { to: '/produccion', icon: TrendingUp,       label: 'Producción',  badge: 'NEW' },
       { to: '/costeo',     icon: Calculator,       label: 'Costeo' },
       { to: '/escalado',   icon: Scale,            label: 'Escalado' },
     ]

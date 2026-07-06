@@ -93,3 +93,8 @@ export const getVentaResumen = (fecha)  => api.get('/ventas/resumen', { params: 
 export const getVentaCierre  = (fecha)  => api.get('/ventas/cierre',  { params: { fecha } })
 export const saveVenta       = (data)   => api.post('/ventas', data)
 export const deleteVenta     = (id)     => api.delete(`/ventas/${id}`)
+
+// ── Producción ────────────────────────────────────────────────────────────────
+export const verificarProduccion  = (producto, piezas) => api.get('/produccion/verificar', { params: { producto, piezas } })
+export const crearOrdenProduccion = (data)             => api.post('/produccion', data)
+export const getHistorialProduccion = ()               => api.get('/produccion')

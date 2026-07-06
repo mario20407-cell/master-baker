@@ -14,6 +14,7 @@ import IAChat from './pages/IAChat'
 import Exportar from './pages/Exportar'
 import ConfigFiscal from './pages/ConfigFiscal'
 import Ayuda from './pages/Ayuda'
+import Produccion from './pages/Produccion'
 
 // Ruta protegida: redirige a /login si no hay sesión activa
 function RutaProtegida({ children }) {
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="inventario"   element={<Inventario />} />
         <Route path="compras"      element={<Compras />} />
         <Route path="ventas"       element={<Ventas />} />
+        <Route path="produccion"   element={<Produccion />} />
         <Route path="ia"           element={<IAChat />} />
         <Route path="exportar"     element={<Exportar />} />
         <Route path="fiscal"       element={<ConfigFiscal />} />
