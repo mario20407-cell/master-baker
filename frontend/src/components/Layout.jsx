@@ -36,7 +36,7 @@ const NAV_GROUPS = [
       { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI', role: 'admin' },
       { to: '/equipo',     icon: Users,            label: 'Mi Equipo', role: 'admin' },
       { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
-      { to: '/exportar',   icon: Download,         label: 'Exportar', role: 'admin' },
+      { to: '/exportar',   icon: Download,         label: 'Reportes', role: 'admin' },
     ]
   }
 ]
