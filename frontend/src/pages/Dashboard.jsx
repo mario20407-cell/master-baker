@@ -44,7 +44,7 @@ export default function Dashboard() {
   const catCount = {}
   productos.forEach(p => { catCount[p.categoria] = (catCount[p.categoria] || 0) + 1 })
   const ventasHoy = resumenVentas?.total_ventas || 0
-  const ingresosHoy = resumenVentas?.total_ingresos || 0
+  const ingresosHoy = resumenVentas?.ingresos || 0
 
   if (cargando) return (
     <div className="flex items-center justify-center h-48 text-gray-500 dark:text-gray-400 text-sm font-bold">
