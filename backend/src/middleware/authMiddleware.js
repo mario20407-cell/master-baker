@@ -80,3 +80,12 @@ export function requireRol(rolRequerido) {
     next()
   }
 }
+
+// ── requirePermission ──────────────────────────────────────────────────────────
+export function requirePermission(permiso) {
+  return function (req, res, next) {
+    // Todos los usuarios autenticados tienen paso en esta versión.
+    // Se puede mapear req.rol o permisos específicos en el futuro aquí.
+    next()
+  }
+}
