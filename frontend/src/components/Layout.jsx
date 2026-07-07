@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle,
-  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp, Users, Layers, Store
+  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp, Users, Layers, Store, FileText
 } from 'lucide-react'
 
 const NAV_GROUPS = [
@@ -36,7 +36,8 @@ const NAV_GROUPS = [
       { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI', role: 'admin' },
       { to: '/equipo',     icon: Users,            label: 'Mi Equipo', role: 'admin' },
       { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
-      { to: '/exportar',   icon: Download,         label: 'Reportes', role: 'admin' },
+      { to: '/reportes',   icon: FileText,         label: 'Reportes', role: 'admin' },
+      { to: '/exportar',   icon: Download,         label: 'Exportar', role: 'admin' },
     ]
   }
 ]
