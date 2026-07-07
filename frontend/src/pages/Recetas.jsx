@@ -7,6 +7,55 @@ import toast from 'react-hot-toast'
 
 const UNIDADES = ['kg', 'g', 'L', 'ml', 'unidad', 'porción']
 
+const convertirPrecio = (unidadInv, unidadReceta, precioInv) => {
+  const u1 = (unidadInv || '').toLowerCase().trim()
+  const u2 = (unidadReceta || '').toLowerCase().trim()
+  if (!u1 || !u2 || u1 === u2) return precioInv
+
+  // Normalizar unidades de masa
+  const esLibro = (u) => u === 'lb' || u === 'libra' || u === 'libras' || u === 'lbs'
+  const esGramo = (u) => u === 'g' || u === 'gramo' || u === 'gramos'
+  const esKilo = (u) => u === 'kg' || u === 'kilo' || u === 'kilogramo' || u === 'kilogramos'
+
+  // Normalizar unidades de volumen
+  const esLitro = (u) => u === 'l' || u === 'litro' || u === 'litros'
+  const esMili = (u) => u === 'ml' || u === 'mililitro' || u === 'mililitros'
+
+  // Conversión masa: lb -> g
+  if (esLibro(u1) && esGramo(u2)) {
+    return precioInv / 454
+  }
+  if (esGramo(u1) && esLibro(u2)) {
+    return precioInv * 454
+  }
+
+  // Conversión masa: kg -> g
+  if (esKilo(u1) && esGramo(u2)) {
+    return precioInv / 1000
+  }
+  if (esGramo(u1) && esKilo(u2)) {
+    return precioInv * 1000
+  }
+
+  // Conversión masa: kg -> lb
+  if (esKilo(u1) && esLibro(u2)) {
+    return precioInv / 2.20462
+  }
+  if (esLibro(u1) && esKilo(u2)) {
+    return precioInv * 2.20462
+  }
+
+  // Conversión volumen: L -> ml
+  if (esLitro(u1) && esMili(u2)) {
+    return precioInv / 1000
+  }
+  if (esMili(u1) && esLitro(u2)) {
+    return precioInv * 1000
+  }
+
+  return precioInv
+}
+
 function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
   const [esPersonalizado, setEsPersonalizado] = useState(() => {
     if (!ing.nombre) return false
@@ -27,6 +76,16 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
         precio: picked ? parseFloat(picked.costo_unitario) || 0 : ing.precio
       })
     }
+  }
+
+  const handleUnidadChange = (nuevaUnidad) => {
+    const insumoInv = inventario.find(i => i.nombre === ing.nombre)
+    let nuevoPrecio = ing.precio
+    if (insumoInv) {
+      const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
+      nuevoPrecio = convertirPrecio(insumoInv.unidad, nuevaUnidad, costoUnit)
+    }
+    onChange({ ...ing, unidad: nuevaUnidad, precio: nuevoPrecio })
   }
 
   return (
@@ -64,10 +123,10 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
       )}
       <input type="number" value={ing.cantidad} placeholder="0" step="0.001" min="0"
         onChange={e => onChange({ ...ing, cantidad: parseFloat(e.target.value) || 0 })} />
-      <select value={ing.unidad} onChange={e => onChange({ ...ing, unidad: e.target.value })}>
+      <select value={ing.unidad} onChange={e => handleUnidadChange(e.target.value)}>
         {UNIDADES.map(u => <option key={u}>{u}</option>)}
       </select>
-      <input type="number" value={ing.precio} placeholder="C$/u" step="0.01" min="0"
+      <input type="number" value={ing.precio} placeholder="C$/u" step="0.0001" min="0"
         onChange={e => onChange({ ...ing, precio: parseFloat(e.target.value) || 0 })} />
       <button onClick={onDelete} className="btn-danger p-1.5">
         <Trash2 size={13} />
@@ -243,30 +302,6 @@ export default function Recetas() {
       if (!str) return '0'
       // Remueve todo excepto números, puntos, comas y signos menos
       return str.replace(/[^0-9.,-]/g, '').replace(',', '.')
-    }
-
-    const convertirPrecio = (unidadInv, unidadReceta, precioInv) => {
-      const u1 = (unidadInv || '').toLowerCase().trim()
-      const u2 = (unidadReceta || '').toLowerCase().trim()
-      if (!u1 || !u2 || u1 === u2) return precioInv
-
-      // Conversión masa
-      if ((u1 === 'kg' || u1 === 'kilo' || u1 === 'kilogramo') && (u2 === 'g' || u2 === 'gramo' || u2 === 'gramos')) {
-        return precioInv / 1000
-      }
-      if ((u1 === 'g' || u1 === 'gramo' || u1 === 'gramos') && (u2 === 'kg' || u2 === 'kilo' || u2 === 'kilogramo')) {
-        return precioInv * 1000
-      }
-
-      // Conversión volumen
-      if ((u1 === 'l' || u1 === 'litro' || u1 === 'litros') && (u2 === 'ml' || u2 === 'mililitro' || u2 === 'mililitros')) {
-        return precioInv / 1000
-      }
-      if ((u1 === 'ml' || u1 === 'mililitro' || u1 === 'mililitros') && (u2 === 'l' || u2 === 'litro' || u2 === 'litros')) {
-        return precioInv * 1000
-      }
-
-      return precioInv
     }
 
     lineas.forEach(l => {

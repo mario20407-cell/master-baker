@@ -1,0 +1,1 @@
+import dotenv from "dotenv"; import pg from "pg"; dotenv.config(); const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: false }); try { const { rows } = await pool.query("SELECT id, nombre, unidad, costo_unitario FROM inventario"); console.log(JSON.stringify(rows)); } catch(e) { console.error(e); } finally { await pool.end(); }
