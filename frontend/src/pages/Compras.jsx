@@ -161,16 +161,16 @@ export function Compras() {
           <div className="form-group"><label className="form-label">Proveedor</label><input value={prov} onChange={e => setProv(e.target.value)} placeholder="Distribuidora X" /></div>
           <div className="form-group"><label className="form-label">Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} /></div>
         </div>
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-2 mb-1">
+        <div className="grid grid-cols-[2.5fr_0.7fr_1.1fr_1.1fr_auto] gap-2 mb-1">
           {['Producto', 'Cant.', 'Precio actual', 'Precio anterior', ''].map((h, i) => <div key={i} className="text-xs text-gray-400">{h}</div>)}
         </div>
         {items.map((it, i) => (
-          <div key={i} className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-2 mb-2">
-            <input value={it.producto} onChange={e => updateItem(i, 'producto', e.target.value)} placeholder="Harina 50kg" />
-            <input type="number" value={it.cantidad} onChange={e => updateItem(i, 'cantidad', e.target.value)} min="1" />
-            <input type="number" value={it.precio_actual} onChange={e => updateItem(i, 'precio_actual', e.target.value)} placeholder="0.00" step="0.01" />
-            <input type="number" value={it.precio_anterior} onChange={e => updateItem(i, 'precio_anterior', e.target.value)} placeholder="0.00" step="0.01" />
-            <button onClick={() => removeItem(i)} className="btn-danger p-1.5"><Trash2 size={12} /></button>
+          <div key={i} className="grid grid-cols-[2.5fr_0.7fr_1.1fr_1.1fr_auto] gap-2 mb-2 items-center">
+            <input className="w-full min-w-0" value={it.producto} onChange={e => updateItem(i, 'producto', e.target.value)} placeholder="Harina 50kg" />
+            <input className="w-full min-w-0" type="number" value={it.cantidad} onChange={e => updateItem(i, 'cantidad', e.target.value)} min="1" />
+            <input className="w-full min-w-0" type="number" value={it.precio_actual} onChange={e => updateItem(i, 'precio_actual', e.target.value)} placeholder="0.00" step="0.01" />
+            <input className="w-full min-w-0" type="number" value={it.precio_anterior} onChange={e => updateItem(i, 'precio_anterior', e.target.value)} placeholder="0.00" step="0.01" />
+            <button onClick={() => removeItem(i)} className="btn-danger p-1.5 flex items-center justify-center h-[38px]"><Trash2 size={12} /></button>
           </div>
         ))}
         <div className="flex gap-2 mt-2">
