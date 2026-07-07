@@ -14,6 +14,7 @@ import {
   calcFactorEscala,
   calcPiezasReales,
   escalarCantidad,
+  convertirUnidad,
   sumarCostosIngredientes,
   calcularCosteoReceta,
 } from '../costeo'
@@ -233,9 +234,67 @@ describe('escalarCantidad', () => {
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
+// convertirUnidad — regresión del bug de costeo 1000x
+// ═══════════════════════════════════════════════════════════════════════════
+describe('convertirUnidad', () => {
+  it('convierte gramos (receta) a kilogramos (inventario)', () => {
+    expect(convertirUnidad(500, 'g', 'kg')).toBeCloseTo(0.5, 6)
+  })
+
+  it('convierte mililitros (receta) a litros (inventario)', () => {
+    expect(convertirUnidad(250, 'ml', 'l')).toBeCloseTo(0.25, 6)
+    expect(convertirUnidad(250, 'ml', 'litro')).toBeCloseTo(0.25, 6)
+  })
+
+  it('convierte libras a kilogramos', () => {
+    expect(convertirUnidad(2, 'libra', 'kg')).toBeCloseTo(0.908, 4)
+  })
+
+  it('convierte arrobas a kilogramos', () => {
+    expect(convertirUnidad(1, 'arroba', 'kg')).toBeCloseTo(11.5, 4)
+  })
+
+  it('no convierte si las unidades son iguales', () => {
+    expect(convertirUnidad(500, 'kg', 'kg')).toBe(500)
+  })
+
+  it('no convierte si falta alguna unidad (deja la cantidad intacta)', () => {
+    expect(convertirUnidad(500, null, 'kg')).toBe(500)
+    expect(convertirUnidad(500, 'g', null)).toBe(500)
+  })
+
+  it('es insensible a mayúsculas/minúsculas', () => {
+    expect(convertirUnidad(500, 'G', 'KG')).toBeCloseTo(0.5, 6)
+  })
+
+  it('par de unidades sin regla de conversión conocida devuelve la cantidad sin cambios', () => {
+    expect(convertirUnidad(500, 'kg', 'g')).toBe(500)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
 // sumarCostosIngredientes
 // ═══════════════════════════════════════════════════════════════════════════
 describe('sumarCostosIngredientes', () => {
+  it('REGRESIÓN bug 1000x: ingrediente en g de receta cuyo precio está por kg de inventario no debe costear 1000x de más', () => {
+    // 500g de un ingrediente cuyo costo en inventario es C$100 por kg.
+    // Costo real esperado: 0.5kg * 100 = C$50 (NO 500 * 100 = C$50,000)
+    const ingredientes = [
+      { nombre: 'Harina', cantidad: 500, unidad: 'g', unidad_inventario: 'kg', precio: 100, tipo: 'directo' },
+    ]
+    const res = sumarCostosIngredientes(ingredientes)
+    expect(res.costoTotal).toBeCloseTo(50, 4)
+  })
+
+  it('ingrediente sin unidad_inventario no convierte (misma unidad implícita)', () => {
+    const ingredientes = [
+      { nombre: 'Harina', cantidad: 1, unidad: 'kg', precio: 30, tipo: 'directo' },
+    ]
+    const res = sumarCostosIngredientes(ingredientes)
+    expect(res.costoTotal).toBe(30)
+  })
+
+
   it('separa correctamente costos directos e indirectos', () => {
     const ingredientes = [
       { nombre: 'Harina', cantidad: 1, precio: 30, tipo: 'directo' },
