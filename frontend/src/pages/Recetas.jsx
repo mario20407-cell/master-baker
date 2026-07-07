@@ -163,6 +163,23 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [] }) {
     ]
   })
 
+  useEffect(() => {
+    if (inventario && inventario.length > 0 && inicial?.ingredientes) {
+      setIngs(prev => prev.map(ing => {
+        // Solo actualizar si el precio es 0 para no pisar modificaciones manuales
+        if (parseFloat(ing.precio) > 0) return ing
+        
+        const insumoInv = inventario.find(i => i.nombre.toLowerCase().trim() === ing.nombre.toLowerCase().trim())
+        if (insumoInv) {
+          const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
+          const precioActualizado = convertirPrecio(insumoInv.unidad, ing.unidad, costoUnit)
+          return { ...ing, precio: precioActualizado }
+        }
+        return ing
+      }))
+    }
+  }, [inventario, inicial])
+
   const addIng = (tipo = 'directo') =>
     setIngs(prev => [...prev, { nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo }])
 
