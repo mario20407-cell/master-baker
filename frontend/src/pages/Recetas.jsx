@@ -7,14 +7,61 @@ import toast from 'react-hot-toast'
 
 const UNIDADES = ['kg', 'g', 'L', 'ml', 'unidad', 'porción']
 
-function IngredienteRow({ ing, onChange, onDelete }) {
+function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
+  const [esPersonalizado, setEsPersonalizado] = useState(() => {
+    if (!ing.nombre) return false
+    return !inventario.some(inv => inv.nombre.toLowerCase().trim() === ing.nombre.toLowerCase().trim())
+  })
+
+  const handleSelectChange = (val) => {
+    if (val === '__custom__') {
+      setEsPersonalizado(true)
+      onChange({ ...ing, nombre: '' })
+    } else {
+      setEsPersonalizado(false)
+      const picked = inventario.find(inv => inv.nombre === val)
+      onChange({
+        ...ing,
+        nombre: val,
+        unidad: picked ? picked.unidad : ing.unidad,
+        precio: picked ? parseFloat(picked.costo_unitario) || 0 : ing.precio
+      })
+    }
+  }
+
   return (
     <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-2 items-center mb-2">
-      <input
-        value={ing.nombre} placeholder="Ingrediente"
-        onChange={e => onChange({ ...ing, nombre: e.target.value })}
-        className={ing.tipo === 'indirecto' ? 'bg-blue-50' : ''}
-      />
+      {esPersonalizado ? (
+        <div className="flex gap-1 items-center">
+          <input
+            value={ing.nombre} placeholder="Nombre insumo"
+            onChange={e => onChange({ ...ing, nombre: e.target.value })}
+            className={ing.tipo === 'indirecto' ? 'bg-blue-50 flex-1' : 'flex-1'}
+          />
+          <button 
+            type="button" 
+            onClick={() => { setEsPersonalizado(false); onChange({ ...ing, nombre: '' }) }}
+            className="text-[9px] text-gray-400 hover:text-gray-600 px-1 py-0.5 border border-gray-250 rounded hover:bg-gray-50 flex-shrink-0"
+            title="Usar lista del inventario"
+          >
+            Lista
+          </button>
+        </div>
+      ) : (
+        <select
+          value={ing.nombre}
+          onChange={e => handleSelectChange(e.target.value)}
+          className={ing.tipo === 'indirecto' ? 'bg-blue-55 dark:bg-navy-800' : ''}
+        >
+          <option value="">— Seleccionar insumo —</option>
+          {inventario.map(inv => (
+            <option key={inv.nombre} value={inv.nombre}>
+              {inv.nombre}
+            </option>
+          ))}
+          <option value="__custom__">+ Escribir a mano...</option>
+        </select>
+      )}
       <input type="number" value={ing.cantidad} placeholder="0" step="0.001" min="0"
         onChange={e => onChange({ ...ing, cantidad: parseFloat(e.target.value) || 0 })} />
       <select value={ing.unidad} onChange={e => onChange({ ...ing, unidad: e.target.value })}>
@@ -38,25 +85,10 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [] }) {
   const [notas, setNotas] = useState(inicial?.notas || '')
   const [ings, setIngs] = useState(() => {
     if (inicial?.ingredientes) return inicial.ingredientes
-
-    if (inventario && inventario.length > 0) {
-      return inventario.map(i => ({
-        nombre: i.nombre,
-        cantidad: '',
-        unidad: i.unidad || 'kg',
-        precio: parseFloat(i.costo_unitario) || 0,
-        tipo: i.nombre.toLowerCase().includes('indirecto') ? 'indirecto' : 'directo'
-      }))
-    }
-
     return [
-      { nombre: 'Harina',                 cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
-      { nombre: 'Azúcar',                 cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
-      { nombre: 'Huevos',                 cantidad: '', unidad: 'unidad', precio: '', tipo: 'directo' },
-      { nombre: 'Margarina',              cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
-      { nombre: 'Gas (indirecto)',        cantidad: '', unidad: 'porción',precio: '', tipo: 'indirecto' },
-      { nombre: 'Mano de obra (indirecto)', cantidad: '', unidad: 'porción', precio: '', tipo: 'indirecto' },
-      { nombre: 'Empaque',                cantidad: '', unidad: 'unidad', precio: '', tipo: 'directo' },
+      { nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo: 'directo' },
+      { nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo: 'directo' },
+      { nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo: 'directo' },
     ]
   })
 
@@ -139,6 +171,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [] }) {
 
         {ings.map((ing, i) => (
           <IngredienteRow key={i} ing={ing}
+            inventario={inventario}
             onChange={val => updateIng(i, val)}
             onDelete={() => removeIng(i)} />
         ))}
