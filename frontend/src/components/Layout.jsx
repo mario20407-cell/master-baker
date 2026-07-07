@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle,
-  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp, Users, Layers, Store, FileText
+  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp, Users, Layers, Store, FileText, LogOut
 } from 'lucide-react'
 
 const NAV_GROUPS = [
@@ -46,7 +46,7 @@ const NAV_GROUPS = [
 const ALL_ITEMS = NAV_GROUPS.flatMap(g => g.items)
 
 export default function Layout() {
-  const { usuario } = useAuth()
+  const { usuario, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -161,8 +161,25 @@ export default function Layout() {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-100 dark:border-navy-800 flex items-center justify-between">
-          {!isCollapsed && <span className="text-[10px] text-gray-400">v2.7.2</span>}
+        <div className="p-3 border-t border-gray-100 dark:border-navy-800 flex items-center justify-between gap-1">
+          {!isCollapsed ? (
+            <button 
+              onClick={logout}
+              className="flex items-center gap-2 text-xs font-medium text-red-500 hover:text-red-600 transition-colors py-1.5 px-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20"
+              title="Cerrar sesión"
+            >
+              <LogOut size={15} />
+              <span>Cerrar Sesión</span>
+            </button>
+          ) : (
+            <button 
+              onClick={logout}
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
+              title="Cerrar sesión"
+            >
+              <LogOut size={15} />
+            </button>
+          )}
           <button 
             onClick={toggleSidebarCollapse}
             className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-800 ml-auto"
