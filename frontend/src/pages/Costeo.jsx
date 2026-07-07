@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useRecetas } from '../hooks/useRecetas'
 import { useFiscalConfig } from '../hooks/useFiscalConfig'
 import { PRODUCTOS } from '../lib/catalogo'
@@ -17,6 +18,30 @@ export default function Costeo() {
   const [piezas,     setPiezas]     = useState('')
   const [pventa,     setPventa]     = useState('')
   const [resultado,  setResultado]  = useState(null)
+
+  const location = useLocation()
+
+  useEffect(() => {
+    if (location.state?.producto && recetas && Object.keys(recetas).length > 0) {
+      const idx = PRODUCTOS.findIndex(p => p.n === location.state.producto)
+      if (idx >= 0) {
+        const p = PRODUCTOS[idx]
+        setProdIdx(idx.toString())
+        setPventa(p.p)
+        const r = recetas[p.n]
+        if (r) {
+          setPiezas(r.piezas)
+          const recetaConPventa = {
+            ...r,
+            pventa: p.p,
+            ingredientes: r.ingredientes || [],
+          }
+          const res = calcularCosteoReceta(recetaConPventa, r.piezas, configFiscal)
+          setResultado({ ...res, producto: p.n, piezasObj: r.piezas })
+        }
+      }
+    }
+  }, [location.state, recetas, configFiscal])
 
   const prod   = prodIdx !== '' ? PRODUCTOS[parseInt(prodIdx)] : null
   const receta = prod ? recetas[prod.n] : null

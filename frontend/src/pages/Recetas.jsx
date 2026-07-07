@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useRecetas } from '../hooks/useRecetas'
 import { PRODUCTOS, CAT_COLORS } from '../lib/catalogo'
 import { ChefHat, Plus, Search, Upload, Edit2, Trash2, Calculator, CheckCircle, AlertTriangle } from 'lucide-react'
@@ -291,6 +292,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [] }) {
 }
 
 export default function Recetas() {
+  const navigate = useNavigate()
   const { recetas, loading, guardar, eliminar } = useRecetas()
   const [vista, setVista] = useState('lista') // lista | nueva | editar | pegar
   const [editando, setEditando] = useState(null)
@@ -497,7 +499,7 @@ export default function Recetas() {
                           <button onClick={() => handleEditar(r)} className="btn-secondary flex items-center gap-1 text-xs">
                             <Edit2 size={12} /> Editar
                           </button>
-                          <button onClick={() => {}} className="btn-primary flex items-center gap-1 text-xs">
+                          <button onClick={() => navigate('/costeo', { state: { producto: r.producto } })} className="btn-primary flex items-center gap-1 text-xs">
                             <Calculator size={12} /> Costear ahora
                           </button>
                         </div>
