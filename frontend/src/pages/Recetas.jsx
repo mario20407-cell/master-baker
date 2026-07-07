@@ -57,10 +57,10 @@ const convertirPrecio = (unidadInv, unidadReceta, precioInv) => {
 }
 
 function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
-  const [esPersonalizado, setEsPersonalizado] = useState(() => {
-    if (!ing.nombre) return false
-    return !inventario.some(inv => inv.nombre.toLowerCase().trim() === ing.nombre.toLowerCase().trim())
-  })
+  const [esPersonalizado, setEsPersonalizado] = useState(false)
+
+  // Ver si el nombre actual existe en el inventario
+  const existeEnInventario = inventario.some(inv => inv.nombre.toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())
 
   const handleSelectChange = (val) => {
     if (val === '__custom__') {
@@ -99,7 +99,7 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
           />
           <button 
             type="button" 
-            onClick={() => { setEsPersonalizado(false); onChange({ ...ing, nombre: '' }) }}
+            onClick={() => setEsPersonalizado(false)}
             className="text-[9px] text-gray-400 hover:text-gray-600 px-1 py-0.5 border border-gray-250 rounded hover:bg-gray-50 flex-shrink-0"
             title="Usar lista del inventario"
           >
@@ -113,6 +113,14 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
           className={ing.tipo === 'indirecto' ? 'bg-blue-55 dark:bg-navy-800' : ''}
         >
           <option value="">— Seleccionar insumo —</option>
+          
+          {/* Si el ingrediente actual no está en el inventario pero tiene un nombre, lo mostramos como opción temporal */}
+          {ing.nombre && !existeEnInventario && (
+            <option value={ing.nombre}>
+              ⚠️ {ing.nombre} (No en inventario)
+            </option>
+          )}
+
           {inventario.map(inv => (
             <option key={inv.nombre} value={inv.nombre}>
               {inv.nombre}
