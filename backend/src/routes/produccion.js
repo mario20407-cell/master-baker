@@ -11,6 +11,57 @@ const router = Router()
 // Normaliza texto: quita tildes y pasa a minusculas para comparacion flexible
 const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
 
+// Conversión de unidades a una unidad base común (g para masa, ml para volumen, unidad para conteo)
+const CONVERSION_MASA = {
+  g: 1,
+  gr: 1,
+  gramo: 1,
+  gramos: 1,
+  kg: 1000,
+  kilo: 1000,
+  kilos: 1000,
+  kilogramo: 1000,
+  kilogramos: 1000,
+  lb: 453.59237,
+  lbs: 453.59237,
+  libra: 453.59237,
+  libras: 453.59237,
+  oz: 28.349523,
+  onza: 28.349523,
+  onzas: 28.349523
+}
+
+const CONVERSION_VOLUMEN = {
+  ml: 1,
+  mililitro: 1,
+  mililitros: 1,
+  l: 1000,
+  L: 1000,
+  litro: 1000,
+  litros: 1000,
+  gl: 3785.41178,
+  galon: 3785.41178,
+  galones: 3785.41178
+}
+
+function normalizarUnidad(u) {
+  const clean = String(u || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  if (CONVERSION_MASA[clean]) return { tipo: 'masa', factor: CONVERSION_MASA[clean] }
+  if (CONVERSION_VOLUMEN[clean]) return { tipo: 'volumen', factor: CONVERSION_VOLUMEN[clean] }
+  return { tipo: 'unidad', factor: 1 }
+}
+
+function convertir(cantidad, unidadOrigen, unidadDestino) {
+  const orig = normalizarUnidad(unidadOrigen)
+  const dest = normalizarUnidad(unidadDestino)
+
+  if (orig.tipo === dest.tipo) {
+    const cantidadEnBase = cantidad * orig.factor
+    return cantidadEnBase / dest.factor
+  }
+  return cantidad
+}
+
 // ── GET /api/produccion/verificar?producto=X&piezas=Y ─────────────────────
 router.get('/verificar', requireAuth, requirePermission('ver_produccion'), async (req, res, next) => {
   const { producto, piezas } = req.query
@@ -56,10 +107,23 @@ router.get('/verificar', requireAuth, requirePermission('ver_produccion'), async
 
     const resultado = necesarios.map(n => {
       const stock = stockMap[norm(n.nombre)] ?? null
-      const disponible = stock ? stock.existencia : null
+      const disponibleOriginal = stock ? stock.existencia : null
+      const unidadOriginal = stock ? stock.unidad : null
+
+      // Convertir disponible en inventario a la unidad de la receta para poder comparar numéricamente
+      const disponible = stock !== null ? convertir(stock.existencia, stock.unidad, n.unidad) : null
       const suficiente = disponible !== null && disponible >= n.necesario
       const faltante = disponible !== null ? Math.max(0, n.necesario - disponible) : n.necesario
-      return { ...n, disponible, suficiente, faltante, sin_inventario: disponible === null }
+
+      return { 
+        ...n, 
+        disponible, 
+        suficiente, 
+        faltante, 
+        sin_inventario: disponible === null,
+        disponible_original: disponibleOriginal,
+        unidad_original: unidadOriginal
+      }
     })
 
     const puedeProducir = resultado.every(r => r.suficiente)
@@ -124,28 +188,31 @@ router.post('/', requireAuth, requirePermission('gestionar_produccion'), async (
           necesario: parseFloat((ing.cantidad * factor).toFixed(4)),
         }))
 
-      // Traer inventario completo y matchear por nombre normalizado
+      // Traer inventario completo y matchear por nombre normalizado (incluyendo unidad)
       const { rows: stocks } = await client.query(
-        `SELECT id, nombre, existencia FROM inventario WHERE tenant_id = $1 FOR UPDATE`,
+        `SELECT id, nombre, existencia, unidad FROM inventario WHERE tenant_id = $1 FOR UPDATE`,
         [req.tenantId]
       )
 
       const stockMap = {}
-      stocks.forEach(s => { stockMap[norm(s.nombre)] = { id: s.id, nombre: s.nombre, existencia: parseFloat(s.existencia) } })
+      stocks.forEach(s => { stockMap[norm(s.nombre)] = { id: s.id, nombre: s.nombre, existencia: parseFloat(s.existencia), unidad: s.unidad } })
 
       const faltantes = necesarios.filter(n => {
         const stock = stockMap[norm(n.nombre)]
-        return !stock || stock.existencia < n.necesario
+        if (!stock) return true
+        const disponible = convertir(stock.existencia, stock.unidad, n.unidad)
+        return disponible < n.necesario
       })
 
       if (faltantes.length > 0 && !forzar) {
         const detalle = faltantes.map(f => {
           const stock = stockMap[norm(f.nombre)]
+          const disponible = stock ? convertir(stock.existencia, stock.unidad, f.unidad) : 0
           return {
             nombre: f.nombre,
             necesario: f.necesario,
-            disponible: stock ? stock.existencia : 0,
-            faltante: parseFloat((f.necesario - (stock ? stock.existencia : 0)).toFixed(4)),
+            disponible: disponible,
+            faltante: parseFloat((f.necesario - disponible).toFixed(4)),
             unidad: f.unidad,
           }
         })
@@ -156,10 +223,12 @@ router.post('/', requireAuth, requirePermission('gestionar_produccion'), async (
       for (const ing of necesarios) {
         const stock = stockMap[norm(ing.nombre)]
         if (stock) {
+          // Convertir la cantidad necesaria (en unidad de receta) a la unidad de inventario para restar
+          const necesarioEnUnidadInventario = convertir(ing.necesario, ing.unidad, stock.unidad)
           await client.query(
             `UPDATE inventario SET existencia = GREATEST(0, existencia - $1), actualizado_en = NOW()
              WHERE id = $2 AND tenant_id = $3`,
-            [ing.necesario, stock.id, req.tenantId]
+            [necesarioEnUnidadInventario, stock.id, req.tenantId]
           )
         }
       }
