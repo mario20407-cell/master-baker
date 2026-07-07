@@ -180,12 +180,33 @@ export default function Recetas() {
     const lineas = pegado.trim().split('\n').filter(Boolean)
     const ings = []
     lineas.forEach(l => {
-      const cols = l.split(/\t|,|;/).map(c => c.trim())
+      let cols = []
+      if (l.includes('\t')) {
+        cols = l.split('\t')
+      } else if (l.includes(';')) {
+        cols = l.split(';')
+      } else {
+        cols = l.split(',')
+      }
+      cols = cols.map(c => c.trim())
+
       if (cols.length >= 2) {
-        const nombre = cols[0]; const cantidad = parseFloat(cols[1]) || 0
-        const unidad = cols[2] || 'kg'; const precio = parseFloat(cols[3]) || 0
-        if (nombre && cantidad > 0)
-          ings.push({ nombre, cantidad, unidad, precio, tipo: nombre.toLowerCase().includes('indirecto') ? 'indirecto' : 'directo' })
+        const nombre = cols[0]
+        const cantStr = cols[1] ? cols[1].replace(',', '.') : '0'
+        const cantidad = parseFloat(cantStr) || 0
+        const unidad = cols[2] || 'kg'
+        const precioStr = cols[3] ? cols[3].replace(',', '.') : '0'
+        const precio = parseFloat(precioStr) || 0
+
+        if (nombre && cantidad > 0) {
+          ings.push({
+            nombre,
+            cantidad,
+            unidad,
+            precio,
+            tipo: nombre.toLowerCase().includes('indirecto') ? 'indirecto' : 'directo'
+          })
+        }
       }
     })
     if (!ings.length) { toast.error('No se encontraron ingredientes válidos'); return }
