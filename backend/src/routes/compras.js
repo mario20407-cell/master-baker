@@ -112,7 +112,7 @@ router.post('/', async (req, res, next) => {
       detalles: { factura_id: factura.id, total: totalFactura, items_count: items.length }
     })
 
-    res.status(201).json(rows[0])
+    res.status(201).json({ ...rows[0], insumosActualizados: items.length })
   } catch (e) { next(e) }
 })
 
