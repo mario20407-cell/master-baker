@@ -179,6 +179,13 @@ export default function Recetas() {
     if (!pegProd || !pegPiezas) { toast.error('Selecciona producto y piezas'); return }
     const lineas = pegado.trim().split('\n').filter(Boolean)
     const ings = []
+    
+    const cleanNumStr = (str) => {
+      if (!str) return '0'
+      // Remueve todo excepto números, puntos, comas y signos menos
+      return str.replace(/[^0-9.,-]/g, '').replace(',', '.')
+    }
+
     lineas.forEach(l => {
       let cols = []
       if (l.includes('\t')) {
@@ -192,11 +199,9 @@ export default function Recetas() {
 
       if (cols.length >= 2) {
         const nombre = cols[0]
-        const cantStr = cols[1] ? cols[1].replace(',', '.') : '0'
-        const cantidad = parseFloat(cantStr) || 0
+        const cantidad = parseFloat(cleanNumStr(cols[1])) || 0
         const unidad = cols[2] || 'kg'
-        const precioStr = cols[3] ? cols[3].replace(',', '.') : '0'
-        const precio = parseFloat(precioStr) || 0
+        const precio = parseFloat(cleanNumStr(cols[3])) || 0
 
         if (nombre && cantidad > 0) {
           ings.push({

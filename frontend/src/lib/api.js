@@ -109,3 +109,9 @@ export const getUsuarios = () => api.get('/auth/usuarios')
 export const saveUsuario = (data) => api.post('/auth/registrar', data)
 export const resetUsuarioPassword = (id, password) => api.put(`/auth/usuarios/${id}/password`, { password })
 export const deleteUsuario = (id) => api.delete(`/auth/usuarios/${id}`)
+export const updateUsuario = (id, data) => api.put(`/auth/usuarios/${id}`, data)
+export const getBitacora = (limite) => api.get('/auth/bitacora', { params: { limite } })
+
+// ── Sucursales / Inventario Terminado ─────────────────────────────────────────
+export const getSucursales = () => api.get('/sucursales')
+export const getInventarioTerminado = (params) => api.get('/inventario-terminado', { params })
