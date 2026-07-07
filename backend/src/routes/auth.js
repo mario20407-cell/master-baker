@@ -230,3 +230,23 @@ router.post('/logout', requireAuth, (req, res) => {
 })
 
 export default router
+
+// POST /api/auth/reset-password — reset de contraseña con PIN de admin
+router.post('/reset-password', requireAuth, requireRol('admin'), async (req, res, next) => {
+  const { email, nueva_password } = req.body
+  if (!email || !nueva_password) {
+    return res.status(400).json({ error: 'Email y nueva contraseña son requeridos' })
+  }
+  if (nueva_password.length < 8) {
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' })
+  }
+  try {
+    const hash = await bcrypt.hash(nueva_password, 12)
+    const { rows } = await query(
+      `UPDATE usuarios SET password_hash = $1 WHERE email = $2 AND tenant_id = $3 AND activo = true RETURNING id, email, nombre`,
+      [hash, email.toLowerCase().trim(), req.tenantId]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
+    res.json({ ok: true, mensaje: `Contraseña actualizada para ${rows[0].nombre}` })
+  } catch (e) { next(e) }
+})
