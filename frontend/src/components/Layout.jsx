@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle,
@@ -10,30 +11,30 @@ const NAV_GROUPS = [
   {
     title: 'Operación',
     items: [
-      { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',      badge: 'NEW' },
-      { to: '/inventario', icon: Package,          label: 'Inventario' },
-      { to: '/compras',    icon: Receipt,          label: 'Compras' },
+      { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',      badge: 'NEW', permission: 'ver_ventas' },
+      { to: '/inventario', icon: Package,          label: 'Inventario', permission: 'ver_inventario' },
+      { to: '/compras',    icon: Receipt,          label: 'Compras', permission: 'ver_compras' },
     ]
   },
   {
     title: 'Producción',
     items: [
-      { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE' },
-      { to: '/produccion', icon: TrendingUp,       label: 'Producción',  badge: 'NEW' },
-      { to: '/costeo',     icon: Calculator,       label: 'Costeo' },
-      { to: '/escalado',   icon: Scale,            label: 'Escalado' },
+      { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE', permission: 'ver_recetas' },
+      { to: '/produccion', icon: TrendingUp,       label: 'Producción',  badge: 'NEW', permission: 'ver_produccion' },
+      { to: '/costeo',     icon: Calculator,       label: 'Costeo', permission: 'ver_costeo' },
+      { to: '/escalado',   icon: Scale,            label: 'Escalado', permission: 'ver_recetas' },
     ]
   },
   {
     title: 'Herramientas',
     items: [
       { to: '/dashboard',  icon: LayoutDashboard,  label: 'Dashboard' },
-      { to: '/catalogo',   icon: BookOpen,         label: 'Catálogo' },
+      { to: '/catalogo',   icon: BookOpen,         label: 'Catálogo', permission: 'ver_catalogo' },
       { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
-      { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI' },
-      { to: '/equipo',     icon: Users,            label: 'Mi Equipo' },
+      { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI', role: 'admin' },
+      { to: '/equipo',     icon: Users,            label: 'Mi Equipo', role: 'admin' },
       { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
-      { to: '/exportar',   icon: Download,         label: 'Exportar' },
+      { to: '/exportar',   icon: Download,         label: 'Exportar', role: 'admin' },
     ]
   }
 ]
@@ -42,6 +43,7 @@ const NAV_GROUPS = [
 const ALL_ITEMS = NAV_GROUPS.flatMap(g => g.items)
 
 export default function Layout() {
+  const { usuario } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -57,6 +59,20 @@ export default function Layout() {
   })
 
   const location = useLocation()
+  
+  const filteredNavGroups = NAV_GROUPS.map(group => {
+    const items = group.items.filter(item => {
+      if (!usuario) return false
+      if (usuario.rol === 'admin') return true
+      if (item.role && usuario.rol !== item.role) return false
+      if (item.permission) {
+        return usuario.permisos && usuario.permisos.includes(item.permission)
+      }
+      return true
+    })
+    return { ...group, items }
+  }).filter(group => group.items.length > 0)
+
   const currentPage = ALL_ITEMS.find(n => location.pathname.startsWith(n.to))?.label || 'Master Baker'
 
   useEffect(() => {
@@ -102,7 +118,7 @@ export default function Layout() {
 
         {/* Sidebar Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
-          {NAV_GROUPS.map((group, groupIdx) => (
+          {filteredNavGroups.map((group, groupIdx) => (
             <div key={groupIdx} className="space-y-1">
               {!isCollapsed && (
                 <h3 className="px-3 text-[10px] font-bold text-gray-400 dark:text-navy-400 uppercase tracking-wider mb-2">

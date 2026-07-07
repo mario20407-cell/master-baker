@@ -33,6 +33,25 @@ function RutaProtegida({ children }) {
   return children
 }
 
+// Ruta protegida por rol o permiso
+function RutaPorPermiso({ children, permission, role }) {
+  const { usuario, cargando } = useAuth()
+  if (cargando) return null
+  
+  if (!usuario) return <Navigate to="/login" replace />
+  if (usuario.rol === 'admin') return children
+  
+  if (role && usuario.rol !== role) {
+    return <Navigate to="/dashboard" replace />
+  }
+  
+  if (permission && (!usuario.permisos || !usuario.permisos.includes(permission))) {
+    return <Navigate to="/dashboard" replace />
+  }
+  
+  return children
+}
+
 export default function App() {
   return (
     <Routes>
@@ -48,19 +67,19 @@ export default function App() {
       }>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard"    element={<Dashboard />} />
-        <Route path="catalogo"     element={<Catalogo />} />
-        <Route path="recetas"      element={<Recetas />} />
-        <Route path="costeo"       element={<Costeo />} />
-        <Route path="escalado"     element={<Escalado />} />
-        <Route path="inventario"   element={<Inventario />} />
-        <Route path="compras"      element={<Compras />} />
-        <Route path="ventas"       element={<Ventas />} />
-        <Route path="produccion"   element={<Produccion />} />
+        <Route path="catalogo"     element={<RutaPorPermiso permission="ver_catalogo"><Catalogo /></RutaPorPermiso>} />
+        <Route path="recetas"      element={<RutaPorPermiso permission="ver_recetas"><Recetas /></RutaPorPermiso>} />
+        <Route path="costeo"       element={<RutaPorPermiso permission="ver_costeo"><Costeo /></RutaPorPermiso>} />
+        <Route path="escalado"     element={<RutaPorPermiso permission="ver_recetas"><Escalado /></RutaPorPermiso>} />
+        <Route path="inventario"   element={<RutaPorPermiso permission="ver_inventario"><Inventario /></RutaPorPermiso>} />
+        <Route path="compras"      element={<RutaPorPermiso permission="ver_compras"><Compras /></RutaPorPermiso>} />
+        <Route path="ventas"       element={<RutaPorPermiso permission="ver_ventas"><Ventas /></RutaPorPermiso>} />
+        <Route path="produccion"   element={<RutaPorPermiso permission="ver_produccion"><Produccion /></RutaPorPermiso>} />
         <Route path="ia"           element={<IAChat />} />
-        <Route path="exportar"     element={<Exportar />} />
-        <Route path="fiscal"       element={<ConfigFiscal />} />
+        <Route path="exportar"     element={<RutaPorPermiso role="admin"><Exportar /></RutaPorPermiso>} />
+        <Route path="fiscal"       element={<RutaPorPermiso role="admin"><ConfigFiscal /></RutaPorPermiso>} />
         <Route path="ayuda"        element={<Ayuda />} />
-        <Route path="equipo"       element={<Equipo />} />
+        <Route path="equipo"       element={<RutaPorPermiso role="admin"><Equipo /></RutaPorPermiso>} />
       </Route>
     </Routes>
   )

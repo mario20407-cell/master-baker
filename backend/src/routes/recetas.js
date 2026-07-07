@@ -9,6 +9,7 @@
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
+import { registrarActividad } from '../services/bitacoraService.js'
 
 const router = Router()
 
@@ -65,8 +66,12 @@ router.post('/', async (req, res, next) => {
   const tenantId = req.tenantId
   if (!producto || !piezas) return res.status(400).json({ error: 'producto y piezas son requeridos' })
 
+  let esNueva = true
   try {
     const receta = await transaction(async (client) => {
+      const { rows: checkReceta } = await client.query('SELECT id FROM recetas WHERE tenant_id = $1 AND producto = $2', [tenantId, producto])
+      esNueva = checkReceta.length === 0
+
       // Upsert receta — el conflicto ahora es por (tenant_id, producto)
       const { rows: [r] } = await client.query(`
         INSERT INTO recetas (tenant_id, producto, piezas, peso_por_pieza, merma_pct, notas)
@@ -101,6 +106,13 @@ router.post('/', async (req, res, next) => {
       WHERE r.id = $1 GROUP BY r.id, p.precio, p.presentacion, p.categoria
     `, [receta.id])
 
+    await registrarActividad(req, {
+      modulo: 'recetas',
+      accion: esNueva ? 'CREAR_RECETA' : 'MODIFICAR_RECETA',
+      descripcion: `${esNueva ? 'Receta creada' : 'Receta modificada'} para el producto "${producto}" (${piezas} piezas, ${ingredientes.length} ingredientes)`,
+      detalles: { producto, piezas, ingredientes_count: ingredientes.length }
+    })
+
     res.status(201).json({ ...rows[0], ingredientes: rows[0].ingredientes || [] })
   } catch (e) { next(e) }
 })
@@ -111,6 +123,10 @@ router.put('/:id', async (req, res, next) => {
   const tenantId = req.tenantId
   try {
     const actualizada = await transaction(async (client) => {
+      const { rows: checkReceta } = await client.query('SELECT producto FROM recetas WHERE id = $1 AND tenant_id = $2', [req.params.id, tenantId])
+      if (!checkReceta.length) return false
+      const prodName = checkReceta[0].producto
+
       const { rowCount } = await client.query(`
         UPDATE recetas SET piezas=$1, peso_por_pieza=$2, merma_pct=$3, notas=$4, actualizado_en=NOW()
         WHERE id=$5 AND tenant_id=$6
@@ -126,6 +142,14 @@ router.put('/:id', async (req, res, next) => {
           ingredientes.flatMap(i => [tenantId, req.params.id, i.nombre, i.cantidad, i.unidad, i.precio||0, i.tipo||'directo'])
         )
       }
+
+      await registrarActividad(req, {
+        modulo: 'recetas',
+        accion: 'MODIFICAR_RECETA',
+        descripcion: `Receta modificada para el producto "${prodName}" (${piezas} piezas, ${ingredientes.length} ingredientes)`,
+        detalles: { receta_id: req.params.id, producto: prodName, piezas, ingredientes_count: ingredientes.length }
+      })
+
       return true
     })
 
@@ -137,8 +161,20 @@ router.put('/:id', async (req, res, next) => {
 // DELETE /api/recetas/:id
 router.delete('/:id', async (req, res, next) => {
   try {
+    const { rows: checkReceta } = await query('SELECT producto FROM recetas WHERE id = $1 AND tenant_id = $2', [req.params.id, req.tenantId])
+    if (!checkReceta.length) return res.status(404).json({ error: 'Receta no encontrada' })
+    const prodName = checkReceta[0].producto
+
     const { rowCount } = await query('DELETE FROM recetas WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])
     if (!rowCount) return res.status(404).json({ error: 'Receta no encontrada' })
+
+    await registrarActividad(req, {
+      modulo: 'recetas',
+      accion: 'ELIMINAR_RECETA',
+      descripcion: `Receta eliminada para el producto "${prodName}"`,
+      detalles: { receta_id: req.params.id, producto: prodName }
+    })
+
     res.json({ ok: true })
   } catch (e) { next(e) }
 })
@@ -180,6 +216,13 @@ router.post('/import-csv', async (req, res, next) => {
       })
       importadas++
     }
+
+    await registrarActividad(req, {
+      modulo: 'recetas',
+      accion: 'IMPORTAR_RECETAS_CSV',
+      descripcion: `Importación masiva realizada desde archivo CSV (${importadas} recetas importadas de ${Object.keys(mapa).length} totales)`,
+      detalles: { importadas, total: Object.keys(mapa).length }
+    })
 
     res.json({ importadas, total: Object.keys(mapa).length })
   } catch (e) { next(e) }

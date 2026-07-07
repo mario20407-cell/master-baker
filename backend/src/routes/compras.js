@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { query, transaction } from '../db/client.js'
+import { registrarActividad } from '../services/bitacoraService.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -102,6 +103,14 @@ router.post('/', async (req, res, next) => {
       LEFT JOIN factura_items fi ON fi.factura_id = f.id AND fi.tenant_id = f.tenant_id
       WHERE f.id = $1 AND f.tenant_id = $2 GROUP BY f.id
     `, [factura.id, tenantId])
+
+    const totalFactura = factura.total || 0
+    await registrarActividad(req, {
+      modulo: 'compras',
+      accion: 'REGISTRAR_COMPRA',
+      descripcion: `Factura de compra registrada para el proveedor "${proveedor || 'Sin nombre'}" por un total de C$ ${totalFactura.toFixed(2)}`,
+      detalles: { factura_id: factura.id, total: totalFactura, items_count: items.length }
+    })
 
     res.status(201).json(rows[0])
   } catch (e) { next(e) }
