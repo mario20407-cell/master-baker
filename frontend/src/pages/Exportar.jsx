@@ -48,7 +48,7 @@ export default function Exportar() {
       {EXPORTS.map(exp => (
         <div key={exp.id} className={`card flex items-center justify-between gap-4 ${exp.primary ? 'border-brand-400/30' : ''}`}>
           <div>
-            <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+            <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
               {exp.label}
               {exp.primary && <span className="badge-info text-[10px]">Recomendado</span>}
               {descargados.includes(exp.id) && <CheckCircle size={13} className="text-green-500" />}
