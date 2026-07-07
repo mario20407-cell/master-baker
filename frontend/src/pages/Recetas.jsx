@@ -29,22 +29,36 @@ function IngredienteRow({ ing, onChange, onDelete }) {
   )
 }
 
-function FormReceta({ inicial, onGuardar, onCancelar }) {
+function FormReceta({ inicial, onGuardar, onCancelar, inventario = [] }) {
   const prodIdx = PRODUCTOS.findIndex(p => p.n === inicial?.producto)
   const [prodSel, setProdSel] = useState(prodIdx >= 0 ? prodIdx : '')
   const [piezas, setPiezas] = useState(inicial?.piezas || '')
   const [peso, setPeso] = useState(inicial?.peso || '')
   const [merma, setMerma] = useState(inicial?.merma || '')
   const [notas, setNotas] = useState(inicial?.notas || '')
-  const [ings, setIngs] = useState(inicial?.ingredientes || [
-    { nombre: 'Harina',                 cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
-    { nombre: 'Azúcar',                 cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
-    { nombre: 'Huevos',                 cantidad: '', unidad: 'unidad', precio: '', tipo: 'directo' },
-    { nombre: 'Margarina',              cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
-    { nombre: 'Gas (indirecto)',        cantidad: '', unidad: 'porción',precio: '', tipo: 'indirecto' },
-    { nombre: 'Mano de obra (indirecto)', cantidad: '', unidad: 'porción', precio: '', tipo: 'indirecto' },
-    { nombre: 'Empaque',                cantidad: '', unidad: 'unidad', precio: '', tipo: 'directo' },
-  ])
+  const [ings, setIngs] = useState(() => {
+    if (inicial?.ingredientes) return inicial.ingredientes
+
+    if (inventario && inventario.length > 0) {
+      return inventario.map(i => ({
+        nombre: i.nombre,
+        cantidad: '',
+        unidad: i.unidad || 'kg',
+        precio: parseFloat(i.costo_unitario) || 0,
+        tipo: i.nombre.toLowerCase().includes('indirecto') ? 'indirecto' : 'directo'
+      }))
+    }
+
+    return [
+      { nombre: 'Harina',                 cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
+      { nombre: 'Azúcar',                 cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
+      { nombre: 'Huevos',                 cantidad: '', unidad: 'unidad', precio: '', tipo: 'directo' },
+      { nombre: 'Margarina',              cantidad: '', unidad: 'kg',     precio: '', tipo: 'directo' },
+      { nombre: 'Gas (indirecto)',        cantidad: '', unidad: 'porción',precio: '', tipo: 'indirecto' },
+      { nombre: 'Mano de obra (indirecto)', cantidad: '', unidad: 'porción', precio: '', tipo: 'indirecto' },
+      { nombre: 'Empaque',                cantidad: '', unidad: 'unidad', precio: '', tipo: 'directo' },
+    ]
+  })
 
   const addIng = (tipo = 'directo') =>
     setIngs(prev => [...prev, { nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo }])
@@ -396,6 +410,7 @@ export default function Recetas() {
       {(vista === 'nueva' || vista === 'editar') && (
         <FormReceta
           inicial={editando}
+          inventario={inventario}
           onGuardar={handleGuardar}
           onCancelar={() => { setVista('lista'); setEditando(null) }}
         />
