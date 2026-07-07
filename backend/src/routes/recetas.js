@@ -23,13 +23,16 @@ router.get('/', async (req, res, next) => {
         json_agg(
           json_build_object(
             'id', i.id, 'nombre', i.nombre, 'cantidad', i.cantidad,
-            'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo
+            'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo,
+            'unidad_inventario', inv.unidad, 'precio_inventario', inv.costo_unitario,
+            'subreceta_nombre', i.subreceta_nombre
           ) ORDER BY i.orden
         ) FILTER (WHERE i.id IS NOT NULL) AS ingredientes,
         p.precio AS pventa, p.presentacion, p.categoria
       FROM recetas r
       LEFT JOIN ingredientes i ON i.receta_id = r.id
       LEFT JOIN productos p ON p.nombre = r.producto AND p.tenant_id = r.tenant_id
+      LEFT JOIN inventario inv ON inv.nombre = i.nombre AND inv.tenant_id = r.tenant_id
       WHERE r.tenant_id = $1
       GROUP BY r.id, p.precio, p.presentacion, p.categoria
       ORDER BY r.producto
@@ -51,6 +54,7 @@ router.get('/:producto', async (req, res, next) => {
       FROM recetas r
       LEFT JOIN ingredientes i ON i.receta_id = r.id
       LEFT JOIN productos p ON p.nombre = r.producto AND p.tenant_id = r.tenant_id
+      LEFT JOIN inventario inv ON inv.nombre = i.nombre AND inv.tenant_id = r.tenant_id
       WHERE r.producto = $1 AND r.tenant_id = $2
       GROUP BY r.id, p.precio, p.presentacion, p.categoria
     `, [decodeURIComponent(req.params.producto), req.tenantId])
@@ -103,6 +107,7 @@ router.post('/', async (req, res, next) => {
       FROM recetas r
       LEFT JOIN ingredientes i ON i.receta_id = r.id
       LEFT JOIN productos p ON p.nombre = r.producto AND p.tenant_id = r.tenant_id
+      LEFT JOIN inventario inv ON inv.nombre = i.nombre AND inv.tenant_id = r.tenant_id
       WHERE r.id = $1 GROUP BY r.id, p.precio, p.presentacion, p.categoria
     `, [receta.id])
 
