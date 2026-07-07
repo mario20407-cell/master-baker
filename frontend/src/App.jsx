@@ -17,6 +17,7 @@ import ConfigFiscal from './pages/ConfigFiscal'
 import Ayuda from './pages/Ayuda'
 import Produccion from './pages/Produccion'
 import CajaProduccion from './pages/CajaProduccion'
+import InventarioTerminado from './pages/InventarioTerminado'
 import Equipo from './pages/Equipo'
 
 // Ruta protegida: redirige a /login si no hay sesión activa
@@ -77,6 +78,7 @@ export default function App() {
         <Route path="ventas"       element={<RutaPorPermiso permission="ver_ventas"><Ventas /></RutaPorPermiso>} />
         <Route path="produccion"   element={<RutaPorPermiso permission="ver_produccion"><Produccion /></RutaPorPermiso>} />
         <Route path="lotes"        element={<RutaPorPermiso permission="ver_produccion"><CajaProduccion /></RutaPorPermiso>} />
+        <Route path="sucursales"   element={<RutaPorPermiso permission="ver_produccion"><InventarioTerminado /></RutaPorPermiso>} />
         <Route path="ia"           element={<IAChat />} />
         <Route path="exportar"     element={<RutaPorPermiso role="admin"><Exportar /></RutaPorPermiso>} />
         <Route path="fiscal"       element={<RutaPorPermiso role="admin"><ConfigFiscal /></RutaPorPermiso>} />
