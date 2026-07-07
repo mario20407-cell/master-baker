@@ -143,7 +143,19 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [] }) {
   const [merma, setMerma] = useState(inicial?.merma || '')
   const [notas, setNotas] = useState(inicial?.notas || '')
   const [ings, setIngs] = useState(() => {
-    if (inicial?.ingredientes) return inicial.ingredientes
+    if (inicial?.ingredientes) {
+      // Si la receta ya existe, recorremos sus ingredientes y actualizamos
+      // su precio desde el inventario de forma automática para evitar que queden en 0.
+      return inicial.ingredientes.map(ing => {
+        const insumoInv = inventario.find(i => i.nombre.toLowerCase().trim() === ing.nombre.toLowerCase().trim())
+        if (insumoInv) {
+          const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
+          const precioActualizado = convertirPrecio(insumoInv.unidad, ing.unidad, costoUnit)
+          return { ...ing, precio: precioActualizado }
+        }
+        return ing
+      })
+    }
     return [
       { nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo: 'directo' },
       { nombre: '', cantidad: '', unidad: 'kg', precio: '', tipo: 'directo' },
