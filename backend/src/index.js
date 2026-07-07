@@ -17,6 +17,7 @@ import fiscalRoutes     from './routes/fiscal.js'
 import ventasRoutes     from './routes/ventas.js'
 import authRoutes       from './routes/auth.js'
 import produccionRoutes   from './routes/produccion.js'
+import lotesRoutes        from './routes/lotes.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 import { query } from './db/client.js'
 
@@ -87,6 +88,7 @@ app.use('/api/whatsapp',   whatsappRoutes)
 app.use('/api/fiscal',     fiscalRoutes)
 app.use('/api/ventas',     ventasRoutes)
 app.use('/api/produccion', produccionRoutes)
+app.use('/api/lotes',      lotesRoutes)
 
 // Health check
 app.get('/api/health', async (_, res) => {

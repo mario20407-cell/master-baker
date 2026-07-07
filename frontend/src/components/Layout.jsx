@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle,
-  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp, Users
+  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp, Users, Layers
 } from 'lucide-react'
 
 const NAV_GROUPS = [
@@ -21,6 +21,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE', permission: 'ver_recetas' },
       { to: '/produccion', icon: TrendingUp,       label: 'Producción',  badge: 'NEW', permission: 'ver_produccion' },
+      { to: '/lotes',      icon: Layers,           label: 'Producto Terminado', permission: 'ver_produccion' },
       { to: '/costeo',     icon: Calculator,       label: 'Costeo', permission: 'ver_costeo' },
       { to: '/escalado',   icon: Scale,            label: 'Escalado', permission: 'ver_recetas' },
     ]
