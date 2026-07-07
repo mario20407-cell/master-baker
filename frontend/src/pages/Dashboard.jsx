@@ -40,7 +40,7 @@ export default function Dashboard() {
 
   const alertasMargen = recetasConDatos.filter(r => r.margen < 60)
   const topRentables = [...recetasConDatos].sort((a, b) => b.margen - a.margen).slice(0, 5)
-  const stockCritico = inventario.filter(i => (i.existencia || 0) < 1).slice(0, 5)
+  const stockCritico = inventario.filter(i => (i.existencia || 0) <= (i.punto_reposicion || 0) || i.estado === 'critico').slice(0, 5)
   const catCount = {}
   productos.forEach(p => { catCount[p.categoria] = (catCount[p.categoria] || 0) + 1 })
   const ventasHoy = resumenVentas?.total_ventas || 0
