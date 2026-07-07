@@ -87,24 +87,34 @@ app.use('/api/fiscal',     fiscalRoutes)
 app.use('/api/ventas',     ventasRoutes)
 
 // Health check
-app.get('/api/health', (_, res) => res.json({
-  status: 'ok', version: '3.0',
-  negocio: 'Marquéz Panadería & Repostería',
-  auth: { login: '/api/auth/login', registro_cerrado: true },
-  ia: {
-    openai:    !!process.env.OPENAI_API_KEY,
-    anthropic: !!process.env.ANTHROPIC_API_KEY,
-    deepseek:  !!process.env.DEEPSEEK_API_KEY,
-    gemini:    !!process.env.GEMINI_API_KEY,
-  },
-  whatsapp: {
-    activo:   !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID,
-    phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
-  },
-  admin_pin_configurado: !!process.env.ADMIN_PIN,
-  jwt_configurado:       !!process.env.JWT_SECRET,
-  timestamp: new Date().toISOString(),
-}))
+app.get('/api/health', async (_, res) => {
+  let dbInfo = {}
+  try {
+    const { rows } = await query("SELECT current_database() as db, current_user as user")
+    dbInfo = rows[0]
+  } catch (err) {
+    dbInfo = { error: err.message }
+  }
+  res.json({
+    status: 'ok', version: '3.0',
+    db_info: dbInfo,
+    negocio: 'Marquéz Panadería & Repostería',
+    auth: { login: '/api/auth/login', registro_cerrado: true },
+    ia: {
+      openai:    !!process.env.OPENAI_API_KEY,
+      anthropic: !!process.env.ANTHROPIC_API_KEY,
+      deepseek:  !!process.env.DEEPSEEK_API_KEY,
+      gemini:    !!process.env.GEMINI_API_KEY,
+    },
+    whatsapp: {
+      activo:   !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID,
+      phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
+    },
+    admin_pin_configurado: !!process.env.ADMIN_PIN,
+    jwt_configurado:       !!process.env.JWT_SECRET,
+    timestamp: new Date().toISOString(),
+  })
+})
 
 // Errores
 app.use((err, req, res, _next) => {
