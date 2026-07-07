@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, Link } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle,
-  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp, Users
+  Sun, Moon, ChevronDown, TrendingUp, Users
 } from 'lucide-react'
 
 const NAV_GROUPS = [
@@ -38,17 +38,10 @@ const NAV_GROUPS = [
   }
 ]
 
-// List representation for locating the current page label
 const ALL_ITEMS = NAV_GROUPS.flatMap(g => g.items)
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('sidebar_collapsed') === 'true'
-    }
-    return false
-  })
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
@@ -68,121 +61,157 @@ export default function Layout() {
     localStorage.setItem('theme', theme)
   }, [theme])
 
-  const toggleSidebarCollapse = () => {
-    setIsCollapsed(prev => {
-      const next = !prev
-      localStorage.setItem('sidebar_collapsed', String(next))
-      return next
-    })
-  }
-
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-navy-950 overflow-hidden text-gray-900 dark:text-gray-100 transition-colors duration-200">
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-navy-950 overflow-hidden text-gray-900 dark:text-gray-100 transition-colors duration-200">
       
-      <aside className={`fixed lg:static inset-y-0 left-0 z-30 bg-white dark:bg-navy-900 border-r border-gray-100 dark:border-navy-800 flex flex-col transition-all duration-200 lg:translate-x-0 ${isCollapsed ? 'w-16' : 'w-56'} ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        
-        {/* Sidebar Header */}
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100 dark:border-navy-800 min-h-[73px]">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#263D4F' }}>
-            <img src="/branding/logo-emblema.png" alt="Master Baker" className="w-7 h-7 object-contain" />
-          </div>
-          {!isCollapsed && (
-            <div className="transition-opacity duration-150">
-              <div className="text-sm font-semibold leading-tight tracking-wide" style={{ color: '#C29C53' }}>MASTER BAKER</div>
-              <div className="text-[9px] text-gray-400 dark:text-gray-500 leading-tight">Gestión Panadería</div>
-            </div>
-          )}
-          <button className="ml-auto lg:hidden text-gray-400" onClick={() => setSidebarOpen(false)}>
-            <X size={16} />
+      {/* Top Navbar */}
+      <header className="bg-white dark:bg-navy-900 border-b border-gray-100 dark:border-navy-800 px-6 py-3.5 flex items-center justify-between flex-shrink-0 transition-colors duration-200 z-40 relative">
+        <div className="flex items-center gap-6">
+          {/* Mobile Hamburger menu Button */}
+          <button className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" onClick={() => setSidebarOpen(true)}>
+            <Menu size={20} />
           </button>
-        </div>
 
-        {/* Sidebar Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
-          {NAV_GROUPS.map((group, groupIdx) => (
-            <div key={groupIdx} className="space-y-1">
-              {!isCollapsed && (
-                <h3 className="px-3 text-[10px] font-bold text-gray-400 dark:text-navy-400 uppercase tracking-wider mb-2">
+          {/* Logo & Brand Branding */}
+          <Link to="/dashboard" className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#263D4F' }}>
+              <img src="/branding/logo-emblema.png" alt="Master Baker" className="w-6 h-6 object-contain" />
+            </div>
+            <div>
+              <div className="text-xs font-semibold leading-tight tracking-wide" style={{ color: '#C29C53' }}>MASTER BAKER</div>
+              <div className="text-[8px] text-gray-400 dark:text-gray-500 leading-tight">Gestión Panadería</div>
+            </div>
+          </Link>
+
+          {/* Desktop Cascading Navigation Bar */}
+          <nav className="hidden lg:flex items-center gap-1 ml-4">
+            {NAV_GROUPS.map((group, idx) => (
+              <div key={idx} className="relative group px-2 py-1">
+                <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 rounded-lg hover:bg-gray-50 dark:hover:bg-navy-800 transition-all cursor-pointer">
                   {group.title}
-                </h3>
-              )}
-              {group.items.map(({ to, icon: Icon, label, badge }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  onClick={() => setSidebarOpen(false)}
-                  title={isCollapsed ? label : ''}
-                  className={({ isActive }) => `
-                    flex items-center gap-3 px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors whitespace-nowrap
-                    ${isActive 
-                      ? 'bg-brand-400 text-white hover:bg-brand-600 font-medium' 
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-800'
-                    }
-                    ${isCollapsed ? 'justify-center px-0' : ''}
-                  `}
-                >
-                  <Icon size={18} className="flex-shrink-0" />
-                  {!isCollapsed && <span className="flex-1 text-xs">{label}</span>}
-                  {!isCollapsed && badge && (
-                    <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full"
-                      style={{
-                        background: badge === 'NEW' ? '#3B6D11' : badge === 'DGI' ? '#263D4F' : '#C29C53',
-                        color: '#fff'
-                      }}>
-                      {badge}
-                    </span>
-                  )}
-                </NavLink>
-              ))}
-            </div>
-          ))}
-        </nav>
+                  <ChevronDown size={12} className="text-gray-400 group-hover:text-brand-500 transition-transform duration-200 group-hover:rotate-180" />
+                </button>
+                
+                {/* Cascade Dropdown Card */}
+                <div className="absolute left-0 mt-1 w-48 bg-white dark:bg-navy-900 border border-gray-100 dark:border-navy-800 rounded-xl shadow-xl py-1.5 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-1 group-hover:translate-y-0">
+                  {group.items.map(({ to, icon: Icon, label, badge }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      className={({ isActive }) => `
+                        flex items-center gap-3 px-4 py-2 text-xs transition-colors hover:bg-gray-50 dark:hover:bg-navy-800
+                        ${isActive 
+                          ? 'text-brand-600 dark:text-brand-400 font-semibold bg-amber-50/50 dark:bg-navy-800/50' 
+                          : 'text-gray-600 dark:text-gray-300'
+                        }
+                      `}
+                    >
+                      <Icon size={14} className="text-gray-400" />
+                      <span className="flex-1">{label}</span>
+                      {badge && (
+                        <span className="text-[7px] font-extrabold px-1.5 py-0.5 rounded-full text-white"
+                          style={{
+                            background: badge === 'NEW' ? '#3B6D11' : badge === 'DGI' ? '#263D4F' : '#C29C53',
+                          }}>
+                          {badge}
+                        </span>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </nav>
+        </div>
 
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-100 dark:border-navy-800 flex items-center justify-between">
-          {!isCollapsed && <span className="text-[10px] text-gray-400">v2.7.2</span>}
+        {/* Right Header Panel */}
+        <div className="flex items-center gap-3">
+          <span className="hidden sm:inline-flex text-[10px] px-2.5 py-1 rounded-md font-medium" style={{ background: '#EAF3DE', color: '#27500A' }}>
+            Margen objetivo: ≥57%
+          </span>
+
+          {/* Theme switcher */}
           <button 
-            onClick={toggleSidebarCollapse}
-            className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-800 ml-auto"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="p-1.5 rounded-lg border border-gray-200 dark:border-navy-800 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-800 transition-colors cursor-pointer"
+            title="Alternar tema"
           >
-            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
         </div>
-      </aside>
+      </header>
 
-      {/* Main Layout Area */}
+      {/* Mobile Drawer (visible only on mobile when sidebarOpen is true) */}
+      {sidebarOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/40 dark:bg-black/60 z-45 lg:hidden animate-fade-in" onClick={() => setSidebarOpen(false)} />
+          <aside className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-navy-900 border-r border-gray-100 dark:border-navy-800 z-50 flex flex-col transition-transform duration-250 lg:hidden">
+            {/* Sidebar Mobile Header */}
+            <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100 dark:border-navy-800 min-h-[63px]">
+              <Link to="/dashboard" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#263D4F' }}>
+                  <img src="/branding/logo-emblema.png" alt="Master Baker" className="w-6 h-6 object-contain" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold leading-tight tracking-wide" style={{ color: '#C29C53' }}>MASTER BAKER</div>
+                  <div className="text-[8px] text-gray-400 dark:text-gray-500 leading-tight">Gestión Panadería</div>
+                </div>
+              </Link>
+              <button className="ml-auto text-gray-400" onClick={() => setSidebarOpen(false)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Sidebar Mobile Nav */}
+            <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+              {NAV_GROUPS.map((group, groupIdx) => (
+                <div key={groupIdx} className="space-y-1">
+                  <h3 className="px-3 text-[9px] font-bold text-gray-400 dark:text-navy-400 uppercase tracking-wider mb-2">
+                    {group.title}
+                  </h3>
+                  {group.items.map(({ to, icon: Icon, label, badge }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      onClick={() => setSidebarOpen(false)}
+                      className={({ isActive }) => `
+                        flex items-center gap-3 px-3 py-2 text-xs rounded-lg cursor-pointer transition-colors whitespace-nowrap
+                        ${isActive 
+                          ? 'bg-brand-400 text-white font-medium shadow-sm' 
+                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-800'
+                        }
+                      `}
+                    >
+                      <Icon size={15} />
+                      <span className="flex-1">{label}</span>
+                      {badge && (
+                        <span className="text-[7px] font-extrabold px-1.5 py-0.5 rounded-full text-white"
+                          style={{
+                            background: badge === 'NEW' ? '#3B6D11' : badge === 'DGI' ? '#263D4F' : '#C29C53',
+                          }}>
+                          {badge}
+                        </span>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
+              ))}
+            </nav>
+            <div className="p-4 border-t border-gray-100 dark:border-navy-800 text-[10px] text-gray-455 dark:text-navy-500">
+              v2.7.2
+            </div>
+          </aside>
+        </>
+      )}
+
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        
-        {/* Header */}
-        <header className="bg-white dark:bg-navy-900 border-b border-gray-100 dark:border-navy-800 px-4 py-3 flex items-center justify-between flex-shrink-0 transition-colors duration-200">
-          <div className="flex items-center gap-3">
-            <button className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" onClick={() => setSidebarOpen(true)}>
-              <Menu size={20} />
-            </button>
-            <h1 className="text-sm font-semibold text-gray-850 dark:text-gray-100">{currentPage}</h1>
-          </div>
+        {/* Mobile Page Indicator */}
+        <div className="lg:hidden bg-white dark:bg-navy-900 border-b border-gray-100 dark:border-navy-850 px-6 py-2.5 text-xs font-semibold text-gray-800 dark:text-gray-200 flex-shrink-0 transition-colors duration-200">
+          📍 {currentPage}
+        </div>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-flex text-[11px] px-2.5 py-1 rounded-md font-medium" style={{ background: '#EAF3DE', color: '#27500A' }}>
-              Margen objetivo: ≥57%
-            </span>
-
-            {/* Dark Mode Switcher */}
-            <button 
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-1.5 rounded-lg border border-gray-200 dark:border-navy-800 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-800 transition-colors"
-              title="Alternar tema"
-            >
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-          </div>
-        </header>
-
-        {/* Dynamic Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-navy-950 transition-colors duration-200">
+        <main className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-navy-950 transition-colors duration-200">
           <Outlet />
         </main>
       </div>
