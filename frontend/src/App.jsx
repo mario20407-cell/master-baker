@@ -16,6 +16,7 @@ import Exportar from './pages/Exportar'
 import ConfigFiscal from './pages/ConfigFiscal'
 import Ayuda from './pages/Ayuda'
 import Produccion from './pages/Produccion'
+import Equipo from './pages/Equipo'
 
 // Ruta protegida: redirige a /login si no hay sesión activa
 function RutaProtegida({ children }) {
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="exportar"     element={<Exportar />} />
         <Route path="fiscal"       element={<ConfigFiscal />} />
         <Route path="ayuda"        element={<Ayuda />} />
+        <Route path="equipo"       element={<Equipo />} />
       </Route>
     </Routes>
   )

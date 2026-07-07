@@ -103,3 +103,9 @@ export const deleteVenta     = (id)     => api.delete(`/ventas/${id}`)
 export const verificarProduccion  = (producto, piezas) => api.get('/produccion/verificar', { params: { producto, piezas } })
 export const crearOrdenProduccion = (data)             => api.post('/produccion', data)
 export const getHistorialProduccion = ()               => api.get('/produccion')
+
+// ── Usuarios / Equipo ─────────────────────────────────────────────────────────
+export const getUsuarios = () => api.get('/auth/usuarios')
+export const saveUsuario = (data) => api.post('/auth/registrar', data)
+export const resetUsuarioPassword = (id, password) => api.put(`/auth/usuarios/${id}/password`, { password })
+export const deleteUsuario = (id) => api.delete(`/auth/usuarios/${id}`)

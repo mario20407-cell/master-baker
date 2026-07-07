@@ -182,6 +182,49 @@ router.get('/me', requireAuth, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// GET /api/auth/usuarios — Listar equipo (solo admin)
+router.get('/usuarios', requireAuth, requireRol('admin'), async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      'SELECT id, email, nombre, rol, activo, creado_en, ultimo_login FROM usuarios WHERE tenant_id = $1 ORDER BY nombre',
+      [req.tenantId]
+    )
+    res.json(rows)
+  } catch (e) { next(e) }
+})
+
+// PUT /api/auth/usuarios/:id/password — Restablecer contraseña por administrador
+router.put('/usuarios/:id/password', requireAuth, requireRol('admin'), async (req, res, next) => {
+  const { password } = req.body
+  if (!password || password.length < 8) {
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' })
+  }
+  try {
+    const hash = await bcrypt.hash(password, 12)
+    const { rowCount } = await query(
+      'UPDATE usuarios SET password_hash = $1 WHERE id = $2 AND tenant_id = $3',
+      [hash, req.params.id, req.tenantId]
+    )
+    if (!rowCount) return res.status(404).json({ error: 'Usuario no encontrado' })
+    res.json({ ok: true, mensaje: 'Contraseña restablecida exitosamente' })
+  } catch (e) { next(e) }
+})
+
+// DELETE /api/auth/usuarios/:id — Eliminar colaborador (solo admin)
+router.delete('/usuarios/:id', requireAuth, requireRol('admin'), async (req, res, next) => {
+  if (req.params.id === req.usuarioId) {
+    return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' })
+  }
+  try {
+    const { rowCount } = await query(
+      'DELETE FROM usuarios WHERE id = $1 AND tenant_id = $2',
+      [req.params.id, req.tenantId]
+    )
+    if (!rowCount) return res.status(404).json({ error: 'Usuario no encontrado' })
+    res.json({ ok: true, mensaje: 'Colaborador eliminado' })
+  } catch (e) { next(e) }
+})
+
 router.post('/logout', requireAuth, (req, res) => {
   res.json({ ok: true, mensaje: 'Sesion cerrada' })
 })

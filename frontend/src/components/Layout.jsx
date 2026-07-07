@@ -3,7 +3,7 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle,
-  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp
+  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp, Users
 } from 'lucide-react'
 
 const NAV_GROUPS = [
@@ -31,6 +31,7 @@ const NAV_GROUPS = [
       { to: '/catalogo',   icon: BookOpen,         label: 'Catálogo' },
       { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
       { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI' },
+      { to: '/equipo',     icon: Users,            label: 'Mi Equipo' },
       { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
       { to: '/exportar',   icon: Download,         label: 'Exportar' },
     ]
