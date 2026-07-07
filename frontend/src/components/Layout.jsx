@@ -1,43 +1,39 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle,
-  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp, Users, Layers, Store, FileText, LogOut
+  Sun, Moon, ChevronLeft, ChevronRight, TrendingUp, Users
 } from 'lucide-react'
 
 const NAV_GROUPS = [
   {
     title: 'Operación',
     items: [
-      { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',      badge: 'NEW', permission: 'ver_ventas' },
-      { to: '/inventario', icon: Package,          label: 'Inventario', permission: 'ver_inventario' },
-      { to: '/compras',    icon: Receipt,          label: 'Compras', permission: 'ver_compras' },
+      { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',      badge: 'NEW' },
+      { to: '/inventario', icon: Package,          label: 'Inventario' },
+      { to: '/compras',    icon: Receipt,          label: 'Compras' },
     ]
   },
   {
     title: 'Producción',
     items: [
-      { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE', permission: 'ver_recetas' },
-      { to: '/produccion', icon: TrendingUp,       label: 'Producción',  badge: 'NEW', permission: 'ver_produccion' },
-      { to: '/lotes',      icon: Layers,           label: 'Producto Terminado', permission: 'ver_produccion' },
-      { to: '/sucursales', icon: Store,            label: 'Sucursales', permission: 'ver_produccion' },
-      { to: '/costeo',     icon: Calculator,       label: 'Costeo', permission: 'ver_costeo' },
-      { to: '/escalado',   icon: Scale,            label: 'Escalado', permission: 'ver_recetas' },
+      { to: '/recetas',    icon: ChefHat,          label: 'Recetas',     badge: 'CLAVE' },
+      { to: '/produccion', icon: TrendingUp,       label: 'Producción',  badge: 'NEW' },
+      { to: '/costeo',     icon: Calculator,       label: 'Costeo' },
+      { to: '/escalado',   icon: Scale,            label: 'Escalado' },
     ]
   },
   {
     title: 'Herramientas',
     items: [
       { to: '/dashboard',  icon: LayoutDashboard,  label: 'Dashboard' },
-      { to: '/catalogo',   icon: BookOpen,         label: 'Catálogo', permission: 'ver_catalogo' },
+      { to: '/catalogo',   icon: BookOpen,         label: 'Catálogo' },
       { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
-      { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI', role: 'admin' },
-      { to: '/equipo',     icon: Users,            label: 'Mi Equipo', role: 'admin' },
+      { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI' },
+      { to: '/equipo',     icon: Users,            label: 'Mi Equipo' },
       { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
-      { to: '/reportes',   icon: FileText,         label: 'Reportes', role: 'admin' },
-      { to: '/exportar',   icon: Download,         label: 'Exportar', role: 'admin' },
+      { to: '/exportar',   icon: Download,         label: 'Exportar' },
     ]
   }
 ]
@@ -46,7 +42,6 @@ const NAV_GROUPS = [
 const ALL_ITEMS = NAV_GROUPS.flatMap(g => g.items)
 
 export default function Layout() {
-  const { usuario, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -62,20 +57,6 @@ export default function Layout() {
   })
 
   const location = useLocation()
-  
-  const filteredNavGroups = NAV_GROUPS.map(group => {
-    const items = group.items.filter(item => {
-      if (!usuario) return false
-      if (usuario.rol === 'admin') return true
-      if (item.role && usuario.rol !== item.role) return false
-      if (item.permission) {
-        return usuario.permisos && usuario.permisos.includes(item.permission)
-      }
-      return true
-    })
-    return { ...group, items }
-  }).filter(group => group.items.length > 0)
-
   const currentPage = ALL_ITEMS.find(n => location.pathname.startsWith(n.to))?.label || 'Master Baker'
 
   useEffect(() => {
@@ -121,7 +102,7 @@ export default function Layout() {
 
         {/* Sidebar Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
-          {filteredNavGroups.map((group, groupIdx) => (
+          {NAV_GROUPS.map((group, groupIdx) => (
             <div key={groupIdx} className="space-y-1">
               {!isCollapsed && (
                 <h3 className="px-3 text-[10px] font-bold text-gray-400 dark:text-navy-400 uppercase tracking-wider mb-2">
@@ -161,25 +142,8 @@ export default function Layout() {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-3 border-t border-gray-100 dark:border-navy-800 flex items-center justify-between gap-1">
-          {!isCollapsed ? (
-            <button 
-              onClick={logout}
-              className="flex items-center gap-2 text-xs font-medium text-red-500 hover:text-red-600 transition-colors py-1.5 px-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20"
-              title="Cerrar sesión"
-            >
-              <LogOut size={15} />
-              <span>Cerrar Sesión</span>
-            </button>
-          ) : (
-            <button 
-              onClick={logout}
-              className="flex items-center justify-center w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
-              title="Cerrar sesión"
-            >
-              <LogOut size={15} />
-            </button>
-          )}
+        <div className="p-4 border-t border-gray-100 dark:border-navy-800 flex items-center justify-between">
+          {!isCollapsed && <span className="text-[10px] text-gray-400">v2.7.2</span>}
           <button 
             onClick={toggleSidebarCollapse}
             className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-800 ml-auto"

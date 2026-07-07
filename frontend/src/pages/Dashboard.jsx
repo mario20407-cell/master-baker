@@ -40,11 +40,11 @@ export default function Dashboard() {
 
   const alertasMargen = recetasConDatos.filter(r => r.margen < 60)
   const topRentables = [...recetasConDatos].sort((a, b) => b.margen - a.margen).slice(0, 5)
-  const stockCritico = inventario.filter(i => (i.existencia || 0) <= (i.punto_reposicion || 0) || i.estado === 'critico').slice(0, 5)
+  const stockCritico = inventario.filter(i => (i.existencia || 0) < 1).slice(0, 5)
   const catCount = {}
   productos.forEach(p => { catCount[p.categoria] = (catCount[p.categoria] || 0) + 1 })
   const ventasHoy = resumenVentas?.total_ventas || 0
-  const ingresosHoy = resumenVentas?.ingresos || 0
+  const ingresosHoy = resumenVentas?.total_ingresos || 0
 
   if (cargando) return (
     <div className="flex items-center justify-center h-48 text-gray-500 dark:text-gray-400 text-sm font-bold">
@@ -106,7 +106,7 @@ export default function Dashboard() {
             : <div className="divide-y divide-gray-150 dark:divide-navy-800/80">
                 {stockCritico.map(i => (
                   <div key={i.id} className="flex justify-between items-center py-2">
-                    <span className="text-xs font-semibold text-[#1B2A4A] dark:text-white">{i.nombre}</span>
+                    <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-250">{i.nombre}</span>
                     <StatusBadge status='danger'>{i.existencia || 0} {i.unidad}</StatusBadge>
                   </div>
                 ))}
@@ -122,7 +122,7 @@ export default function Dashboard() {
           {Object.entries(catCount).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([cat, cnt]) => (
             <div key={cat} className="mb-2.5">
               <div className="flex justify-between text-[11px] mb-1">
-                <span className="font-semibold text-[#1B2A4A] dark:text-white">{cat}</span>
+                <span className="font-semibold text-[#1B2A4A] dark:text-gray-350">{cat}</span>
                 <span className="text-gray-400 dark:text-gray-500">{cnt}</span>
               </div>
               <div className="h-1 bg-gray-150 dark:bg-navy-800 rounded-full overflow-hidden">
@@ -138,7 +138,7 @@ export default function Dashboard() {
               const tiene = !!recetas[p.nombre]
               return (
                 <div key={p.nombre} className="flex justify-between items-center py-1.5">
-                  <span className="text-xs font-semibold text-[#1B2A4A] dark:text-white truncate max-w-[120px]">{p.nombre}</span>
+                  <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-250 truncate max-w-[120px]">{p.nombre}</span>
                   <StatusBadge status={tiene ? 'success' : 'danger'}>
                     {tiene ? 'Con receta' : 'Sin receta'}
                   </StatusBadge>

@@ -2,7 +2,6 @@ import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { requireAdminPin } from '../middleware/adminPinMiddleware.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
-import { registrarActividad } from '../services/bitacoraService.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -215,18 +214,6 @@ router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) 
             metodo: 'individual', ip: req.ip,
           })
         }
-        
-        const cambios = []
-        if (parseFloat(nuevoPrecio) !== parseFloat(anterior.precio)) cambios.push(`precio de C$ ${anterior.precio} a C$ ${nuevoPrecio}`)
-        if (nuevoNombre !== anterior.nombre) cambios.push(`nombre de "${anterior.nombre}" a "${nuevoNombre}"`)
-        if (nuevaCategoria !== anterior.categoria) cambios.push(`categoría de "${anterior.categoria}" a "${nuevaCategoria}"`)
-        
-        await registrarActividad(req, {
-          modulo: 'catalogo',
-          accion: 'MODIFICAR_PRODUCTO',
-          descripcion: `Producto "${nuevoNombre}" actualizado: ${cambios.join(', ') || 'sin cambios en precio/nombre'}`,
-          detalles: { producto_id: req.params.id, nombre: nuevoNombre, cambios }
-        })
       }
       return rows[0] || null
     })

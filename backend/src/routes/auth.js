@@ -14,7 +14,6 @@ function generarToken(usuario) {
       email:     usuario.email,
       nombre:    usuario.nombre,
       rol:       usuario.rol,
-      permisos:  usuario.permisos || [],
     },
     process.env.JWT_SECRET,
     { expiresIn: '8h' }
@@ -102,7 +101,6 @@ router.post('/registrar-negocio', async (req, res, next) => {
         email:         result.nuevoUsuario.email,
         nombre:        result.nuevoUsuario.nombre,
         rol:           result.nuevoUsuario.rol,
-        permisos:      result.nuevoUsuario.permisos || [],
         tenantId:      result.nuevoTenant.id,
         tenantNombre:  result.nuevoTenant.nombre_negocio,
         tenantPlan:    result.nuevoTenant.plan,
@@ -139,7 +137,6 @@ router.post('/login', async (req, res, next) => {
         email:         usuario.email,
         nombre:        usuario.nombre,
         rol:           usuario.rol,
-        permisos:      usuario.permisos || [],
         tenantId:      usuario.tenant_id,
         tenantNombre:  usuario.tenant_nombre,
         tenantPlan:    usuario.tenant_plan,
@@ -149,22 +146,19 @@ router.post('/login', async (req, res, next) => {
 })
 
 router.post('/registrar', requireAuth, requireRol('admin'), async (req, res, next) => {
-  const { email, password, nombre, rol = 'operario', permisos } = req.body
+  const { email, password, nombre, rol = 'operario' } = req.body
   if (!email || !password || !nombre) {
     return res.status(400).json({ error: 'Email, contraseña y nombre son requeridos' })
   }
   if (!['admin', 'operario'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' })
   if (password.length < 8) return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' })
-  
-  const defaultPermisos = permisos || ['ver_recetas', 'registrar_ventas', 'ver_inventario', 'ver_produccion', 'ver_catalogo']
-
   try {
     const hash = await bcrypt.hash(password, 12)
     const { rows } = await query(
-      `INSERT INTO usuarios (tenant_id, email, password_hash, nombre, rol, permisos)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, email, nombre, rol, permisos, creado_en`,
-      [req.tenantId, email.toLowerCase().trim(), hash, nombre.trim(), rol, defaultPermisos]
+      `INSERT INTO usuarios (tenant_id, email, password_hash, nombre, rol)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, email, nombre, rol, creado_en`,
+      [req.tenantId, email.toLowerCase().trim(), hash, nombre.trim(), rol]
     )
     res.status(201).json({ usuario: rows[0] })
   } catch (e) {
@@ -176,7 +170,7 @@ router.post('/registrar', requireAuth, requireRol('admin'), async (req, res, nex
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await query(
-      `SELECT u.id, u.email, u.nombre, u.rol, u.permisos, u.ultimo_login,
+      `SELECT u.id, u.email, u.nombre, u.rol, u.ultimo_login,
               t.nombre_negocio AS tenant_nombre, t.plan AS tenant_plan
        FROM usuarios u
        JOIN tenants t ON t.id = u.tenant_id
@@ -192,7 +186,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
 router.get('/usuarios', requireAuth, requireRol('admin'), async (req, res, next) => {
   try {
     const { rows } = await query(
-      'SELECT id, email, nombre, rol, permisos, activo, creado_en, ultimo_login FROM usuarios WHERE tenant_id = $1 ORDER BY nombre',
+      'SELECT id, email, nombre, rol, activo, creado_en, ultimo_login FROM usuarios WHERE tenant_id = $1 ORDER BY nombre',
       [req.tenantId]
     )
     res.json(rows)
@@ -228,40 +222,6 @@ router.delete('/usuarios/:id', requireAuth, requireRol('admin'), async (req, res
     )
     if (!rowCount) return res.status(404).json({ error: 'Usuario no encontrado' })
     res.json({ ok: true, mensaje: 'Colaborador eliminado' })
-  } catch (e) { next(e) }
-})
-
-// PUT /api/auth/usuarios/:id — Actualizar datos del colaborador y permisos (solo admin)
-router.put('/usuarios/:id', requireAuth, requireRol('admin'), async (req, res, next) => {
-  const { nombre, rol, permisos } = req.body
-  if (!nombre || !rol) return res.status(400).json({ error: 'Nombre y rol son requeridos' })
-  if (!['admin', 'operario'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' })
-  
-  try {
-    const { rows } = await query(
-      `UPDATE usuarios 
-       SET nombre = $1, rol = $2, permisos = $3, actualizado_en = NOW() 
-       WHERE id = $4 AND tenant_id = $5 
-       RETURNING id, email, nombre, rol, permisos`,
-      [nombre.trim(), rol, permisos || [], req.params.id, req.tenantId]
-    )
-    if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
-    res.json({ usuario: rows[0] })
-  } catch (e) { next(e) }
-})
-
-// GET /api/auth/bitacora — Listar bitácora de actividades (solo admin)
-router.get('/bitacora', requireAuth, requireRol('admin'), async (req, res, next) => {
-  const { limite = 100 } = req.query
-  try {
-    const { rows } = await query(
-      `SELECT * FROM bitacora_actividades 
-       WHERE tenant_id = $1 
-       ORDER BY creado_en DESC 
-       LIMIT $2`,
-      [req.tenantId, parseInt(limite)]
-    )
-    res.json(rows)
   } catch (e) { next(e) }
 })
 

@@ -70,11 +70,6 @@ REGLAS DE NEGOCIO:
 - Fórmulas: margen=((pventa-costo)/pventa)*100 | precio_mínimo=costo/0.43
 - Régimen fiscal: Cuota Fija DGI o Régimen General. Prorrateo = cuota_mensual/unidades_mes.
 
-SEGURIDAD, ROLES Y AUDITORÍA:
-- Roles: Administrador (acceso total), Cajero (ventas/lectura), Pastelero (recetas/producción).
-- Permisos: Solo Administradores pueden editar precios, costos, configurar la DGI y ver la Bitácora de Movimientos.
-- Bitácora: Registra de forma inmutable quién hizo qué, cuándo y dónde (IP) para todo cambio en inventarios, recetas y facturas.
-
 SEMÁFORO DE MARGEN:
 - margen < 57% → ALERTA CRÍTICA + precio mínimo requerido
 - margen 57-60% → APROBADO, advertir colchón estrecho

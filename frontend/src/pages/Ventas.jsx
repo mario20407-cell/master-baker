@@ -249,22 +249,22 @@ export default function Ventas() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <div className="bg-[#1B2A4A] rounded-xl p-4 text-white shadow-md border border-navy-800">
-          <div className="text-xs text-blue-200 mb-1.5 font-medium">Ventas hoy</div>
-          <div className="text-2xl font-bold text-white">{resumen?.total_ventas ?? ventas.length}</div>
-          {!apiOnline && <div className="text-[10px] text-amber-400 mt-1">● offline</div>}
+        <div className="kpi-card">
+          <div className="text-xs text-gray-400 mb-1">Ventas hoy</div>
+          <div className="text-2xl font-semibold">{resumen?.total_ventas ?? ventas.length}</div>
+          {!apiOnline && <div className="text-[10px] text-amber-500 mt-1">● offline</div>}
         </div>
-        <div className="bg-[#1B2A4A] rounded-xl p-4 text-white shadow-md border border-navy-800">
-          <div className="text-xs text-blue-200 mb-1.5 font-medium">Ingresos hoy</div>
-          <div className="text-2xl font-bold text-[#C29C53]">{fmt(resumen?.ingresos ?? totalHoy)}</div>
+        <div className="kpi-card">
+          <div className="text-xs text-gray-400 mb-1">Ingresos hoy</div>
+          <div className="text-2xl font-semibold" style={{ color: '#C29C53' }}>{fmt(resumen?.ingresos ?? totalHoy)}</div>
         </div>
-        <div className="bg-[#1B2A4A] rounded-xl p-4 text-white shadow-md border border-navy-800">
-          <div className="text-xs text-blue-200 mb-1.5 font-medium">Ticket promedio</div>
-          <div className="text-2xl font-bold text-white">{fmt(resumen?.ticket_promedio ?? 0)}</div>
+        <div className="kpi-card">
+          <div className="text-xs text-gray-400 mb-1">Ticket promedio</div>
+          <div className="text-2xl font-semibold">{fmt(resumen?.ticket_promedio ?? 0)}</div>
         </div>
-        <div className="bg-[#1B2A4A] rounded-xl p-4 text-white shadow-md border border-navy-800">
-          <div className="text-xs text-blue-200 mb-1.5 font-medium">En carrito</div>
-          <div className="text-2xl font-bold text-white">{fmt(totalCarrito)}</div>
+        <div className="kpi-card">
+          <div className="text-xs text-gray-400 mb-1">En carrito</div>
+          <div className="text-2xl font-semibold">{fmt(totalCarrito)}</div>
         </div>
       </div>
 

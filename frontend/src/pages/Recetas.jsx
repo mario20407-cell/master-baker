@@ -196,7 +196,7 @@ export default function Recetas() {
   }
 
   const costoReceta = (r) => {
-    const ct = r.ingredientes?.reduce((s, i) => s + i.cantidad * i.precio, 0) || 0
+    const ct = r.ingredientes?.reduce((s, i) => { const u = i.unidad || ""; const ui = i.unidad_inventario || i.unidad || ""; let q = i.cantidad || 0; if (u === "g" && ui === "kg") q = q / 1000; else if (u === "ml" && (ui === "L" || ui === "l")) q = q / 1000; return s + q * (i.precio || 0); }, 0) || 0
     const cu = r.piezas > 0 ? ct / r.piezas : 0
     const margen = r.pventa > 0 ? ((r.pventa - cu) / r.pventa) * 100 : null
     return { ct, cu, margen }
@@ -295,7 +295,7 @@ export default function Recetas() {
                                   <td>{ing.cantidad}</td>
                                   <td>{ing.unidad}</td>
                                   <td className="text-right">C$ {(ing.precio || 0).toFixed(2)}</td>
-                                  <td className="text-right">C$ {(ing.cantidad * ing.precio).toFixed(2)}</td>
+                                  <td className="text-right">C$ {(() => { const u = ing.unidad || ""; const ui = ing.unidad_inventario || ing.unidad || ""; let q = ing.cantidad || 0; if (u === "g" && ui === "kg") q = q / 1000; else if (u === "ml" && (ui === "L" || ui === "l")) q = q / 1000; return (q * (ing.precio || 0)).toFixed(2); })()}</td>
                                   <td><span className={ing.tipo === 'indirecto' ? 'badge-info' : 'badge-gray'}>{ing.tipo}</span></td>
                                 </tr>
                               ))}

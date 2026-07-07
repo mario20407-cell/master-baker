@@ -59,7 +59,7 @@ export function EmptyState({ icon: Icon, title, sub, action }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
       {Icon && <Icon size={32} className="text-gray-300 dark:text-navy-600 mb-2" />}
-      <div className="text-sm font-semibold text-[#1B2A4A] dark:text-white mb-1">{title}</div>
+      <div className="text-sm font-semibold text-[#1B2A4A] dark:text-gray-250 mb-1">{title}</div>
       {sub && <div className="text-xs text-gray-400 dark:text-gray-500 mb-3">{sub}</div>}
       {action}
     </div>

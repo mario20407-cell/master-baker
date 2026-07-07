@@ -1,7 +1,7 @@
 // ─── pages/Compras.jsx ────────────────────────────────────────────────────────
 import { useState, useEffect } from 'react'
 import api, { getCompras, getInventario, saveFactura } from '../lib/api'
-import { Receipt, Plus, Trash2, AlertTriangle, Camera, Check } from 'lucide-react'
+import { Receipt, Plus, Trash2, AlertTriangle, Camera } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export function Compras() {
@@ -12,7 +12,6 @@ export function Compras() {
   const [resultado, setResultado] = useState(null)
   const [insumos, setInsumos] = useState([])
   const [procesandoIA, setProcesandoIA] = useState(false)
-  const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
     getCompras().then(r => setHistorial(r.data)).catch(() => {})
@@ -84,7 +83,7 @@ export function Compras() {
   const removeItem = (i) => setItems(p => p.filter((_, idx) => idx !== i))
   const updateItem = (i, f, v) => setItems(p => p.map((x, idx) => idx === i ? { ...x, [f]: v } : x))
 
-  const analizar = () => {
+  const analizar = async () => {
     const itsValidos = items.filter(i => i.producto && parseFloat(i.precio_actual) > 0)
     if (!itsValidos.length) { toast.error('Agrega al menos un producto con precio'); return }
 
@@ -95,27 +94,14 @@ export function Compras() {
     })
 
     setResultado({ items: itsValidos, alertas, total: itsValidos.reduce((s, i) => s + i.cantidad * parseFloat(i.precio_actual), 0) })
-    toast.success('Análisis completado. Revise las variaciones antes de guardar.')
-  }
 
-  const guardar = async () => {
-    const itsValidos = items.filter(i => i.producto && parseFloat(i.precio_actual) > 0)
-    if (!itsValidos.length) { toast.error('Agrega al menos un producto con precio para guardar'); return }
-
-    setGuardando(true)
     try {
       const { data } = await saveFactura({ proveedor: prov, fecha, items: itsValidos })
       const r = await getCompras()
       setHistorial(r.data)
       toast.success(`Factura guardada — ${data.insumosActualizados} insumos actualizados en inventario`)
-      // Limpiar formulario
-      setProv('')
-      setItems([{ producto: '', cantidad: 1, precio_actual: '', precio_anterior: '' }])
-      setResultado(null)
     } catch (e) {
       toast.error('No se pudo guardar la factura')
-    } finally {
-      setGuardando(false)
     }
   }
 
@@ -161,24 +147,21 @@ export function Compras() {
           <div className="form-group"><label className="form-label">Proveedor</label><input value={prov} onChange={e => setProv(e.target.value)} placeholder="Distribuidora X" /></div>
           <div className="form-group"><label className="form-label">Fecha</label><input type="date" value={fecha} onChange={e => setFecha(e.target.value)} /></div>
         </div>
-        <div className="grid grid-cols-[2.5fr_0.7fr_1.1fr_1.1fr_auto] gap-2 mb-1">
+        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-2 mb-1">
           {['Producto', 'Cant.', 'Precio actual', 'Precio anterior', ''].map((h, i) => <div key={i} className="text-xs text-gray-400">{h}</div>)}
         </div>
         {items.map((it, i) => (
-          <div key={i} className="grid grid-cols-[2.5fr_0.7fr_1.1fr_1.1fr_auto] gap-2 mb-2 items-center">
-            <input className="w-full min-w-0" value={it.producto} onChange={e => updateItem(i, 'producto', e.target.value)} placeholder="Harina 50kg" />
-            <input className="w-full min-w-0" type="number" value={it.cantidad} onChange={e => updateItem(i, 'cantidad', e.target.value)} min="1" />
-            <input className="w-full min-w-0" type="number" value={it.precio_actual} onChange={e => updateItem(i, 'precio_actual', e.target.value)} placeholder="0.00" step="0.01" />
-            <input className="w-full min-w-0" type="number" value={it.precio_anterior} onChange={e => updateItem(i, 'precio_anterior', e.target.value)} placeholder="0.00" step="0.01" />
-            <button onClick={() => removeItem(i)} className="btn-danger p-1.5 flex items-center justify-center h-[38px]"><Trash2 size={12} /></button>
+          <div key={i} className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-2 mb-2">
+            <input value={it.producto} onChange={e => updateItem(i, 'producto', e.target.value)} placeholder="Harina 50kg" />
+            <input type="number" value={it.cantidad} onChange={e => updateItem(i, 'cantidad', e.target.value)} min="1" />
+            <input type="number" value={it.precio_actual} onChange={e => updateItem(i, 'precio_actual', e.target.value)} placeholder="0.00" step="0.01" />
+            <input type="number" value={it.precio_anterior} onChange={e => updateItem(i, 'precio_anterior', e.target.value)} placeholder="0.00" step="0.01" />
+            <button onClick={() => removeItem(i)} className="btn-danger p-1.5"><Trash2 size={12} /></button>
           </div>
         ))}
         <div className="flex gap-2 mt-2">
           <button onClick={addItem} className="btn-secondary flex items-center gap-1 text-xs"><Plus size={12} /> Ítem</button>
-          <button onClick={analizar} className="btn-secondary flex items-center gap-2"><Receipt size={14} /> Analizar factura</button>
-          <button onClick={guardar} disabled={guardando} className="btn-primary flex items-center gap-2">
-            <Check size={14} /> {guardando ? 'Guardando...' : 'Guardar factura'}
-          </button>
+          <button onClick={analizar} className="btn-primary flex items-center gap-2"><Receipt size={14} /> Analizar factura</button>
         </div>
       </div>
 

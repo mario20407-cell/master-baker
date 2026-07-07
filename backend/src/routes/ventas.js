@@ -5,7 +5,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { query, transaction } from '../db/client.js'
-import { registrarActividad } from '../services/bitacoraService.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -46,13 +45,6 @@ router.post('/', async (req, res, next) => {
         [v.id, tenantId]
       )
       return { ...v, items: itemsRows }
-    })
-
-    await registrarActividad(req, {
-      modulo: 'ventas',
-      accion: 'REGISTRAR_VENTA',
-      descripcion: `Venta registrada para el cliente "${cliente}" por un total de C$ ${parseFloat(total).toFixed(2)} (${metodo_pago}, canal: ${canal})`,
-      detalles: { venta_id: venta.id, total, cliente, metodo_pago, canal, items_count: items.length }
     })
 
     res.status(201).json(venta)
@@ -189,23 +181,11 @@ router.get('/:id', async (req, res, next) => {
 // ── DELETE /api/ventas/:id ─────────────────────────────────────────────────────
 router.delete('/:id', async (req, res, next) => {
   try {
-    const { rows: vRows } = await query('SELECT total, cliente FROM ventas WHERE id = $1 AND tenant_id = $2', [req.params.id, req.tenantId])
-    if (!vRows.length) return res.status(404).json({ error: 'Venta no encontrada' })
-    const v = vRows[0]
-
     const { rowCount } = await query(
       'DELETE FROM ventas WHERE id = $1 AND tenant_id = $2',
       [req.params.id, req.tenantId]
     )
     if (!rowCount) return res.status(404).json({ error: 'Venta no encontrada' })
-
-    await registrarActividad(req, {
-      modulo: 'ventas',
-      accion: 'ANULAR_VENTA',
-      descripcion: `Venta anulada (eliminada) para el cliente "${v.cliente}" por un total de C$ ${parseFloat(v.total).toFixed(2)}`,
-      detalles: { venta_id: req.params.id, total: v.total, cliente: v.cliente }
-    })
-
     res.json({ ok: true, id: req.params.id })
   } catch (e) { next(e) }
 })

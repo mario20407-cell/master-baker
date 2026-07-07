@@ -2,7 +2,6 @@ import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { requireAdminPin } from '../middleware/adminPinMiddleware.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
-import { registrarActividad } from '../services/bitacoraService.js'
 
 const router = Router()
 
@@ -92,15 +91,7 @@ router.post('/', async (req, res, next) => {
       RETURNING *
     `, [req.tenantId, nombre, existencia || 0, unidad || 'kg',
         consumo_diario || 0, punto_reposicion || 0, costo_unitario || 0])
-    const insumo = rows[0]
-    await registrarActividad(req, {
-      modulo: 'inventario',
-      accion: 'CREAR_INSUMO',
-      descripcion: `Insumo "${insumo.nombre}" registrado en inventario con stock inicial de ${insumo.existencia} ${insumo.unidad} (Costo unit: C$ ${parseFloat(insumo.costo_unitario).toFixed(2)})`,
-      detalles: { insumo_id: insumo.id, nombre: insumo.nombre, existencia: insumo.existencia, unidad: insumo.unidad, costo_unitario: insumo.costo_unitario }
-    })
-
-    res.status(201).json(insumo)
+    res.status(201).json(rows[0])
   } catch (e) { next(e) }
 })
 
@@ -235,21 +226,6 @@ router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) 
           metodo: 'individual', ip: req.ip,
         })
       }
-
-      if (rows.length) {
-        const actual = rows[0]
-        const cambios = []
-        if (parseFloat(existencia) !== parseFloat(anterior.existencia)) cambios.push(`stock a ${existencia} ${actual.unidad}`)
-        if (parseFloat(costo_unitario) !== parseFloat(anterior.costo_unitario)) cambios.push(`costo a C$ ${costo_unitario}`)
-        
-        await registrarActividad(req, {
-          modulo: 'inventario',
-          accion: 'MODIFICAR_INSUMO',
-          descripcion: `Insumo "${actual.nombre}" actualizado: ${cambios.join(', ') || 'sin cambios en stock/precio'}`,
-          detalles: { insumo_id: actual.id, nombre: actual.nombre, cambios }
-        })
-      }
-
       return rows[0] || null
     })
 
@@ -261,20 +237,8 @@ router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) 
 // DELETE /api/inventario/:id — sin PIN (eliminar no es "editar precio")
 router.delete('/:id', async (req, res, next) => {
   try {
-    const { rows: invRows } = await query('SELECT nombre FROM inventario WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])
-    if (!invRows.length) return res.status(404).json({ error: 'Insumo no encontrado' })
-    const nombreInsumo = invRows[0].nombre
-
     const { rowCount } = await query('DELETE FROM inventario WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])
     if (!rowCount) return res.status(404).json({ error: 'Insumo no encontrado' })
-
-    await registrarActividad(req, {
-      modulo: 'inventario',
-      accion: 'ELIMINAR_INSUMO',
-      descripcion: `Insumo "${nombreInsumo}" eliminado del inventario`,
-      detalles: { insumo_id: req.params.id, nombre: nombreInsumo }
-    })
-
     res.json({ ok: true })
   } catch (e) { next(e) }
 })

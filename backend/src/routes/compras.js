@@ -1,7 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { query, transaction } from '../db/client.js'
-import { registrarActividad } from '../services/bitacoraService.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -54,42 +53,6 @@ router.post('/', async (req, res, next) => {
         `, [tenantId, f.id, item.producto, item.cantidad || 1,
             item.precio_actual || 0, item.precio_anterior || 0,
             variacion ? parseFloat(variacion.toFixed(2)) : null, alerta])
-
-        // 1. Obtener costo anterior (si el insumo existe)
-        const { rows: invRows } = await client.query(
-          'SELECT id, costo_unitario FROM inventario WHERE tenant_id = $1 AND nombre = $2',
-          [tenantId, item.producto.trim()]
-        )
-        
-        let invId = null
-        let costoAnterior = null
-        if (invRows.length) {
-          invId = invRows[0].id
-          costoAnterior = parseFloat(invRows[0].costo_unitario) || 0
-        }
-
-        // 2. Insertar o actualizar stock y costo en inventario (upsert)
-        const { rows: upsertRows } = await client.query(`
-          INSERT INTO inventario (tenant_id, nombre, existencia, unidad, costo_unitario)
-          VALUES ($1, $2, $3, 'kg', $4)
-          ON CONFLICT (tenant_id, nombre)
-          DO UPDATE SET 
-            existencia = inventario.existencia + EXCLUDED.existencia,
-            costo_unitario = EXCLUDED.costo_unitario,
-            actualizado_en = NOW()
-          RETURNING id, costo_unitario
-        `, [tenantId, item.producto.trim(), item.cantidad || 0, item.precio_actual || 0])
-        
-        const nuevoInsumo = upsertRows[0]
-
-        // 3. Si hubo cambio de precio, registrar auditoría
-        if (costoAnterior !== null && costoAnterior !== (item.precio_actual || 0)) {
-          await client.query(`
-            INSERT INTO auditoria_precios
-              (tenant_id, tipo, entidad_id, entidad_nombre, campo, valor_anterior, valor_nuevo, metodo, ip_origen)
-            VALUES ($1, 'insumo', $2, $3, 'costo_unitario', $4, $5, 'compras', $6)
-          `, [tenantId, nuevoInsumo.id, item.producto.trim(), costoAnterior, item.precio_actual || 0, req.ip || null])
-        }
       }
       return f
     })
@@ -104,15 +67,7 @@ router.post('/', async (req, res, next) => {
       WHERE f.id = $1 AND f.tenant_id = $2 GROUP BY f.id
     `, [factura.id, tenantId])
 
-    const totalFactura = factura.total || 0
-    await registrarActividad(req, {
-      modulo: 'compras',
-      accion: 'REGISTRAR_COMPRA',
-      descripcion: `Factura de compra registrada para el proveedor "${proveedor || 'Sin nombre'}" por un total de C$ ${totalFactura.toFixed(2)}`,
-      detalles: { factura_id: factura.id, total: totalFactura, items_count: items.length }
-    })
-
-    res.status(201).json({ ...rows[0], insumosActualizados: items.length })
+    res.status(201).json(rows[0])
   } catch (e) { next(e) }
 })
 

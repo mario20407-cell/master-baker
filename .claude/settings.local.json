@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'feat: usuarios module, build fix, tests, CLAUDE.md *)",
+      "Bash(git push *)",
+      "Bash(npm run *)",
+      "Bash(git show *)",
+      "Bash(node -e \"import\\('dotenv/config'\\).then\\(\\(\\) => console.log\\('DB:', process.env.DATABASE_URL ? 'configurada' : 'NO configurada'\\)\\)\")",
+      "Bash(node --input-type=module)",
+      "Bash(node scripts/migrate-usuarios.js)",
+      "Bash(node -e \"import\\('dotenv/config'\\).then\\(\\(\\) => { const u = process.env.DATABASE_URL || ''; console.log\\('starts with:', u.slice\\(0,15\\)\\); console.log\\('length:', u.length\\) }\\)\")",
+      "Bash(curl -s -X POST https://master-baker-production-32b2.up.railway.app/api/auth/login -H 'Content-Type: application/json' -H 'x-tenant-id: 00000000-0000-0000-0000-000000000001' -d '{\"email\":\"admin@marquez.com\",\"password\":\"Marquez1988!\"}')",
+      "Bash(python -m json.tool)",
+      "Bash(curl *)",
+      "Bash(git commit *)",
+      "PowerShell(netstat *)",
+      "PowerShell(Test-NetConnection *)",
+      "PowerShell($r = Invoke-WebRequest -Uri \"http://localhost:3001/api/inventario-terminado\" -Headers @{\"x-tenant-id\"=\"00000000-0000-0000-0000-000000000001\"} 2>&1; $r.Content)",
+      "PowerShell(curl *)",
+      "Bash(grep -oE \"\\\\/api\\\\/[a-z\\\\-]+\")",
+      "Bash(npx vercel *)",
+      "Bash(grep *)",
+      "Bash(git *)",
+      "Bash(node *)",
+      "Read(//c/Users/mario/proyectos/Master Baker/Master Baker V2.7/marquez-app/frontend/src/pages/**)",
+      "Read(//c/Users/mario/proyectos/Master Baker/Master Baker V2.7/marquez-app/backend/src/**)",
+      "Bash(npx vitest *)",
+      "Bash(npm install *)",
+      "Read(//tmp/**)",
+      "Bash(taskkill //F //PID 1699)",
+      "Bash(echo \"started with pid $!\")",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(wmic process *)",
+      "Bash(rm -f /tmp/server3.log)"
+    ]
+  }
+}
