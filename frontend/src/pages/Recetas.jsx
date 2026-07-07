@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { PRODUCTOS, CAT_COLORS } from '../lib/catalogo'
 import { ChefHat, Plus, Search, Upload, Edit2, Trash2, Calculator, CheckCircle, AlertTriangle } from 'lucide-react'
+import { getInventario } from '../lib/api'
 import toast from 'react-hot-toast'
 
 const UNIDADES = ['kg', 'g', 'L', 'ml', 'unidad', 'porción']
@@ -155,6 +156,17 @@ export default function Recetas() {
   const [pegProd, setPegProd] = useState('')
   const [pegPiezas, setPegPiezas] = useState('')
   const [detalle, setDetalle] = useState(null)
+  const [inventario, setInventario] = useState([])
+
+  useEffect(() => {
+    getInventario()
+      .then(res => {
+        setInventario(res.data || [])
+      })
+      .catch(err => {
+        console.error("Error al cargar el inventario en recetas:", err)
+      })
+  }, [])
 
   const lista = Object.values(recetas).filter(r =>
     !busqueda || r.producto.toLowerCase().includes(busqueda.toLowerCase())
@@ -186,6 +198,30 @@ export default function Recetas() {
       return str.replace(/[^0-9.,-]/g, '').replace(',', '.')
     }
 
+    const convertirPrecio = (unidadInv, unidadReceta, precioInv) => {
+      const u1 = (unidadInv || '').toLowerCase().trim()
+      const u2 = (unidadReceta || '').toLowerCase().trim()
+      if (!u1 || !u2 || u1 === u2) return precioInv
+
+      // Conversión masa
+      if ((u1 === 'kg' || u1 === 'kilo' || u1 === 'kilogramo') && (u2 === 'g' || u2 === 'gramo' || u2 === 'gramos')) {
+        return precioInv / 1000
+      }
+      if ((u1 === 'g' || u1 === 'gramo' || u1 === 'gramos') && (u2 === 'kg' || u2 === 'kilo' || u2 === 'kilogramo')) {
+        return precioInv * 1000
+      }
+
+      // Conversión volumen
+      if ((u1 === 'l' || u1 === 'litro' || u1 === 'litros') && (u2 === 'ml' || u2 === 'mililitro' || u2 === 'mililitros')) {
+        return precioInv / 1000
+      }
+      if ((u1 === 'ml' || u1 === 'mililitro' || u1 === 'mililitros') && (u2 === 'l' || u2 === 'litro' || u2 === 'litros')) {
+        return precioInv * 1000
+      }
+
+      return precioInv
+    }
+
     lineas.forEach(l => {
       let cols = []
       if (l.includes('\t')) {
@@ -201,7 +237,17 @@ export default function Recetas() {
         const nombre = cols[0]
         const cantidad = parseFloat(cleanNumStr(cols[1])) || 0
         const unidad = cols[2] || 'kg'
-        const precio = parseFloat(cleanNumStr(cols[3])) || 0
+        
+        // Buscar en el inventario para autodetectar precio e inventario unidad
+        const insumoInv = inventario.find(i => i.nombre.toLowerCase().trim() === nombre.toLowerCase().trim())
+        
+        let precio = 0
+        if (insumoInv) {
+          const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
+          precio = convertirPrecio(insumoInv.unidad, unidad, costoUnit)
+        } else if (cols[3]) {
+          precio = parseFloat(cleanNumStr(cols[3])) || 0
+        }
 
         if (nombre && cantidad > 0) {
           ings.push({
