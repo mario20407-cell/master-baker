@@ -268,7 +268,7 @@ describe('convertirUnidad', () => {
   })
 
   it('par de unidades sin regla de conversión conocida devuelve la cantidad sin cambios', () => {
-    expect(convertirUnidad(500, 'kg', 'g')).toBe(500)
+    expect(convertirUnidad(500, 'kg', 'ml')).toBe(500)
   })
 })
 

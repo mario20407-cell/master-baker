@@ -4,64 +4,17 @@ import { useRecetas } from '../hooks/useRecetas'
 import { PRODUCTOS, CAT_COLORS } from '../lib/catalogo'
 import { ChefHat, Plus, Search, Upload, Edit2, Trash2, Calculator, CheckCircle, AlertTriangle } from 'lucide-react'
 import { getInventario } from '../lib/api'
+import { convertirPrecio } from '../lib/unidades'
 import toast from 'react-hot-toast'
 
 const UNIDADES = ['kg', 'g', 'L', 'ml', 'unidad', 'porción']
 
-const convertirPrecio = (unidadInv, unidadReceta, precioInv) => {
-  const u1 = (unidadInv || '').toLowerCase().trim()
-  const u2 = (unidadReceta || '').toLowerCase().trim()
-  if (!u1 || !u2 || u1 === u2) return precioInv
-
-  // Normalizar unidades de masa
-  const esLibro = (u) => u === 'lb' || u === 'libra' || u === 'libras' || u === 'lbs'
-  const esGramo = (u) => u === 'g' || u === 'gramo' || u === 'gramos'
-  const esKilo = (u) => u === 'kg' || u === 'kilo' || u === 'kilogramo' || u === 'kilogramos'
-
-  // Normalizar unidades de volumen
-  const esLitro = (u) => u === 'l' || u === 'litro' || u === 'litros'
-  const esMili = (u) => u === 'ml' || u === 'mililitro' || u === 'mililitros'
-
-  // Conversión masa: lb -> g
-  if (esLibro(u1) && esGramo(u2)) {
-    return precioInv / 454
-  }
-  if (esGramo(u1) && esLibro(u2)) {
-    return precioInv * 454
-  }
-
-  // Conversión masa: kg -> g
-  if (esKilo(u1) && esGramo(u2)) {
-    return precioInv / 1000
-  }
-  if (esGramo(u1) && esKilo(u2)) {
-    return precioInv * 1000
-  }
-
-  // Conversión masa: kg -> lb
-  if (esKilo(u1) && esLibro(u2)) {
-    return precioInv / 2.20462
-  }
-  if (esLibro(u1) && esKilo(u2)) {
-    return precioInv * 2.20462
-  }
-
-  // Conversión volumen: L -> ml
-  if (esLitro(u1) && esMili(u2)) {
-    return precioInv / 1000
-  }
-  if (esMili(u1) && esLitro(u2)) {
-    return precioInv * 1000
-  }
-
-  return precioInv
-}
 
 function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
   const [esPersonalizado, setEsPersonalizado] = useState(false)
 
   // Ver si el nombre actual existe en el inventario
-  const existeEnInventario = inventario.some(inv => inv.nombre.toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())
+  const existeEnInventario = inventario.some(inv => (inv.nombre || '').toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())
 
   const handleSelectChange = (val) => {
     if (val === '__custom__') {
@@ -69,7 +22,7 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
       onChange({ ...ing, nombre: '' })
     } else {
       setEsPersonalizado(false)
-      const picked = inventario.find(inv => inv.nombre === val)
+      const picked = inventario.find(inv => (inv.nombre || '').toLowerCase().trim() === (val || '').toLowerCase().trim())
       onChange({
         ...ing,
         nombre: val,
@@ -80,7 +33,7 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
   }
 
   const handleUnidadChange = (nuevaUnidad) => {
-    const insumoInv = inventario.find(i => i.nombre === ing.nombre)
+    const insumoInv = inventario.find(i => (i.nombre || '').toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())
     let nuevoPrecio = ing.precio
     if (insumoInv) {
       const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
@@ -95,7 +48,16 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
         <div className="flex gap-1 items-center">
           <input
             value={ing.nombre} placeholder="Nombre insumo"
-            onChange={e => onChange({ ...ing, nombre: e.target.value })}
+            onChange={e => {
+              const val = e.target.value
+              const matched = inventario.find(inv => (inv.nombre || '').toLowerCase().trim() === (val || '').toLowerCase().trim())
+              onChange({
+                ...ing,
+                nombre: val,
+                unidad: matched ? matched.unidad : ing.unidad,
+                precio: matched ? parseFloat(matched.costo_unitario) || 0 : ing.precio
+              })
+            }}
             className={ing.tipo === 'indirecto' ? 'bg-blue-50 flex-1' : 'flex-1'}
           />
           <button 
@@ -156,7 +118,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [] }) {
       // Si la receta ya existe, recorremos sus ingredientes y actualizamos
       // su precio desde el inventario de forma automática para evitar que queden en 0.
       return inicial.ingredientes.map(ing => {
-        const insumoInv = inventario.find(i => i.nombre.toLowerCase().trim() === ing.nombre.toLowerCase().trim())
+        const insumoInv = inventario.find(i => (i.nombre || '').toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())
         if (insumoInv) {
           const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
           const precioActualizado = convertirPrecio(insumoInv.unidad, ing.unidad, costoUnit)
@@ -178,7 +140,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [] }) {
         // Solo actualizar si el precio es 0 para no pisar modificaciones manuales
         if (parseFloat(ing.precio) > 0) return ing
         
-        const insumoInv = inventario.find(i => i.nombre.toLowerCase().trim() === ing.nombre.toLowerCase().trim())
+        const insumoInv = inventario.find(i => (i.nombre || '').toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())
         if (insumoInv) {
           const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
           const precioActualizado = convertirPrecio(insumoInv.unidad, ing.unidad, costoUnit)

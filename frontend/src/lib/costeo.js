@@ -4,6 +4,8 @@
 // Sin dependencias de React, sin efectos secundarios — solo matemática.
 // v2.7: incorpora prorrateo fiscal DGI como parámetro opcional.
 
+import { convertirCantidad } from './unidades.js'
+
 /** Margen mínimo objetivo del negocio, en porcentaje (0-100). */
 export const MARGEN_OBJETIVO = 57
 
@@ -20,14 +22,7 @@ function round4(n) {
 // ── Helpers básicos ──────────────────────────────────────────────────────────
 
 export function convertirUnidad(cantidad, uR, uI) {
-  if (!uR || !uI || uR === uI) return cantidad
-  const r = uR.toLowerCase()
-  const i = uI.toLowerCase()
-  if (r === 'g' && i === 'kg') return cantidad / 1000
-  if (r === 'ml' && (i === 'l' || i === 'litro')) return cantidad / 1000
-  if (r === 'libra' && i === 'kg') return cantidad * 0.454
-  if (r === 'arroba' && i === 'kg') return cantidad * 11.5
-  return cantidad
+  return convertirCantidad(cantidad, uR, uI)
 }
 
 export function calcMargen(pventa, costoUnitario) {
