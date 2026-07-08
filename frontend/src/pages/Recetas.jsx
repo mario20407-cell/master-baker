@@ -239,6 +239,9 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [] }) {
           <span className="badge-gray">Directo</span> ingredientes físicos &nbsp;
           <span className="badge-info">Indirecto</span> gas, energía, mano de obra
         </div>
+        <div className="text-[10px] text-gray-400 mt-2 bg-gray-50 p-1.5 rounded border border-gray-200">
+          DEBUG: {inventario.length} insumos cargados. Harina en inventario: {inventario.find(i => (i.nombre || '').toLowerCase().trim() === 'harina')?.costo_unitario || 'NO ENCONTRADA'}. Unidad Harina: {inventario.find(i => (i.nombre || '').toLowerCase().trim() === 'harina')?.unidad || 'N/A'}
+        </div>
       </div>
 
       <div className="flex gap-2">
