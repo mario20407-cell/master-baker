@@ -37,7 +37,7 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
     let nuevoPrecio = ing.precio
     if (insumoInv) {
       const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
-      nuevoPrecio = convertirPrecio(insumoInv.unidad, nuevaUnidad, costoUnit)
+      nuevoPrecio = convertirPrecio(costoUnit, insumoInv.unidad, nuevaUnidad)
     }
     onChange({ ...ing, unidad: nuevaUnidad, precio: nuevoPrecio })
   }
@@ -121,7 +121,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [] }) {
         const insumoInv = inventario.find(i => (i.nombre || '').toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())
         if (insumoInv) {
           const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
-          const precioActualizado = convertirPrecio(insumoInv.unidad, ing.unidad, costoUnit)
+          const precioActualizado = convertirPrecio(costoUnit, insumoInv.unidad, ing.unidad)
           return { ...ing, precio: precioActualizado }
         }
         return ing
@@ -143,7 +143,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [] }) {
         const insumoInv = inventario.find(i => (i.nombre || '').toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())
         if (insumoInv) {
           const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
-          const precioActualizado = convertirPrecio(insumoInv.unidad, ing.unidad, costoUnit)
+          const precioActualizado = convertirPrecio(costoUnit, insumoInv.unidad, ing.unidad)
           return { ...ing, precio: precioActualizado }
         }
         return ing
