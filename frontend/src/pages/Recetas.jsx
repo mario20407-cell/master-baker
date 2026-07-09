@@ -160,26 +160,30 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
 
   // Cálculos en tiempo real
   const pz = parseInt(piezas) || 0
+  const mermaFrac = (parseFloat(merma) || 0) / 100
+
   let costoDirecto = 0
-  let costoIndirecto = parseFloat(configCosteo.costo_indirecto_gas || 0) + 
-                       parseFloat(configCosteo.costo_indirecto_luz || 0) + 
-                       parseFloat(configCosteo.costo_indirecto_mano || 0)
+  let costoIndirectoIngredientes = 0
+  const costoIndirectoGlobal =
+    parseFloat(configCosteo.costo_indirecto_gas || 0) +
+    parseFloat(configCosteo.costo_indirecto_luz || 0) +
+    parseFloat(configCosteo.costo_indirecto_mano || 0)
 
   ings.forEach(ing => {
     const q = parseFloat(ing.cantidad) || 0
     const pr = parseFloat(ing.precio) || 0
     const sub = q * pr
     if (ing.tipo === 'indirecto') {
-      costoIndirecto += sub
+      costoIndirectoIngredientes += sub
     } else {
       costoDirecto += sub
     }
   })
 
+  const costoIndirecto = costoIndirectoGlobal + costoIndirectoIngredientes
   const costoTotal = costoDirecto + costoIndirecto
-  const mPct = parseFloat(merma) || 0
-  const piezasReales = pz * (1 - mPct / 100)
-  const costoUnitario = piezasReales > 0 ? costoTotal / piezasReales : 0
+  const piezasEfectivas = pz > 0 ? pz * (1 - mermaFrac) : 0
+  const costoUnitario = piezasEfectivas > 0 ? costoTotal / piezasEfectivas : 0
   const margen = parseFloat(configCosteo.margen_objetivo || 57.00) / 100
   const precioSugerido = margen < 1 ? costoUnitario / (1 - margen) : costoUnitario
 
@@ -197,7 +201,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
 
     // Validación estricta backend-like para precios cero
     for (const ing of ingsValidos) {
-      if (parseFloat(ing.precio) === 0 && !ing.costo_cero_intencional) {
+      if ((parseFloat(ing.precio) || 0) === 0 && !ing.costo_cero_intencional) {
         toast.error(`"${ing.nombre}" tiene costo 0. Activa la casilla de costo cero intencional si es correcto.`);
         return
       }
@@ -305,6 +309,14 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
             <div className="font-semibold text-gray-800">C$ {costoIndirecto.toFixed(2)}</div>
           </div>
           <div>
+            <div className="text-gray-400">Costo Indirecto (config. global)</div>
+            <div className="font-semibold text-gray-800">C$ {costoIndirectoGlobal.toFixed(2)}</div>
+          </div>
+          <div>
+            <div className="text-gray-400">Costo Indirecto (ingredientes manuales)</div>
+            <div className="font-semibold text-gray-800">C$ {costoIndirectoIngredientes.toFixed(2)}</div>
+          </div>
+          <div>
             <div className="text-gray-400">Costo Unitario ({pz} pz)</div>
             <div className="font-bold text-amber-700">C$ {costoUnitario.toFixed(2)} /pz</div>
           </div>
@@ -374,7 +386,14 @@ export default function Recetas() {
   }
 
   const handleGuardar = async (datos) => {
-    await guardar(datos)
+    try {
+      await guardar(datos)
+    } catch (e) {
+      // El interceptor de axios ya mostró el toast con el error real
+      // (ej. validación de costo cero). Nos quedamos en el formulario
+      // para que el usuario pueda corregirlo, sin recargar ni cerrar.
+      return
+    }
     recargar()
     setVista('lista')
     setEditando(null)

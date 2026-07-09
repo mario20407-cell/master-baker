@@ -43,7 +43,14 @@ export function useRecetas() {
       toast.success(`Receta de "${datos.producto}" guardada`)
       return nueva
     } catch (e) {
-      // Guardar en localStorage como fallback
+      if (e.response) {
+        // El servidor respondió con un error real (validación, 4xx/5xx) —
+        // no es un problema de conectividad. No hay que ocultarlo detrás
+        // de un fallback local ni un toast de éxito.
+        throw e
+      }
+      // Sin e.response: falla de red/timeout, el servidor es inalcanzable.
+      // Aquí sí tiene sentido el fallback a localStorage.
       const local = { ...recetas, [datos.producto]: { ...datos, id: Date.now() } }
       setRecetas(local)
       localStorage.setItem('marquez_recetas', JSON.stringify(local))

@@ -164,22 +164,24 @@ export default function Inventario() {
     return '#10B981'
   }
 
-  const estadoBadge = d => {
-    if (d == null) return <span className="badge-gray">Sin datos</span>
-    if (d <= 3) return <span className="badge-bad">Crítico</span>
-    if (d <= 7) return <span className="badge-warn">Bajo</span>
+  const estadoBadge = (dias) => {
+    if (dias === null || dias === undefined) return <span className="badge-gray">Sin datos</span>
+    if (dias <= 3) return <span className="badge-bad flex items-center gap-1"><AlertTriangle size={10} /> Crítico</span>
+    if (dias <= 7) return <span className="badge-warn">Bajo</span>
     return <span className="badge-ok">Suficiente</span>
   }
 
-  const criticos = insumos.filter(i => i.dias_restantes !== null && i.dias_restantes <= 3)
-
   return (
     <div className="space-y-4">
-      {criticos.length > 0 && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-3">
-          <AlertTriangle className="text-red-500" size={18} />
+      {insumos.filter(i => i.dias_restantes !== null && i.dias_restantes <= 3).length > 0 && (
+        <div className="alert-bad">
+          <AlertTriangle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
           <div>
-            <span className="font-semibold">¡Atención!</span> Tienes {criticos.length} insumo(s) en estado crítico (menos de 3 días de existencia).
+            <div className="font-medium text-red-800">⚠ Insumos críticos — reponer inmediatamente</div>
+            <div className="text-xs text-red-700 mt-0.5">
+              {insumos.filter(i => i.dias_restantes !== null && i.dias_restantes <= 3)
+                .map(i => `${i.nombre} (${i.dias_restantes}d)`).join(' · ')}
+            </div>
           </div>
         </div>
       )}

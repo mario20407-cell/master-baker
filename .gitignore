@@ -28,3 +28,7 @@ Thumbs.db
 # Vercel / Railway
 .vercel
 .railway
+
+# Backups de base de datos (nunca subir al repo)
+*.dump
+backups/
