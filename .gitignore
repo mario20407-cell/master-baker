@@ -32,3 +32,4 @@ Thumbs.db
 # Backups de base de datos (nunca subir al repo)
 *.dump
 backups/
+.env*
