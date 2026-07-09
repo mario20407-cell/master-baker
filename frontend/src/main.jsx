@@ -5,9 +5,17 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './context/AuthContext'
 import App from './App'
 import './index.css'
-import { registerSW } from 'virtual:pwa-register'
-
-registerSW({ immediate: true })
+const updateSW = registerSW({
+  onNeedRefresh() {
+    // Si hay una nueva actualización, avisa al usuario para recargar
+    if (confirm('Nueva versión disponible para Master Baker. ¿Deseas actualizar ahora?')) {
+      updateSW(true)
+    }
+  },
+  onOfflineReady() {
+    console.log('Aplicación disponible sin conexión.')
+  }
+})
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

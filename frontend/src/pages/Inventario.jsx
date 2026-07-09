@@ -3,7 +3,7 @@ import {
   getInventario, saveInsumo, updateInsumo, updateInsumosPorcentaje, deleteInsumo,
   getAuditoriaInsumos,
 } from '../lib/api'
-import { Package, Plus, Trash2, AlertTriangle, Pencil, Check, X, Percent, RefreshCw, History } from 'lucide-react'
+import { Package, Plus, Trash2, Pencil, Check, X, Percent, RefreshCw, History } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AdminPinModal from '../components/AdminPinModal'
 
@@ -12,7 +12,9 @@ const fmtC = v => `C$ ${(parseFloat(v) || 0).toFixed(2)}`
 export default function Inventario() {
   const [insumos, setInsumos] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ nombre: '', existencia: '', unidad: 'kg', consumo_diario: '', punto_reposicion: '', costo_unitario: '' })
+  const [form, setForm] = useState({ 
+    nombre: '', existencia: '', unidad: 'kg', consumo_diario: '', punto_reposicion: '', costo_unitario: '', densidad_g_ml: '' 
+  })
   const [editandoId, setEditandoId] = useState(null)
   const [editandoInsumoId, setEditandoInsumoId] = useState(null)
   const [costoTmp, setCostoTmp] = useState('')
@@ -36,7 +38,7 @@ export default function Inventario() {
 
   const handleCancelarEdicion = () => {
     setEditandoInsumoId(null)
-    setForm({ nombre: '', existencia: '', unidad: 'kg', consumo_diario: '', punto_reposicion: '', costo_unitario: '' })
+    setForm({ nombre: '', existencia: '', unidad: 'kg', consumo_diario: '', punto_reposicion: '', costo_unitario: '', densidad_g_ml: '' })
   }
 
   const handleEditarFila = (ins) => {
@@ -47,7 +49,8 @@ export default function Inventario() {
       unidad: ins.unidad,
       consumo_diario: String(ins.consumo_diario || 0),
       punto_reposicion: String(ins.punto_reposicion || 0),
-      costo_unitario: String(ins.costo_unitario || 0)
+      costo_unitario: String(ins.costo_unitario || 0),
+      densidad_g_ml: ins.densidad_g_ml ? String(ins.densidad_g_ml) : ''
     })
   }
 
@@ -60,6 +63,7 @@ export default function Inventario() {
       consumo_diario: parseFloat(form.consumo_diario) || 0,
       punto_reposicion: parseFloat(form.punto_reposicion) || 0,
       costo_unitario: parseFloat(form.costo_unitario) || 0,
+      densidad_g_ml: form.densidad_g_ml ? parseFloat(form.densidad_g_ml) : null
     }
 
     if (editandoInsumoId) {
@@ -80,12 +84,7 @@ export default function Inventario() {
         handleCancelarEdicion()
         toast.success('Insumo guardado')
       } catch (e) {
-        const nuevo = { ...payload, id: Date.now(), dias_restantes: payload.consumo_diario > 0 ? Math.floor(payload.existencia / payload.consumo_diario) : null }
-        const lista = [...insumos.filter(i => i.nombre !== form.nombre), nuevo]
-        setInsumos(lista)
-        localStorage.setItem('marquez_inventario', JSON.stringify(lista))
-        handleCancelarEdicion()
-        toast.success('Insumo guardado localmente')
+        toast.error(e.response?.data?.error || 'Error al guardar insumo')
       }
     }
   }
@@ -93,17 +92,14 @@ export default function Inventario() {
   const handleEliminar = async (id, nombre) => {
     if (!confirm(`¿Eliminar "${nombre}"?`)) return
     try {
-      await deleteInsumo(id)
+      const { data } = await deleteInsumo(id)
       await cargar()
-      toast.success('Insumo eliminado')
+      toast.success(data.mensaje || 'Insumo eliminado')
     } catch (e) {
-      const lista = insumos.filter(i => i.id !== id)
-      setInsumos(lista)
-      localStorage.setItem('marquez_inventario', JSON.stringify(lista))
+      toast.error(e.response?.data?.error || 'Error al eliminar insumo')
     }
   }
 
-  // ── Edición inline de costo — requiere PIN ──────────────────────────────
   const empezarEdicionCosto = (insumo) => {
     setEditandoId(insumo.id)
     setCostoTmp(String(insumo.costo_unitario || 0))
@@ -121,8 +117,8 @@ export default function Inventario() {
           punto_reposicion: insumo.punto_reposicion,
           costo_unitario: nuevoCosto,
         }, pin)
-        setInsumos(prev => prev.map(i => i.id === insumo.id ? { ...i, costo_unitario: nuevoCosto } : i))
-        toast.success(`${insumo.nombre} actualizado a ${fmtC(nuevoCosto)}`)
+        await cargar()
+        toast.success(`${insumo.nombre} costo actualizado`)
       } catch (e) {
         toast.error(e.response?.data?.error || 'No se pudo guardar el costo')
       } finally {
@@ -133,7 +129,6 @@ export default function Inventario() {
 
   const cancelarEdicionCosto = () => setEditandoId(null)
 
-  // ── Ajuste masivo por porcentaje — requiere PIN ─────────────────────────
   const confirmarMasivo = () => {
     const pct = parseFloat(pctMasivo)
     if (!pct && pct !== 0) { toast.error('Ingresa un porcentaje'); return }
@@ -148,87 +143,80 @@ export default function Inventario() {
         setPanelMasivo(false)
         setPctMasivo('')
       } catch (e) {
-        toast.error(e.response?.data?.error || 'No se pudo aplicar el ajuste masivo')
+        toast.error(e.response?.data?.error || 'Ajuste masivo fallido')
       }
     })
   }
 
-  // ── Auditoría ────────────────────────────────────────────────────────────
   const verAuditoria = async () => {
     try {
-      const { data } = await getAuditoriaInsumos(30)
+      const { data } = await getAuditoriaInsumos(40)
       setAuditoria(data)
       setPanelAuditoria(true)
-    } catch {
-      toast.error('No se pudo cargar el historial')
+    } catch (e) {
+      toast.error('No se pudo cargar la auditoría')
     }
   }
 
-  const estadoBadge = (dias) => {
-    if (dias === null || dias === undefined) return <span className="badge-gray">—</span>
-    if (dias <= 3) return <span className="badge-bad flex items-center gap-1"><AlertTriangle size={10} /> Crítico</span>
-    if (dias <= 7) return <span className="badge-warn">Bajo</span>
-    return <span className="badge-ok">Normal</span>
+  const barColor = d => {
+    if (d <= 3) return '#EF4444'
+    if (d <= 7) return '#F59E0B'
+    return '#10B981'
   }
 
-  const barColor = (dias) => dias <= 3 ? '#E24B4A' : dias <= 7 ? '#C29C53' : '#3B6D11'
-
-  const criticos = insumos.filter(i => i.dias_restantes !== null && i.dias_restantes <= 3)
+  const estadoBadge = d => {
+    if (d == null) return <span className="badge-gray text-gray-500">Sin datos</span>
+    if (d <= 3) return <span className="badge-danger text-red-700 bg-red-100 font-semibold px-2 py-0.5 rounded text-[10px]">Crítico</span>
+    if (d <= 7) return <span className="badge-warning text-amber-700 bg-amber-100 font-semibold px-2 py-0.5 rounded text-[10px]">Bajo</span>
+    return <span className="badge-success text-green-700 bg-green-100 font-semibold px-2 py-0.5 rounded text-[10px]">Suficiente</span>
+  }
 
   return (
-    <div className="max-w-4xl space-y-4">
-      {criticos.length > 0 && (
-        <div className="alert-bad">
-          <AlertTriangle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <div className="font-medium text-red-800">⚠ Insumos críticos — reponer inmediatamente</div>
-            <div className="text-xs text-red-700 mt-0.5">{criticos.map(i => `${i.nombre} (${i.dias_restantes}d)`).join(' · ')}</div>
-          </div>
-        </div>
-      )}
-
+    <div className="space-y-4">
       <div className="card">
-        <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <Plus size={14} /> {editandoInsumoId ? 'Editar insumo' : 'Registrar insumo'}
-          </span>
-          {editandoInsumoId && (
-            <button onClick={handleCancelarEdicion} className="text-xs text-red-500 hover:underline">
-              Cancelar edición
-            </button>
-          )}
+        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          {editandoInsumoId ? 'Editar Insumo de Inventario' : 'Registrar Nuevo Insumo'}
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
           <div className="form-group">
             <label className="form-label">Insumo</label>
             <input value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Harina" />
           </div>
           <div className="form-group">
             <label className="form-label">Existencia actual</label>
-            <input type="number" value={form.existencia} onChange={e => setForm(p => ({ ...p, existencia: e.target.value }))} placeholder="50" step="0.1" />
+            <input type="number" value={form.existencia} onChange={e => setForm(p => ({ ...p, existencia: e.target.value }))} placeholder="50" step="0.001" />
           </div>
           <div className="form-group">
             <label className="form-label">Unidad</label>
             <select value={form.unidad} onChange={e => setForm(p => ({ ...p, unidad: e.target.value }))}>
-              {['kg','g','L','ml','unidad'].map(u => <option key={u}>{u}</option>)}
+              {['kg','g','lb','L','ml','unidad'].map(u => <option key={u}>{u}</option>)}
             </select>
           </div>
           <div className="form-group">
+            <label className="form-label">Densidad (g/ml - opcional)</label>
+            <input type="number" value={form.densidad_g_ml} onChange={e => setForm(p => ({ ...p, densidad_g_ml: e.target.value }))} placeholder="Ej: 1.0 (leche)" step="0.001" />
+          </div>
+          <div className="form-group">
             <label className="form-label">Consumo diario</label>
-            <input type="number" value={form.consumo_diario} onChange={e => setForm(p => ({ ...p, consumo_diario: e.target.value }))} placeholder="5" step="0.1" />
+            <input type="number" value={form.consumo_diario} onChange={e => setForm(p => ({ ...p, consumo_diario: e.target.value }))} placeholder="5" step="0.001" />
           </div>
           <div className="form-group">
             <label className="form-label">Punto de reposición</label>
-            <input type="number" value={form.punto_reposicion} onChange={e => setForm(p => ({ ...p, punto_reposicion: e.target.value }))} placeholder="10" step="0.1" />
+            <input type="number" value={form.punto_reposicion} onChange={e => setForm(p => ({ ...p, punto_reposicion: e.target.value }))} placeholder="10" step="0.001" />
           </div>
           <div className="form-group">
             <label className="form-label">Costo unitario (C$)</label>
-            <input type="number" value={form.costo_unitario} onChange={e => setForm(p => ({ ...p, costo_unitario: e.target.value }))} placeholder="0" step="0.01" />
+            <input type="number" value={form.costo_unitario} onChange={e => setForm(p => ({ ...p, costo_unitario: e.target.value }))} placeholder="0" step="0.0001" />
           </div>
         </div>
-        <button onClick={handleGuardar} className="btn-primary flex items-center gap-2">
-          <Plus size={14} /> {editandoInsumoId ? 'Actualizar insumo' : 'Guardar insumo'}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleGuardar} className="btn-primary flex items-center gap-2">
+            <Plus size={14} /> {editandoInsumoId ? 'Actualizar insumo' : 'Guardar insumo'}
+          </button>
+          {editandoInsumoId && (
+            <button onClick={handleCancelarEdicion} className="btn-secondary">Cancelar</button>
+          )}
+        </div>
       </div>
 
       <div className="card">
@@ -297,7 +285,7 @@ export default function Inventario() {
           <div className="overflow-x-auto">
             <table className="table-base">
               <thead>
-                <tr><th>Insumo</th><th>Existencia</th><th>Consumo/día</th><th>Días</th><th>Estado</th><th>Costo unit.</th><th></th></tr>
+                <tr><th>Insumo</th><th>Existencia</th><th>Consumo/día</th><th>Días</th><th>Estado</th><th>Costo unit.</th><th>Densidad</th><th></th></tr>
               </thead>
               <tbody>
                 {insumos.map(inv => {
@@ -306,13 +294,13 @@ export default function Inventario() {
                   return (
                     <tr key={inv.id || inv.nombre}>
                       <td>
-                        <div>{inv.nombre}</div>
+                        <div className="font-semibold text-gray-700">{inv.nombre}</div>
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1 w-24">
-                          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: dias != null ? barColor(dias) : '#C29C53' }} />
+                           <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: dias != null ? barColor(dias) : '#C29C53' }} />
                         </div>
                       </td>
-                      <td>{inv.existencia} {inv.unidad}</td>
-                      <td>{inv.consumo_diario || '—'}</td>
+                      <td>{parseFloat(inv.existencia).toFixed(2)} {inv.unidad}</td>
+                      <td>{inv.consumo_diario ? parseFloat(inv.consumo_diario).toFixed(2) : '—'}</td>
                       <td className="font-medium">{dias ?? '—'}</td>
                       <td>{estadoBadge(dias)}</td>
                       <td>
@@ -326,7 +314,7 @@ export default function Inventario() {
                                 if (e.key === 'Escape') cancelarEdicionCosto()
                               }}
                               className="w-20 py-0.5 text-xs"
-                              step="0.01"
+                              step="0.0001"
                             />
                             <button onClick={() => confirmarCosto(inv)} className="p-1 rounded hover:bg-green-50 text-green-600">
                               <Check size={12} />
@@ -342,6 +330,7 @@ export default function Inventario() {
                           </button>
                         )}
                       </td>
+                      <td className="text-gray-500 text-xs">{inv.densidad_g_ml ? `${inv.densidad_g_ml} g/ml` : '—'}</td>
                       <td className="flex items-center gap-1">
                         <button onClick={() => handleEditarFila(inv)}
                           className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-amber-600 transition-colors"
