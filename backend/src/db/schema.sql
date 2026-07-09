@@ -58,17 +58,20 @@ CREATE TABLE IF NOT EXISTS recetas (
   FOREIGN KEY (tenant_id, producto) REFERENCES productos(tenant_id, nombre) ON UPDATE CASCADE
 );
 
--- ── Ingredientes de receta ────────────────────────────────────
 CREATE TABLE IF NOT EXISTS ingredientes (
-  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id  UUID NOT NULL REFERENCES tenants(id),
-  receta_id  UUID NOT NULL REFERENCES recetas(id) ON DELETE CASCADE,
-  nombre     VARCHAR(100) NOT NULL,
-  cantidad   NUMERIC(12,4) NOT NULL,
-  unidad     VARCHAR(20) DEFAULT 'kg',
-  precio     NUMERIC(10,4) DEFAULT 0,
-  tipo       VARCHAR(20) DEFAULT 'directo' CHECK (tipo IN ('directo','indirecto')),
-  orden      INTEGER DEFAULT 0
+  id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id               UUID NOT NULL REFERENCES tenants(id),
+  receta_id               UUID NOT NULL REFERENCES recetas(id) ON DELETE CASCADE,
+  nombre                  VARCHAR(100) NOT NULL,
+  cantidad                NUMERIC(12,4) NOT NULL,
+  unidad                  VARCHAR(20) DEFAULT 'g',
+  precio                  NUMERIC(12,6) DEFAULT 0,
+  tipo                    VARCHAR(20) DEFAULT 'directo' CHECK (tipo IN ('directo','indirecto')),
+  orden                   INTEGER DEFAULT 0,
+  subreceta_nombre        VARCHAR(100),
+  unidad_inventario       VARCHAR(20),
+  unidad_precio           VARCHAR(20),
+  costo_cero_intencional BOOLEAN DEFAULT false
 );
 
 -- ── Costeos guardados ─────────────────────────────────────────
