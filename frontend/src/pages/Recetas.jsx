@@ -177,7 +177,9 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
   })
 
   const costoTotal = costoDirecto + costoIndirecto
-  const costoUnitario = pz > 0 ? costoTotal / pz : 0
+  const mPct = parseFloat(merma) || 0
+  const piezasReales = pz * (1 - mPct / 100)
+  const costoUnitario = piezasReales > 0 ? costoTotal / piezasReales : 0
   const margen = parseFloat(configCosteo.margen_objetivo || 57.00) / 100
   const precioSugerido = margen < 1 ? costoUnitario / (1 - margen) : costoUnitario
 
@@ -262,8 +264,14 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
             <button onClick={() => addIng('indirecto')} className="btn-secondary text-xs px-2 py-1 flex items-center gap-1" style={{ color: '#185FA5' }}>
               <Plus size={12} /> Indirecto
             </button>
-          </div>
         </div>
+      </div>
+
+        {parseFloat(configCosteo.costo_indirecto_gas || 0) + parseFloat(configCosteo.costo_indirecto_luz || 0) + parseFloat(configCosteo.costo_indirecto_mano || 0) > 0 && (
+          <div className="bg-blue-50 border border-blue-100 text-blue-800 text-[11px] p-2 rounded-lg mb-3">
+            💡 <strong>Costos indirectos fijos activos:</strong> Gas, luz y mano de obra ya están incluidos automáticamente en base a la configuración global. Evita agregarlos de forma manual en la lista para prevenir doble cobro.
+          </div>
+        )}
 
         <div className="grid grid-cols-[2fr_1fr_1fr_1.2fr_auto] gap-2 mb-2">
           {['Ingrediente', 'Cantidad', 'Unidad', 'C$/unidad', ''].map((h, i) => (
@@ -535,7 +543,9 @@ export default function Recetas() {
                 const cd = parseFloat(r.costo_directo || 0)
                 const ci = parseFloat(r.costo_indirecto || 0)
                 const ct = cd + ci
-                const cu = r.piezas > 0 ? ct / r.piezas : 0
+                const mPct = parseFloat(r.merma_pct || r.merma || 0)
+                const piezasReales = r.piezas * (1 - mPct / 100)
+                const cu = piezasReales > 0 ? ct / piezasReales : 0
                 const margen = r.pventa > 0 ? ((r.pventa - cu) / r.pventa) * 100 : null
 
                 return (

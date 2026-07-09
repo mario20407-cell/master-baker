@@ -3,7 +3,7 @@ import {
   getInventario, saveInsumo, updateInsumo, updateInsumosPorcentaje, deleteInsumo,
   getAuditoriaInsumos,
 } from '../lib/api'
-import { Package, Plus, Trash2, Pencil, Check, X, Percent, RefreshCw, History } from 'lucide-react'
+import { Package, Plus, Trash2, Pencil, Check, X, Percent, RefreshCw, History, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AdminPinModal from '../components/AdminPinModal'
 
@@ -165,14 +165,24 @@ export default function Inventario() {
   }
 
   const estadoBadge = d => {
-    if (d == null) return <span className="badge-gray text-gray-500">Sin datos</span>
-    if (d <= 3) return <span className="badge-danger text-red-700 bg-red-100 font-semibold px-2 py-0.5 rounded text-[10px]">Crítico</span>
-    if (d <= 7) return <span className="badge-warning text-amber-700 bg-amber-100 font-semibold px-2 py-0.5 rounded text-[10px]">Bajo</span>
-    return <span className="badge-success text-green-700 bg-green-100 font-semibold px-2 py-0.5 rounded text-[10px]">Suficiente</span>
+    if (d == null) return <span className="badge-gray">Sin datos</span>
+    if (d <= 3) return <span className="badge-bad">Crítico</span>
+    if (d <= 7) return <span className="badge-warn">Bajo</span>
+    return <span className="badge-ok">Suficiente</span>
   }
+
+  const criticos = insumos.filter(i => i.dias_restantes !== null && i.dias_restantes <= 3)
 
   return (
     <div className="space-y-4">
+      {criticos.length > 0 && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-3">
+          <AlertTriangle className="text-red-500" size={18} />
+          <div>
+            <span className="font-semibold">¡Atención!</span> Tienes {criticos.length} insumo(s) en estado crítico (menos de 3 días de existencia).
+          </div>
+        </div>
+      )}
       <div className="card">
         <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
           {editandoInsumoId ? 'Editar Insumo de Inventario' : 'Registrar Nuevo Insumo'}

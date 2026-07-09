@@ -5,6 +5,8 @@ import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './context/AuthContext'
 import App from './App'
 import './index.css'
+import { registerSW } from 'virtual:pwa-register'
+
 const updateSW = registerSW({
   onNeedRefresh() {
     // Si hay una nueva actualización, avisa al usuario para recargar
