@@ -1,11 +1,3 @@
-/**
- * /api/recetas — v2.8 multi-tenant.
- * Nota: ingredientes no lleva tenant_id propio porque su aislamiento
- * viene heredado vía receta_id -> recetas.tenant_id (no hay forma de
- * que un ingrediente "se cuele" entre tenants sin pasar por una receta
- * que ya está filtrada). Igual lo agregamos en la migración para
- * queries directas futuras, pero aquí basta filtrar por receta.tenant_id.
- */
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
@@ -14,6 +6,46 @@ import { registrarActividad } from '../services/bitacoraService.js'
 const router = Router()
 
 router.use(requireAuth)
+
+// GET /api/recetas/configuracion-costeo/settings
+router.get('/configuracion-costeo/settings', async (req, res, next) => {
+  try {
+    const { rows } = await query('SELECT * FROM configuracion_costeo WHERE tenant_id = $1', [req.tenantId])
+    if (!rows.length) {
+      const { rows: [created] } = await query(
+        'INSERT INTO configuracion_costeo (tenant_id) VALUES ($1) RETURNING *',
+        [req.tenantId]
+      )
+      return res.json(created)
+    }
+    res.json(rows[0])
+  } catch (e) { next(e) }
+})
+
+// PUT /api/recetas/configuracion-costeo/settings
+router.put('/configuracion-costeo/settings', async (req, res, next) => {
+  const { costo_indirecto_gas, costo_indirecto_luz, costo_indirecto_mano, margen_objetivo } = req.body
+  try {
+    const { rows } = await query(`
+      INSERT INTO configuracion_costeo (tenant_id, costo_indirecto_gas, costo_indirecto_luz, costo_indirecto_mano, margen_objetivo, actualizado_en)
+      VALUES ($1, $2, $3, $4, $5, NOW())
+      ON CONFLICT (tenant_id) DO UPDATE SET
+        costo_indirecto_gas = EXCLUDED.costo_indirecto_gas,
+        costo_indirecto_luz = EXCLUDED.costo_indirecto_luz,
+        costo_indirecto_mano = EXCLUDED.costo_indirecto_mano,
+        margen_objetivo = EXCLUDED.margen_objetivo,
+        actualizado_en = NOW()
+      RETURNING *
+    `, [
+      req.tenantId,
+      parseFloat(costo_indirecto_gas) || 0,
+      parseFloat(costo_indirecto_luz) || 0,
+      parseFloat(costo_indirecto_mano) || 0,
+      parseFloat(margen_objetivo) || 0
+    ])
+    res.json(rows[0])
+  } catch (e) { next(e) }
+})
 
 // GET /api/recetas — todas las recetas del tenant, con ingredientes
 router.get('/', async (req, res, next) => {
@@ -25,7 +57,8 @@ router.get('/', async (req, res, next) => {
             'id', i.id, 'nombre', i.nombre, 'cantidad', i.cantidad,
             'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo,
             'unidad_inventario', inv.unidad, 'precio_inventario', inv.costo_unitario,
-            'subreceta_nombre', i.subreceta_nombre
+            'subreceta_nombre', i.subreceta_nombre,
+            'costo_cero_intencional', i.costo_cero_intencional
           ) ORDER BY i.orden
         ) FILTER (WHERE i.id IS NOT NULL) AS ingredientes,
         p.precio AS pventa, p.presentacion, p.categoria
@@ -48,7 +81,8 @@ router.get('/:producto', async (req, res, next) => {
       SELECT r.*,
         json_agg(json_build_object(
           'id', i.id, 'nombre', i.nombre, 'cantidad', i.cantidad,
-          'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo
+          'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo,
+          'costo_cero_intencional', i.costo_cero_intencional
         ) ORDER BY i.orden) FILTER (WHERE i.id IS NOT NULL) AS ingredientes,
         p.precio AS pventa, p.presentacion, p.categoria
       FROM recetas r
@@ -64,11 +98,24 @@ router.get('/:producto', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// POST /api/recetas — crear o actualizar receta completa
+// POST /api/recetas — crear o actualizar receta completa con snapshot
 router.post('/', async (req, res, next) => {
-  const { producto, piezas, peso_por_pieza, merma_pct, notas, ingredientes = [] } = req.body
+  const { 
+    producto, piezas, peso_por_pieza, merma_pct, notas, ingredientes = [],
+    costo_directo, costo_indirecto, margen_aplicado, precio_sugerido
+  } = req.body
   const tenantId = req.tenantId
   if (!producto || !piezas) return res.status(400).json({ error: 'producto y piezas son requeridos' })
+
+  // Validar costos cero intencionales
+  for (const ing of ingredientes) {
+    const pr = parseFloat(ing.precio) || 0
+    if (pr === 0 && !ing.costo_cero_intencional) {
+      return res.status(422).json({ 
+        error: `El ingrediente "${ing.nombre}" tiene un costo de C$ 0.00. Si esto es correcto, marca la casilla "Costo cero intencional" para este ingrediente.` 
+      })
+    }
+  }
 
   let esNueva = true
   try {
@@ -76,32 +123,46 @@ router.post('/', async (req, res, next) => {
       const { rows: checkReceta } = await client.query('SELECT id FROM recetas WHERE tenant_id = $1 AND producto = $2', [tenantId, producto])
       esNueva = checkReceta.length === 0
 
-      // Upsert receta — el conflicto ahora es por (tenant_id, producto)
+      // Upsert receta con columnas de snapshot
       const { rows: [r] } = await client.query(`
-        INSERT INTO recetas (tenant_id, producto, piezas, peso_por_pieza, merma_pct, notas)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO recetas (tenant_id, producto, piezas, peso_por_pieza, merma_pct, notas, costo_directo, costo_indirecto, margen_aplicado, precio_sugerido)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         ON CONFLICT (tenant_id, producto) DO UPDATE SET
           piezas = EXCLUDED.piezas,
           peso_por_pieza = EXCLUDED.peso_por_pieza,
           merma_pct = EXCLUDED.merma_pct,
           notas = EXCLUDED.notas,
+          costo_directo = EXCLUDED.costo_directo,
+          costo_indirecto = EXCLUDED.costo_indirecto,
+          margen_aplicado = EXCLUDED.margen_aplicado,
+          precio_sugerido = EXCLUDED.precio_sugerido,
           actualizado_en = NOW()
         RETURNING *
-      `, [tenantId, producto, piezas, peso_por_pieza || 0, merma_pct || 0, notas || ''])
+      `, [
+        tenantId, producto, piezas, peso_por_pieza || 0, merma_pct || 0, notas || '',
+        costo_directo || 0, costo_indirecto || 0, margen_aplicado || 0, precio_sugerido || 0
+      ])
 
       await client.query('DELETE FROM ingredientes WHERE receta_id = $1', [r.id])
       if (ingredientes.length) {
-        // 7 columnas por fila ahora: tenant_id + receta_id + 5 campos del ingrediente
-        const vals = ingredientes.map((ing, idx) => `($${idx * 7 + 1}, $${idx * 7 + 2}, $${idx * 7 + 3}, $${idx * 7 + 4}, $${idx * 7 + 5}, $${idx * 7 + 6}, $${idx * 7 + 7})`)
-        const params = ingredientes.flatMap(ing => [tenantId, r.id, ing.nombre, ing.cantidad, ing.unidad, ing.precio || 0, ing.tipo || 'directo'])
-        await client.query(`INSERT INTO ingredientes (tenant_id, receta_id, nombre, cantidad, unidad, precio, tipo) VALUES ${vals}`, params)
+        // 8 columnas por fila ahora: tenant_id + receta_id + 6 campos del ingrediente
+        const vals = ingredientes.map((_, idx) => `($${idx * 8 + 1}, $${idx * 8 + 2}, $${idx * 8 + 3}, $${idx * 8 + 4}, $${idx * 8 + 5}, $${idx * 8 + 6}, $${idx * 8 + 7}, $${idx * 8 + 8})`)
+        const params = ingredientes.flatMap(ing => [
+          tenantId, r.id, ing.nombre, parseFloat(ing.cantidad) || 0, 
+          ing.unidad || 'g', parseFloat(ing.precio) || 0, ing.tipo || 'directo', 
+          !!ing.costo_cero_intencional
+        ])
+        await client.query(`
+          INSERT INTO ingredientes (tenant_id, receta_id, nombre, cantidad, unidad, precio, tipo, costo_cero_intencional) 
+          VALUES ${vals}
+        `, params)
       }
       return r
     })
 
     const { rows } = await query(`
       SELECT r.*, json_agg(json_build_object(
-        'nombre', i.nombre, 'cantidad', i.cantidad, 'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo
+        'nombre', i.nombre, 'cantidad', i.cantidad, 'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo, 'costo_cero_intencional', i.costo_cero_intencional
       )) FILTER (WHERE i.id IS NOT NULL) AS ingredientes,
       p.precio AS pventa, p.presentacion, p.categoria
       FROM recetas r
@@ -122,10 +183,24 @@ router.post('/', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// PUT /api/recetas/:id — actualizar por ID (solo si pertenece al tenant)
+// PUT /api/recetas/:id — actualizar receta completa con snapshot
 router.put('/:id', async (req, res, next) => {
-  const { piezas, peso_por_pieza, merma_pct, notas, ingredientes = [] } = req.body
+  const { 
+    piezas, peso_por_pieza, merma_pct, notas, ingredientes = [],
+    costo_directo, costo_indirecto, margen_aplicado, precio_sugerido
+  } = req.body
   const tenantId = req.tenantId
+
+  // Validar costos cero intencionales
+  for (const ing of ingredientes) {
+    const pr = parseFloat(ing.precio) || 0
+    if (pr === 0 && !ing.costo_cero_intencional) {
+      return res.status(422).json({ 
+        error: `El ingrediente "${ing.nombre}" tiene un costo de C$ 0.00. Si esto es correcto, marca la casilla "Costo cero intencional" para este ingrediente.` 
+      })
+    }
+  }
+
   try {
     const actualizada = await transaction(async (client) => {
       const { rows: checkReceta } = await client.query('SELECT producto FROM recetas WHERE id = $1 AND tenant_id = $2', [req.params.id, tenantId])
@@ -133,18 +208,28 @@ router.put('/:id', async (req, res, next) => {
       const prodName = checkReceta[0].producto
 
       const { rowCount } = await client.query(`
-        UPDATE recetas SET piezas=$1, peso_por_pieza=$2, merma_pct=$3, notas=$4, actualizado_en=NOW()
-        WHERE id=$5 AND tenant_id=$6
-      `, [piezas, peso_por_pieza || 0, merma_pct || 0, notas || '', req.params.id, tenantId])
+        UPDATE recetas 
+        SET piezas=$1, peso_por_pieza=$2, merma_pct=$3, notas=$4,
+            costo_directo=$5, costo_indirecto=$6, margen_aplicado=$7, precio_sugerido=$8,
+            actualizado_en=NOW()
+        WHERE id=$9 AND tenant_id=$10
+      `, [
+        piezas, peso_por_pieza || 0, merma_pct || 0, notas || '',
+        costo_directo || 0, costo_indirecto || 0, margen_aplicado || 0, precio_sugerido || 0,
+        req.params.id, tenantId
+      ])
 
       if (!rowCount) return false
 
       await client.query('DELETE FROM ingredientes WHERE receta_id=$1', [req.params.id])
       if (ingredientes.length) {
-        const vals = ingredientes.map((_, i) => `($${i*7+1},$${i*7+2},$${i*7+3},$${i*7+4},$${i*7+5},$${i*7+6},$${i*7+7})`)
+        const vals = ingredientes.map((_, i) => `($${i*8+1},$${i*8+2},$${i*8+3},$${i*8+4},$${i*8+5},$${i*8+6},$${i*8+7},$${i*8+8})`)
         await client.query(
-          `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo) VALUES ${vals}`,
-          ingredientes.flatMap(i => [tenantId, req.params.id, i.nombre, i.cantidad, i.unidad, i.precio||0, i.tipo||'directo'])
+          `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo,costo_cero_intencional) VALUES ${vals}`,
+          ingredientes.flatMap(i => [
+            tenantId, req.params.id, i.nombre, parseFloat(i.cantidad)||0, i.unidad||'g', 
+            parseFloat(i.precio)||0, i.tipo||'directo', !!i.costo_cero_intencional
+          ])
         )
       }
 
@@ -198,9 +283,10 @@ router.post('/import-csv', async (req, res, next) => {
       mapa[f.Producto].push({
         nombre: f.Ingrediente,
         cantidad: parseFloat(f.Cantidad) || 0,
-        unidad: f.Unidad || 'kg',
+        unidad: f.Unidad || 'g',
         precio: parseFloat(f.Precio_unitario_CS) || 0,
         tipo: f.Ingrediente.toLowerCase().includes('indirecto') ? 'indirecto' : 'directo',
+        costo_cero_intencional: false
       })
     })
 
@@ -213,10 +299,12 @@ router.post('/import-csv', async (req, res, next) => {
           ON CONFLICT (tenant_id, producto) DO UPDATE SET actualizado_en=NOW() RETURNING *
         `, [tenantId, producto])
         await client.query('DELETE FROM ingredientes WHERE receta_id=$1', [r.id])
-        const vals = ingredientes.map((_, i) => `($${i*7+1},$${i*7+2},$${i*7+3},$${i*7+4},$${i*7+5},$${i*7+6},$${i*7+7})`)
+        const vals = ingredientes.map((_, i) => `($${i*8+1},$${i*8+2},$${i*8+3},$${i*8+4},$${i*8+5},$${i*8+6},$${i*8+7},$${i*8+8})`)
         await client.query(
-          `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo) VALUES ${vals}`,
-          ingredientes.flatMap(i => [tenantId, r.id, i.nombre, i.cantidad, i.unidad, i.precio, i.tipo])
+          `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo,costo_cero_intencional) VALUES ${vals}`,
+          ingredientes.flatMap(i => [
+            tenantId, r.id, i.nombre, i.cantidad, i.unidad, i.precio, i.tipo, !!i.costo_cero_intencional
+          ])
         )
       })
       importadas++
