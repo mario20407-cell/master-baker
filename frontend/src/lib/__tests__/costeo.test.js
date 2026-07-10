@@ -469,3 +469,139 @@ describe('calcularCosteoReceta', () => {
     expect(res.aprobado).toBe(false)
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// costoIndirectoGlobal — gas/luz/mano de obra de configuracion_costeo
+// ═══════════════════════════════════════════════════════════════════════════
+describe('costoIndirectoGlobal', () => {
+  const recetaBase = {
+    piezas: 10,
+    merma: 0,
+    pventa: 20,
+    ingredientes: [
+      { nombre: 'Harina', cantidad: 1, precio: 3, tipo: 'directo' },
+      { nombre: 'GLP (indirecto)', cantidad: 1, precio: 1.5, tipo: 'indirecto' },
+    ],
+  }
+
+  it('se suma al indirecto total junto con ingredientes tipo=indirecto, sin duplicar', () => {
+    // Indirecto por ingredientes: 1.5. Indirecto global: 4 (gas 2 + luz 1 + mano 1).
+    // Total esperado: 1.5 + 4 = 5.5 — ninguno de los dos se pierde ni se cuenta dos veces.
+    const res = calcularCosteoReceta(recetaBase, null, null, 4)
+    expect(res.costoIndirecto).toBeCloseTo(5.5, 4)
+    expect(res.costoDirecto).toBeCloseTo(3, 4) // el directo no se toca
+    expect(res.costoTotal).toBeCloseTo(3 + 5.5, 4)
+  })
+
+  it('REGRESIÓN: costoIndirectoGlobal=0 (caso real de producción hoy) da el mismo resultado que antes de este cambio', () => {
+    // Con los 3 campos de configuracion_costeo en 0 (como están hoy en producción,
+    // ver diagnóstico previo), el resultado debe ser idéntico a no pasar el parámetro.
+    const conCero  = calcularCosteoReceta(recetaBase, null, null, 0)
+    const sinParam = calcularCosteoReceta(recetaBase)
+    expect(conCero.costoIndirecto).toBe(sinParam.costoIndirecto)
+    expect(conCero.costoTotal).toBe(sinParam.costoTotal)
+    expect(conCero.costoUnitario).toBe(sinParam.costoUnitario)
+    expect(conCero.costoIndirecto).toBeCloseTo(1.5, 4) // solo el ingrediente indirecto
+  })
+
+  it('sumarCostosIngredientes: costoIndirectoGlobal se suma al costoIndirecto de ingredientes, no lo reemplaza', () => {
+    const ingredientes = [
+      { nombre: 'Harina', cantidad: 1, precio: 30, tipo: 'directo' },
+      { nombre: 'GLP', cantidad: 1, precio: 15, tipo: 'indirecto' },
+    ]
+    const res = sumarCostosIngredientes(ingredientes, 1, 10)
+    expect(res.costoIndirecto).toBeCloseTo(15 + 10, 4) // 15 del ingrediente + 10 global
+    expect(res.costoDirecto).toBeCloseTo(30, 4)
+    expect(res.costoTotal).toBeCloseTo(30 + 15 + 10, 4)
+  })
+
+  it('sumarCostosIngredientes sin costoIndirectoGlobal (default) se comporta igual que antes', () => {
+    const ingredientes = [{ nombre: 'GLP', cantidad: 1, precio: 15, tipo: 'indirecto' }]
+    const res = sumarCostosIngredientes(ingredientes)
+    expect(res.costoIndirecto).toBe(15)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// margenObjetivo configurable — reemplaza la constante fija en un cálculo puntual
+// ═══════════════════════════════════════════════════════════════════════════
+describe('margenObjetivo configurable', () => {
+  it('margenObjetivo distinto de 57 cambia precioMinimo según la fórmula costoUnitario / (1 - margen/100)', () => {
+    // costo=10, margenObjetivo=60 → precioMinimo = 10 / (1 - 0.60) = 10 / 0.40 = 25
+    expect(calcPrecioMinimo(10, 60)).toBeCloseTo(25, 4)
+  })
+
+  it('a ese precio mínimo con margenObjetivo=60, el margen resultante es EXACTAMENTE 60%', () => {
+    const costo = 10
+    const pmin = calcPrecioMinimo(costo, 60)
+    expect(calcMargen(pmin, costo)).toBeCloseTo(60, 6)
+  })
+
+  it('margenObjetivo no provisto usa el default 57 (REGRESIÓN del comportamiento actual)', () => {
+    expect(calcPrecioMinimo(8.55)).toBeCloseTo(calcPrecioMinimo(8.55, 57), 6)
+    expect(calcPrecioMinimo(8.55)).toBeCloseTo(19.8837, 3)
+  })
+
+  it('margenAprobado respeta un margenObjetivo distinto de 57', () => {
+    expect(margenAprobado(58, 60)).toBe(false) // 58% no alcanza el objetivo de 60%
+    expect(margenAprobado(61, 60)).toBe(true)
+  })
+
+  it('calcularCosteoReceta propaga margenObjetivo a precioMinimo y a aprobado (sin la inconsistencia anterior)', () => {
+    const receta = {
+      piezas: 10, merma: 0, pventa: 24,
+      ingredientes: [{ nombre: 'X', cantidad: 1, precio: 10, tipo: 'directo' }],
+    }
+    // costoUnitario = 10/10 = 1 → margen = (24-1)/24*100 ≈ 95.8%
+    const conMargenAlto = calcularCosteoReceta(receta, null, null, 0, 96)
+    expect(conMargenAlto.aprobado).toBe(false) // 95.8% < 96% objetivo
+
+    const conMargenBajo = calcularCosteoReceta(receta, null, null, 0, 50)
+    expect(conMargenBajo.aprobado).toBe(true) // 95.8% >= 50% objetivo
+  })
+
+  it('calcularCosteoReceta sin margenObjetivo usa el default 57 (REGRESIÓN)', () => {
+    const receta = {
+      piezas: 15, merma: 15, pventa: 20,
+      ingredientes: [
+        { nombre: 'A', cantidad: 1, precio: 2.55, tipo: 'directo' },
+        { nombre: 'B', cantidad: 1, precio: 1.50, tipo: 'indirecto' },
+      ],
+    }
+    const conDefault  = calcularCosteoReceta(receta)
+    const conExplicito = calcularCosteoReceta(receta, null, null, 0, 57)
+    expect(conDefault.precioMinimo).toBe(conExplicito.precioMinimo)
+    expect(conDefault.aprobado).toBe(conExplicito.aprobado)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Redondeo de piezas efectivas — documentación de comportamiento actual
+// (red de seguridad antes de tocar Recetas.jsx en el paso 2; NO se cambia aquí)
+// ═══════════════════════════════════════════════════════════════════════════
+describe('Redondeo de piezas efectivas (comportamiento actual, no se modifica)', () => {
+  it('calcPiezasReales SIEMPRE redondea a entero con Math.round, incluso con merma=0', () => {
+    // 18 piezas, 0% merma → 18 * 1 = 18 exacto, Math.round no cambia nada aquí,
+    // pero deja constancia de que el camino "merma<=0" también pasa por Math.round.
+    expect(calcPiezasReales(18, 0)).toBe(18)
+    expect(Number.isInteger(calcPiezasReales(18, 0))).toBe(true)
+  })
+
+  it('con merma > 0, el redondeo puede producir piezasReales != piezas * (1 - mermaFrac) exacto', () => {
+    // 18 piezas con 5% merma = 17.1 piezas "reales" matemáticamente,
+    // pero calcPiezasReales redondea a 17 (piezas discretas).
+    // Recetas.jsx (bloque inline, sin extraer todavía) NO redondea:
+    // pz * (1 - mermaFrac) = 18 * 0.95 = 17.1, se queda fraccionario.
+    // Esta es la diferencia de comportamiento que el paso 2 deberá resolver
+    // a propósito (decidir si Recetas.jsx pasa a redondear o no).
+    const piezasRealesLibComoHoy = calcPiezasReales(18, 5)
+    const piezasEfectivasInlineComoHoy = 18 * (1 - 5 / 100)
+    expect(piezasRealesLibComoHoy).toBe(17)
+    expect(piezasEfectivasInlineComoHoy).toBeCloseTo(17.1, 4)
+    expect(piezasRealesLibComoHoy).not.toBe(piezasEfectivasInlineComoHoy)
+  })
+
+  it('calcPiezasReales(0, merma) siempre da 0, coincide con el caso pz=0 del inline de Recetas.jsx', () => {
+    expect(calcPiezasReales(0, 15)).toBe(0)
+  })
+})

@@ -32,15 +32,16 @@ export function calcMargen(pventa, costoUnitario) {
   return ((p - c) / p) * 100
 }
 
-export function calcPrecioMinimo(costoUnitario) {
+export function calcPrecioMinimo(costoUnitario, margenObjetivo = MARGEN_OBJETIVO) {
   const c = num(costoUnitario)
   if (c <= 0) return 0
-  return c / FACTOR_COSTO_MAX
+  const factor = round4(1 - num(margenObjetivo, MARGEN_OBJETIVO) / 100)
+  return c / factor
 }
 
-export function margenAprobado(margenPct) {
+export function margenAprobado(margenPct, margenObjetivo = MARGEN_OBJETIVO) {
   if (margenPct === null || margenPct === undefined) return false
-  return margenPct >= MARGEN_OBJETIVO
+  return margenPct >= num(margenObjetivo, MARGEN_OBJETIVO)
 }
 
 export function validarMargen(pventa, costoUnitario) {
@@ -69,17 +70,21 @@ export function escalarCantidad(cantidadBase, factor) {
   return num(cantidadBase) * num(factor, 1)
 }
 
-export function sumarCostosIngredientes(ingredientes = [], factor = 1) {
+export function sumarCostosIngredientes(ingredientes = [], factor = 1, costoIndirectoGlobal = 0) {
   const f = num(factor, 1)
-  let costoDirecto   = 0
-  let costoIndirecto = 0
+  let costoDirecto            = 0
+  let costoIndirectoIngredientes = 0
 
   for (const ing of ingredientes) {
     const cantConv = convertirUnidad(num(ing?.cantidad), ing?.unidad, ing?.unidad_inventario || ing?.unidad)
     const subtotal = cantConv * f * num(ing?.precio)
-    if (ing?.tipo === 'indirecto') costoIndirecto += subtotal
+    if (ing?.tipo === 'indirecto') costoIndirectoIngredientes += subtotal
     else costoDirecto += subtotal
   }
+
+  // costoIndirectoTotal = costoIndirectoGlobal (gas/luz/mano de configuración) + costoIndirectoIngredientes
+  // (ingredientes marcados tipo='indirecto' en la receta) — se suman, sin doble conteo.
+  const costoIndirecto = num(costoIndirectoGlobal) + costoIndirectoIngredientes
 
   return { costoDirecto, costoIndirecto, costoTotal: costoDirecto + costoIndirecto }
 }
@@ -118,6 +123,12 @@ export function calcCostoFiscal(costoUnitario, configFiscal) {
  * receta: { piezas, merma, pventa, ingredientes: [{ cantidad, precio, tipo }] }
  * piezasObjetivo: número de piezas a producir (null = usar piezas base)
  * configFiscal: objeto de configuración DGI (opcional — null desactiva el fiscal)
+ * costoIndirectoGlobal: costo indirecto fijo de configuración (gas/luz/mano de
+ *   obra, ej. configuracion_costeo) que se suma al indirecto por ingrediente
+ *   — no lo reemplaza. Default 0 (comportamiento actual, sin doble conteo).
+ * margenObjetivo: margen objetivo en porcentaje (ej. 57). Reemplaza la
+ *   constante MARGEN_OBJETIVO para el cálculo de precioMinimo/aprobado de
+ *   esta receta puntual. Default MARGEN_OBJETIVO (comportamiento actual).
  *
  * Devuelve:
  *   — Campos base (sin fiscal): costoUnitario, margen, aprobado, precioMinimo, …
@@ -127,30 +138,37 @@ export function calcCostoFiscal(costoUnitario, configFiscal) {
  * Los campos fiscales están a null cuando configFiscal no está configurado,
  * para que la UI pueda distinguir "fiscal inactivo" de "fiscal en 0".
  */
-export function calcularCosteoReceta(receta, piezasObjetivo = null, configFiscal = null) {
+export function calcularCosteoReceta(
+  receta,
+  piezasObjetivo = null,
+  configFiscal = null,
+  costoIndirectoGlobal = 0,
+  margenObjetivo = MARGEN_OBJETIVO,
+) {
   const piezasBase = num(receta?.piezas)
   const objetivo   = piezasObjetivo !== null ? num(piezasObjetivo) : piezasBase
+  const margenObj  = num(margenObjetivo, MARGEN_OBJETIVO)
 
   const factor      = calcFactorEscala(piezasBase, objetivo)
   const piezasReales = calcPiezasReales(objetivo, receta?.merma)
 
   const { costoDirecto, costoIndirecto, costoTotal } =
-    sumarCostosIngredientes(receta?.ingredientes, factor)
+    sumarCostosIngredientes(receta?.ingredientes, factor, costoIndirectoGlobal)
 
   const costoUnitario = piezasReales > 0 ? costoTotal / piezasReales : 0
   const pventa        = num(receta?.pventa)
   const ventaTotal    = pventa * piezasReales
   const utilidad      = ventaTotal - costoTotal
   const margen        = calcMargen(pventa, costoUnitario)
-  const precioMinimo  = calcPrecioMinimo(costoUnitario)
+  const precioMinimo  = calcPrecioMinimo(costoUnitario, margenObj)
 
   // ── Campos fiscales ────────────────────────────────────────
   const fiscalActivo = !!configFiscal?.configurado
   const prorrateoFiscal      = fiscalActivo ? calcProrrateoFiscal(configFiscal) : null
   const costoFiscalUnitario  = fiscalActivo ? costoUnitario + prorrateoFiscal : null
   const margenFiscal         = fiscalActivo ? calcMargen(pventa, costoFiscalUnitario) : null
-  const precioMinimoFiscal   = fiscalActivo ? calcPrecioMinimo(costoFiscalUnitario) : null
-  const aprobadoFiscal       = fiscalActivo ? margenAprobado(margenFiscal) : null
+  const precioMinimoFiscal   = fiscalActivo ? calcPrecioMinimo(costoFiscalUnitario, margenObj) : null
+  const aprobadoFiscal       = fiscalActivo ? margenAprobado(margenFiscal, margenObj) : null
 
   return {
     // Escala
@@ -169,7 +187,7 @@ export function calcularCosteoReceta(receta, piezasObjetivo = null, configFiscal
     utilidad,
     margen,
     precioMinimo,
-    aprobado: margenAprobado(margen),
+    aprobado: margenAprobado(margen, margenObj),
 
     // Fiscal DGI (null si no configurado)
     fiscalActivo,

@@ -5,6 +5,7 @@ import { PRODUCTOS, CAT_COLORS } from '../lib/catalogo'
 import { ChefHat, Plus, Search, Upload, Edit2, Trash2, Calculator, CheckCircle, AlertTriangle, Settings } from 'lucide-react'
 import { getInventario } from '../lib/api'
 import { convertirPrecio, convertirCantidad } from '../lib/unidades'
+import { calcularCosteoReceta } from '../lib/costeo'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -158,34 +159,35 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
     }
   }, [inventario, inicial])
 
-  // Cálculos en tiempo real
+  // Cálculos en tiempo real — motor compartido con Costeo.jsx (lib/costeo.js).
+  // IMPORTANTE: los `ings` NO llevan `unidad_inventario`, así que
+  // calcularCosteoReceta no intenta convertir la cantidad — el precio de
+  // cada ingrediente ya viene pre-convertido a su propia unidad por
+  // convertirPrecio() más arriba. Agregar `unidad_inventario` aquí causaría
+  // una doble conversión (ver diagnóstico previo al refactor).
   const pz = parseInt(piezas) || 0
-  const mermaFrac = (parseFloat(merma) || 0) / 100
-
-  let costoDirecto = 0
-  let costoIndirectoIngredientes = 0
   const costoIndirectoGlobal =
     parseFloat(configCosteo.costo_indirecto_gas || 0) +
     parseFloat(configCosteo.costo_indirecto_luz || 0) +
     parseFloat(configCosteo.costo_indirecto_mano || 0)
 
-  ings.forEach(ing => {
-    const q = parseFloat(ing.cantidad) || 0
-    const pr = parseFloat(ing.precio) || 0
-    const sub = q * pr
-    if (ing.tipo === 'indirecto') {
-      costoIndirectoIngredientes += sub
-    } else {
-      costoDirecto += sub
-    }
-  })
+  const resultadoCosteo = calcularCosteoReceta(
+    { piezas, merma, ingredientes: ings },
+    null, // piezasObjetivo: usar piezas base
+    null, // configFiscal: no aplica en este formulario
+    costoIndirectoGlobal,
+    parseFloat(configCosteo.margen_objetivo || 57),
+  )
 
-  const costoIndirecto = costoIndirectoGlobal + costoIndirectoIngredientes
-  const costoTotal = costoDirecto + costoIndirecto
-  const piezasEfectivas = pz > 0 ? pz * (1 - mermaFrac) : 0
-  const costoUnitario = piezasEfectivas > 0 ? costoTotal / piezasEfectivas : 0
-  const margen = parseFloat(configCosteo.margen_objetivo || 57.00) / 100
-  const precioSugerido = margen < 1 ? costoUnitario / (1 - margen) : costoUnitario
+  const costoDirecto    = resultadoCosteo.costoDirecto
+  const costoIndirecto  = resultadoCosteo.costoIndirecto
+  const costoTotal      = resultadoCosteo.costoTotal
+  const piezasEfectivas = resultadoCosteo.piezasReales
+  const costoUnitario   = resultadoCosteo.costoUnitario
+  const precioSugerido  = resultadoCosteo.precioMinimo
+  // Desglose solo para mostrar en el JSX (el motor compartido ya no distingue
+  // "global" de "por ingrediente" en su resultado, solo el total combinado).
+  const costoIndirectoIngredientes = costoIndirecto - costoIndirectoGlobal
 
   const addIng = (tipo = 'directo') =>
     setIngs(prev => [...prev, { nombre: '', cantidad: '', unidad: 'g', precio: '', tipo, costo_cero_intencional: false }])
