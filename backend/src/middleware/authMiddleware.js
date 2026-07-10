@@ -51,6 +51,7 @@ export function requireAuth(req, res, next) {
     req.rol       = payload.rol
     req.email     = payload.email
     req.nombre    = payload.nombre
+    req.permisos  = payload.permisos || []
 
     next()
   } catch (e) {
@@ -82,10 +83,22 @@ export function requireRol(rolRequerido) {
 }
 
 // ── requirePermission ──────────────────────────────────────────────────────────
-export function requirePermission(permiso) {
+export function requirePermission(permisoRequerido) {
   return function (req, res, next) {
-    // Todos los usuarios autenticados tienen paso en esta versión.
-    // Se puede mapear req.rol o permisos específicos en el futuro aquí.
+    if (!req.rol) {
+      console.error('[authMiddleware] requirePermission usado sin requireAuth antes')
+      return res.status(500).json({ error: 'Error de configuración del servidor' })
+    }
+
+    // Los administradores siempre tienen permiso para todo
+    if (req.rol === 'admin') return next()
+
+    if (!req.permisos || !req.permisos.includes(permisoRequerido)) {
+      return res.status(403).json({
+        error: `Acceso denegado — Se requiere el permiso: "${permisoRequerido}"`
+      })
+    }
+
     next()
   }
 }

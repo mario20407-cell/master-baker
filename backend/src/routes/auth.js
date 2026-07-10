@@ -14,6 +14,7 @@ function generarToken(usuario) {
       email:     usuario.email,
       nombre:    usuario.nombre,
       rol:       usuario.rol,
+      permisos:  usuario.permisos || [],
     },
     process.env.JWT_SECRET,
     { expiresIn: '8h' }
@@ -137,6 +138,7 @@ router.post('/login', async (req, res, next) => {
         email:         usuario.email,
         nombre:        usuario.nombre,
         rol:           usuario.rol,
+        permisos:      usuario.permisos || [],
         tenantId:      usuario.tenant_id,
         tenantNombre:  usuario.tenant_nombre,
         tenantPlan:    usuario.tenant_plan,
@@ -170,7 +172,7 @@ router.post('/registrar', requireAuth, requireRol('admin'), async (req, res, nex
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await query(
-      `SELECT u.id, u.email, u.nombre, u.rol, u.ultimo_login,
+      `SELECT u.id, u.email, u.nombre, u.rol, u.permisos, u.ultimo_login,
               t.nombre_negocio AS tenant_nombre, t.plan AS tenant_plan
        FROM usuarios u
        JOIN tenants t ON t.id = u.tenant_id
