@@ -605,3 +605,59 @@ describe('Redondeo de piezas efectivas (comportamiento actual, no se modifica)',
     expect(calcPiezasReales(0, 15)).toBe(0)
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Conversión de unidades extremo a extremo en receta e inventario
+// ═══════════════════════════════════════════════════════════════════════════
+describe('Conversión de unidades extremo a extremo en receta e inventario', () => {
+  it('calcularCosteoReceta con vainilla (L en receta, ml en inventario)', () => {
+    // Precio de inventario: C$ 0.110952 por ml (unidad_inventario = 'ml')
+    // Cantidad en receta: 0.03 L (unidad = 'L')
+    // 1 pieza en total, 0% merma, precio venta = 100
+    const receta = {
+      piezas: 1,
+      merma: 0,
+      pventa: 100,
+      ingredientes: [
+        {
+          nombre: 'Esencia de Vainilla',
+          cantidad: 0.03,
+          unidad: 'L',
+          unidad_inventario: 'ml',
+          precio: 0.110952, // Precio crudo por ml
+          tipo: 'directo'
+        }
+      ]
+    }
+    const costeo = calcularCosteoReceta(receta)
+    // 0.03 L = 30 ml
+    // Costo = 30 ml * 0.110952 C$/ml = 3.32856 C$
+    expect(costeo.costoDirecto).toBeCloseTo(3.32856, 5)
+    expect(costeo.costoTotal).toBeCloseTo(3.32856, 5)
+    expect(costeo.costoUnitario).toBeCloseTo(3.32856, 5)
+  })
+
+  it('calcularCosteoReceta con azúcar (kg en receta, g en inventario)', () => {
+    const receta = {
+      piezas: 10,
+      merma: 0,
+      pventa: 10,
+      ingredientes: [
+        {
+          nombre: 'Azúcar',
+          cantidad: 0.5, // 0.5 kg
+          unidad: 'kg',
+          unidad_inventario: 'g',
+          precio: 0.02, // C$ 0.02 por gramo (es decir, C$ 20 por kg)
+          tipo: 'directo'
+        }
+      ]
+    }
+    const costeo = calcularCosteoReceta(receta)
+    // 0.5 kg = 500 g
+    // Costo = 500 * 0.02 = 10 C$
+    // costoUnitario = 10 C$ / 10 piezas = 1 C$
+    expect(costeo.costoDirecto).toBeCloseTo(10, 5)
+    expect(costeo.costoUnitario).toBeCloseTo(1, 5)
+  })
+})

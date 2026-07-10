@@ -27,19 +27,19 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
         ...ing,
         nombre: val,
         unidad: picked ? picked.unidad : ing.unidad,
-        precio: picked ? parseFloat(picked.costo_unitario) || 0 : ing.precio
+        precio: picked ? parseFloat(picked.costo_unitario) || 0 : ing.precio,
+        unidad_inventario: picked ? picked.unidad : undefined
       })
     }
   }
 
   const handleUnidadChange = (nuevaUnidad) => {
     const insumoInv = inventario.find(i => (i.nombre || '').toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())
-    let nuevoPrecio = ing.precio
-    if (insumoInv) {
-      const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
-      nuevoPrecio = convertirPrecio(costoUnit, insumoInv.unidad, nuevaUnidad)
-    }
-    onChange({ ...ing, unidad: nuevaUnidad, precio: nuevoPrecio })
+    onChange({
+      ...ing,
+      unidad: nuevaUnidad,
+      unidad_inventario: insumoInv ? insumoInv.unidad : ing.unidad_inventario
+    })
   }
 
   return (
@@ -55,7 +55,8 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
                 ...ing,
                 nombre: val,
                 unidad: matched ? matched.unidad : ing.unidad,
-                precio: matched ? parseFloat(matched.costo_unitario) || 0 : ing.precio
+                precio: matched ? parseFloat(matched.costo_unitario) || 0 : ing.precio,
+                unidad_inventario: matched ? matched.unidad : undefined
               })
             }}
             className={ing.tipo === 'indirecto' ? 'bg-blue-50 flex-1' : 'flex-1'}
@@ -131,10 +132,9 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
         const insumoInv = inventario.find(i => (i.nombre || '').toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())
         if (insumoInv) {
           const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
-          const precioActualizado = convertirPrecio(costoUnit, insumoInv.unidad, ing.unidad)
-          return { ...ing, precio: precioActualizado }
+          return { ...ing, precio: costoUnit, unidad_inventario: insumoInv.unidad }
         }
-        return ing
+        return { ...ing, unidad_inventario: ing.unidad_inventario || ing.unidad }
       })
     }
     return [
@@ -147,12 +147,14 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
   useEffect(() => {
     if (inventario && inventario.length > 0 && inicial?.ingredientes) {
       setIngs(prev => prev.map(ing => {
-        if (parseFloat(ing.precio) > 0) return ing
+        if (parseFloat(ing.precio) > 0) {
+          const insumoInv = inventario.find(i => (i.nombre || '').toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())
+          return { ...ing, unidad_inventario: insumoInv ? insumoInv.unidad : (ing.unidad_inventario || ing.unidad) }
+        }
         const insumoInv = inventario.find(i => (i.nombre || '').toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())
         if (insumoInv) {
           const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
-          const precioActualizado = convertirPrecio(costoUnit, insumoInv.unidad, ing.unidad)
-          return { ...ing, precio: precioActualizado }
+          return { ...ing, precio: costoUnit, unidad_inventario: insumoInv.unidad }
         }
         return ing
       }))
@@ -437,9 +439,10 @@ export default function Recetas() {
         
         const insumoInv = inventario.find(i => i.nombre.toLowerCase().trim() === nombre.toLowerCase().trim())
         let precio = 0
+        let unidad_inventario = undefined
         if (insumoInv) {
-          const costoUnit = parseFloat(insumoInv.costo_unitario) || 0
-          precio = convertirPrecio(costoUnit, insumoInv.unidad, unidad)
+          precio = parseFloat(insumoInv.costo_unitario) || 0
+          unidad_inventario = insumoInv.unidad
         } else if (cols[3]) {
           precio = parseFloat(cleanNumStr(cols[3])) || 0
         }
@@ -450,6 +453,7 @@ export default function Recetas() {
             cantidad,
             unidad,
             precio,
+            unidad_inventario,
             tipo: nombre.toLowerCase().includes('indirecto') ? 'indirecto' : 'directo',
             costo_cero_intencional: false
           })
@@ -463,7 +467,10 @@ export default function Recetas() {
     // Calcular estimaciones simples para el importador
     const pz = parseInt(pegPiezas) || 100
     let cd = 0
-    ings.forEach(i => { cd += i.cantidad * i.precio })
+    ings.forEach(i => {
+      const cantConv = convertirCantidad(i.cantidad, i.unidad, i.unidad_inventario || i.unidad)
+      cd += cantConv * i.precio
+    })
 
     await guardar({ 
       producto: prod.n, categoria: prod.cat, pventa: prod.p, presentacion: prod.pr,
@@ -616,13 +623,16 @@ export default function Recetas() {
                               {r.ingredientes?.map((ing, i) => {
                                 const q = parseFloat(ing.cantidad) || 0
                                 const p = parseFloat(ing.precio) || 0
+                                const uI = ing.unidad_inventario || inventario.find(inv => (inv.nombre || '').toLowerCase().trim() === (ing.nombre || '').toLowerCase().trim())?.unidad || ing.unidad
+                                const precioMostrar = convertirPrecio(p, uI, ing.unidad)
+                                const subtotal = q * precioMostrar
                                 return (
                                   <tr key={i} className="border-b border-gray-100 last:border-0">
                                     <td className="py-1 font-medium text-gray-700">{ing.nombre}</td>
                                     <td>{q}</td>
                                     <td>{ing.unidad}</td>
-                                    <td className="text-right">C$ {p.toFixed(2)}</td>
-                                    <td className="text-right font-medium">C$ {(q * p).toFixed(2)}</td>
+                                    <td className="text-right" title={`Precio de inventario: C$ ${p.toFixed(4)} / ${uI}`}>C$ {precioMostrar.toFixed(2)}</td>
+                                    <td className="text-right font-medium">C$ {subtotal.toFixed(2)}</td>
                                     <td>
                                       <span className={ing.tipo === 'indirecto' ? 'badge-info' : 'badge-gray'}>
                                         {ing.tipo}
