@@ -65,6 +65,7 @@ async function sincronizarPendientes(pendientes) {
         canal:       v.canal || 'tienda',
         cliente:     v.cliente || 'Sin nombre',
         fecha:       v.fecha,
+        sucursal_id: v.sucursal_id || null,
       }
       const { data } = await saveVenta(payload)
       sincronizadas.push(data)
@@ -124,6 +125,7 @@ export function useVentas() {
       metodo_pago: venta.metodo_pago || venta.metodo || 'efectivo',
       canal:       venta.canal || 'tienda',
       cliente:     venta.cliente || 'Sin nombre',
+      sucursal_id: venta.sucursal_id || null,
     }
 
     setLoading(true)
