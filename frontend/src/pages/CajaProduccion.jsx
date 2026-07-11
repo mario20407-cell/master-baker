@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
-import { Plus, ChefHat, X, Check, Package } from 'lucide-react'
+import { ChefHat, Check, Package } from 'lucide-react'
 
 const HOY = new Date().toISOString().slice(0, 10)
 
@@ -9,8 +9,6 @@ export default function CajaProduccion() {
   const [lotes, setLotes]       = useState([])
   const [cargando, setCargando] = useState(true)
   const [fecha, setFecha]       = useState(HOY)
-  const [modal, setModal]       = useState(false)
-  const [form, setForm]         = useState({ producto: '', cantidad: '', unidad: 'unidad', costo_total: '', precio_unitario: '', notas: '' })
   const [editando, setEditando] = useState(null) // lote_id siendo editado en caja
 
   const cargar = async () => {
@@ -24,17 +22,6 @@ export default function CajaProduccion() {
 
   useEffect(() => { cargar() }, [fecha])
 
-  const crearLote = async (e) => {
-    e.preventDefault()
-    try {
-      await api.post('/lotes', { ...form, fecha, cantidad: Number(form.cantidad), costo_total: Number(form.costo_total || 0), precio_unitario: Number(form.precio_unitario || 0) })
-      toast.success('Hornada registrada')
-      setModal(false)
-      setForm({ producto: '', cantidad: '', unidad: 'unidad', costo_total: '', precio_unitario: '', notas: '' })
-      cargar()
-    } catch (err) { toast.error(err.response?.data?.error || 'Error al crear hornada') }
-  }
-
   const actualizarCaja = async (loteId, campos) => {
     try {
       await api.patch(`/lotes/${loteId}/caja`, campos)
@@ -42,15 +29,6 @@ export default function CajaProduccion() {
       setEditando(null)
       cargar()
     } catch { toast.error('Error al actualizar caja') }
-  }
-
-  const eliminar = async (id) => {
-    if (!confirm('¿Eliminar esta hornada?')) return
-    try {
-      await api.delete(`/lotes/${id}`)
-      toast.success('Hornada eliminada')
-      cargar()
-    } catch { toast.error('Error al eliminar') }
   }
 
   const totalDia = lotes.reduce((s, l) => s + Number(l.total_vendido || 0), 0)
@@ -63,9 +41,6 @@ export default function CajaProduccion() {
           <h1 className="text-lg font-semibold text-gray-800">Caja de Producción</h1>
           <p className="text-xs text-gray-500">Registro de hornadas y ventas del día</p>
         </div>
-        <button onClick={() => setModal(true)} className="btn-primary flex items-center gap-2 text-sm">
-          <Plus size={15} /> Nueva hornada
-        </button>
       </div>
 
       {/* Selector de fecha + resumen */}
@@ -92,62 +67,15 @@ export default function CajaProduccion() {
             <LoteCard key={l.id} lote={l} editando={editando === l.id}
               onEditar={() => setEditando(l.id)}
               onGuardar={(campos) => actualizarCaja(l.id, campos)}
-              onCancelar={() => setEditando(null)}
-              onEliminar={() => eliminar(l.id)} />
+              onCancelar={() => setEditando(null)} />
           ))}
-        </div>
-      )}
-
-      {/* Modal nueva hornada */}
-      {modal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-800">Nueva hornada</h2>
-              <button onClick={() => setModal(false)}><X size={18} className="text-gray-400" /></button>
-            </div>
-            <form onSubmit={crearLote} className="space-y-3">
-              <div className="form-group">
-                <label className="form-label">Producto</label>
-                <input value={form.producto} onChange={e => setForm(f => ({...f, producto: e.target.value}))}
-                  placeholder="Ej: Dona azucarada" required />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="form-group">
-                  <label className="form-label">Cantidad</label>
-                  <input type="number" min="1" value={form.cantidad} onChange={e => setForm(f => ({...f, cantidad: e.target.value}))} required />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Unidad</label>
-                  <select value={form.unidad} onChange={e => setForm(f => ({...f, unidad: e.target.value}))}>
-                    <option>unidad</option><option>docena</option><option>lb</option><option>kg</option>
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="form-group">
-                  <label className="form-label">Costo total (C$)</label>
-                  <input type="number" step="0.01" value={form.costo_total} onChange={e => setForm(f => ({...f, costo_total: e.target.value}))} placeholder="0.00" />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Precio unitario (C$)</label>
-                  <input type="number" step="0.01" value={form.precio_unitario} onChange={e => setForm(f => ({...f, precio_unitario: e.target.value}))} placeholder="0.00" />
-                </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Notas</label>
-                <input value={form.notas} onChange={e => setForm(f => ({...f, notas: e.target.value}))} placeholder="Opcional" />
-              </div>
-              <button type="submit" className="btn-primary w-full mt-2">Registrar hornada</button>
-            </form>
-          </div>
         </div>
       )}
     </div>
   )
 }
 
-function LoteCard({ lote, editando, onEditar, onGuardar, onCancelar, onEliminar }) {
+function LoteCard({ lote, editando, onEditar, onGuardar, onCancelar }) {
   const [vendida, setVendida] = useState(String(lote.vendido || 0))
   const [merma, setMerma]     = useState(String(lote.merma || 0))
   const [precio, setPrecio]   = useState(String(lote.caja?.precio_unitario || lote.precio_unitario || 0))
@@ -172,7 +100,6 @@ function LoteCard({ lote, editando, onEditar, onGuardar, onCancelar, onEliminar 
           {!lote.cerrado && !editando && (
             <button onClick={onEditar} className="text-xs px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600">Actualizar</button>
           )}
-          <button onClick={onEliminar} className="p-1 text-gray-300 hover:text-red-400"><X size={14} /></button>
         </div>
       </div>
 
