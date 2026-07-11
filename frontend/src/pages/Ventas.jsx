@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useVentas } from '../hooks/useVentas'
 import { PRODUCTOS } from '../lib/catalogo'
+import { getSucursales } from '../lib/api'
 import { ShoppingCart, Receipt, BarChart2, Calculator, Search, Plus, Minus, Trash2, CheckCircle, AlertTriangle, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -175,10 +176,20 @@ export default function Ventas() {
   const [cliente,   setCliente]   = useState('')
   const [montoRec,  setMontoRec]  = useState('')
   const [ultimaVenta, setUltimaVenta] = useState(null)
+  const [sucursales, setSucursales] = useState([])
+  const [sucursalId, setSucursalId] = useState('')
 
   const totalCarrito = carrito.reduce((s, i) => s + i.p * i.qty, 0)
   const cambio       = n(montoRec) - totalCarrito
   const totalHoy     = resumen?.ingresos || 0
+
+  useEffect(() => {
+    getSucursales().then(({ data }) => setSucursales(data)).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (sucursales.length === 1) setSucursalId(sucursales[0].id)
+  }, [sucursales])
 
   const addCarrito = (prod) => {
     setCarrito(prev => {
@@ -190,12 +201,14 @@ export default function Ventas() {
 
   const registrarVenta = async () => {
     if (!carrito.length) { toast.error('Agrega al menos un producto'); return }
+    if (sucursales.length > 1 && !sucursalId) { toast.error('Selecciona una sucursal'); return }
     const payload = {
       items:       carrito.map(i => ({ producto: i.n, cantidad: i.qty, precio_unit: i.p })),
       total:       totalCarrito,
       metodo_pago: metodo,
       canal,
       cliente:     cliente || 'Sin nombre',
+      sucursal_id: sucursalId || null,
     }
     const nueva = await registrar(payload)
     if (nueva) {
@@ -300,6 +313,16 @@ export default function Ventas() {
                     <input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nombre (opcional)" />
                   </div>
                 </div>
+
+                {sucursales.length > 1 && (
+                  <div className="form-group">
+                    <label className="form-label">Sucursal</label>
+                    <select value={sucursalId} onChange={e => setSucursalId(e.target.value)}>
+                      <option value="">Seleccionar...</option>
+                      {sucursales.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                    </select>
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label className="form-label">Método de pago</label>
