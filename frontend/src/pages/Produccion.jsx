@@ -1,7 +1,7 @@
 // pages/Produccion.jsx — v3.0 Órdenes de producción con merma automática y modo oscuro
 import { useState, useEffect, useCallback } from 'react'
 import { Factory, Plus, CheckCircle, AlertTriangle, ChevronDown, Clock, Package } from 'lucide-react'
-import { getRecetas, verificarProduccion, crearOrdenProduccion, getHistorialProduccion } from '../lib/api'
+import { getRecetas, verificarProduccion, crearOrdenProduccion, getHistorialProduccion, getSucursales } from '../lib/api'
 import toast from 'react-hot-toast'
 
 const fmtFecha = f => new Date(f).toLocaleString('es-NI', { dateStyle: 'short', timeStyle: 'short' })
@@ -10,6 +10,7 @@ const fmtNum   = n => parseFloat(n).toFixed(3).replace(/\.?0+$/, '')
 export default function Produccion() {
   const [recetas, setRecetas]           = useState([])
   const [historial, setHistorial]       = useState([])
+  const [sucursales, setSucursales]     = useState([])
   const [loadingRec, setLoadingRec]     = useState(true)
   const [loadingHist, setLoadingHist]   = useState(true)
   const [producto, setProducto]         = useState('')
@@ -18,6 +19,8 @@ export default function Produccion() {
   const [verificando, setVerificando]   = useState(false)
   const [confirmando, setConfirmando]   = useState(false)
   const [verificacion, setVerificacion] = useState(null) // resultado del GET /verificar
+  const [usarDistribucion, setUsarDistribucion] = useState(false)
+  const [distribuciones, setDistribuciones]     = useState([])
 
   const cargarRecetas = useCallback(async () => {
     try {
@@ -35,7 +38,14 @@ export default function Produccion() {
     finally { setLoadingHist(false) }
   }, [])
 
-  useEffect(() => { cargarRecetas(); cargarHistorial() }, [cargarRecetas, cargarHistorial])
+  const cargarSucursales = useCallback(async () => {
+    try {
+      const { data } = await getSucursales()
+      setSucursales(data)
+    } catch {}
+  }, [])
+
+  useEffect(() => { cargarRecetas(); cargarHistorial(); cargarSucursales() }, [cargarRecetas, cargarHistorial, cargarSucursales])
 
   const handleVerificar = async () => {
     if (!producto) { toast.error('Selecciona un producto'); return }
@@ -51,18 +61,42 @@ export default function Produccion() {
     } finally { setVerificando(false) }
   }
 
+  const toggleDistribucion = () => {
+    if (!usarDistribucion) {
+      setDistribuciones(sucursales.map(s => ({ sucursal_id: s.id, nombre: s.nombre, cantidad: '' })))
+    }
+    setUsarDistribucion(v => !v)
+  }
+
+  const totalDistribuido = distribuciones.reduce((s, d) => s + (Number(d.cantidad) || 0), 0)
+
   const handleConfirmar = async (forzar = false) => {
+    const distribucionesFiltradas = distribuciones.filter(d => Number(d.cantidad) > 0)
+    if (usarDistribucion && distribucionesFiltradas.length > 0) {
+      const total = distribucionesFiltradas.reduce((s, d) => s + Number(d.cantidad), 0)
+      if (total > parseInt(piezas)) {
+        toast.error(`Total distribuido (${total}) supera las piezas a producir (${piezas})`)
+        return
+      }
+    }
     setConfirmando(true)
     try {
-      await crearOrdenProduccion({ producto, piezas: parseInt(piezas), notas, forzar })
+      const payload = { producto, piezas: parseInt(piezas), notas, forzar }
+      if (usarDistribucion && distribucionesFiltradas.length > 0) {
+        payload.distribuciones = distribucionesFiltradas.map(d => ({ sucursal_id: d.sucursal_id, cantidad: Number(d.cantidad) }))
+      }
+      await crearOrdenProduccion(payload)
       toast.success(`Orden de ${piezas} piezas de ${producto} completada`)
       setProducto(''); setPiezas(''); setNotas(''); setVerificacion(null)
+      setUsarDistribucion(false); setDistribuciones([])
       await cargarHistorial()
     } catch (e) {
       const err = e.response?.data
       if (e.response?.status === 409 && err?.faltantes) {
         // Stock insuficiente — ya se muestra en verificacion
         toast.error('Stock insuficiente para completar la orden')
+      } else {
+        toast.error(err?.error || 'Error al registrar la producción')
       }
     } finally { setConfirmando(false) }
   }
@@ -103,6 +137,31 @@ export default function Produccion() {
           <div className="form-group mb-3">
             <label className="form-label">Notas (opcional)</label>
             <input value={notas} onChange={e => setNotas(e.target.value)} placeholder="Ej: Produccion del lunes" />
+          </div>
+        )}
+
+        {producto && piezas && sucursales.length > 0 && (
+          <div className="form-group mb-3">
+            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
+              <input type="checkbox" checked={usarDistribucion} onChange={toggleDistribucion} />
+              Distribuir a sucursales al producir
+            </label>
+            {usarDistribucion && (
+              <div className="mt-2 space-y-2">
+                {distribuciones.map((d, i) => (
+                  <div key={d.sucursal_id} className="flex items-center gap-3">
+                    <span className="text-sm text-gray-600 dark:text-gray-400 flex-1">{d.nombre}</span>
+                    <input type="number" min="0" value={d.cantidad}
+                      onChange={e => setDistribuciones(prev => prev.map((x, xi) => xi === i ? { ...x, cantidad: e.target.value } : x))}
+                      className="w-24 text-sm border border-gray-200 dark:border-navy-700 rounded-lg px-2 py-1.5 text-right"
+                      placeholder="0" />
+                  </div>
+                ))}
+                <div className="text-xs text-gray-400 dark:text-gray-500">
+                  Total distribuido: {totalDistribuido} / {piezas || 0} piezas
+                </div>
+              </div>
+            )}
           </div>
         )}
 

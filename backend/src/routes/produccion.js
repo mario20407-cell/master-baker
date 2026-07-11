@@ -5,11 +5,10 @@
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { requireAuth, requirePermission } from '../middleware/authMiddleware.js'
+import { distribuirLote } from '../services/produccionService.js'
+import { norm } from '../lib/normalizarTexto.js'
 
 const router = Router()
-
-// Normaliza texto: quita tildes y pasa a minusculas para comparacion flexible
-const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
 
 // Conversión de unidades a una unidad base común (g para masa, ml para volumen, unidad para conteo)
 const CONVERSION_MASA = {
@@ -157,10 +156,14 @@ router.get('/', requireAuth, requirePermission('ver_produccion'), async (req, re
 
 // ── POST /api/produccion ───────────────────────────────────────────────────
 router.post('/', requireAuth, requirePermission('gestionar_produccion'), async (req, res, next) => {
-  const { producto, piezas, notas = '', forzar = false } = req.body
+  const { producto, piezas, notas = '', forzar = false, distribuciones } = req.body
   if (!producto || !piezas) return res.status(400).json({ error: 'producto y piezas son requeridos' })
   const cantidadPiezas = parseInt(piezas)
   if (cantidadPiezas < 1) return res.status(400).json({ error: 'piezas debe ser mayor a 0' })
+  if (distribuciones !== undefined) {
+    if (!Array.isArray(distribuciones) || distribuciones.some(d => !d.sucursal_id || !(Number(d.cantidad) > 0)))
+      return res.status(400).json({ error: 'distribuciones debe ser un array de { sucursal_id, cantidad > 0 }' })
+  }
 
   try {
     const result = await transaction(async (client) => {
@@ -240,13 +243,36 @@ router.post('/', requireAuth, requirePermission('gestionar_produccion'), async (
         [req.tenantId, producto, cantidadPiezas, notas, req.usuarioId]
       )
 
-      return { orden, ingredientes_descontados: necesarios }
+      // Crear automáticamente el lote correspondiente a esta producción, vinculado a la orden
+      const { rows: [lote] } = await client.query(
+        `INSERT INTO lotes (tenant_id, producto, cantidad, unidad, costo_total, notas, orden_produccion_id)
+         VALUES ($1,$2,$3,'unidad',0,$4,$5) RETURNING *`,
+        [req.tenantId, producto, cantidadPiezas, notas || null, orden.id]
+      )
+      const { rows: [caja] } = await client.query(
+        `INSERT INTO caja_produccion (tenant_id, lote_id, cantidad_inicial, precio_unitario, fecha)
+         VALUES ($1,$2,$3,0,CURRENT_DATE) RETURNING *`,
+        [req.tenantId, lote.id, cantidadPiezas]
+      )
+
+      let distribucionesResult = null
+      if (Array.isArray(distribuciones) && distribuciones.length > 0) {
+        distribucionesResult = await distribuirLote(client, req.tenantId, lote, distribuciones)
+      }
+
+      return {
+        orden,
+        ingredientes_descontados: necesarios,
+        lote: { ...lote, caja },
+        distribuciones: distribucionesResult,
+      }
     })
 
     res.status(201).json(result)
   } catch (e) {
     if (e.status === 404) return res.status(404).json({ error: e.message })
     if (e.status === 409) return res.status(409).json({ error: e.message, faltantes: e.faltantes })
+    if (e.status === 400) return res.status(400).json({ error: e.message })
     next(e)
   }
 })

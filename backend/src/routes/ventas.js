@@ -1,17 +1,15 @@
-/**
- * /api/ventas — Registro y consulta de ventas
- * v2.8 — Multi-tenant: toda query filtra y escribe con tenant_id.
- */
 import { Router } from 'express'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { query, transaction } from '../db/client.js'
+import { norm } from '../lib/normalizarTexto.js'
+import { verificarSugerencia } from '../services/produccionService.js'
 
 const router = Router()
 router.use(requireAuth)
 
 // ── POST /api/ventas ──────────────────────────────────────────────────────────
 router.post('/', async (req, res, next) => {
-  const { items, total, metodo_pago = 'efectivo', canal = 'tienda', cliente = 'Sin nombre', fecha, hora } = req.body
+  const { items, total, metodo_pago = 'efectivo', canal = 'tienda', cliente = 'Sin nombre', fecha, hora, sucursal_id } = req.body
   const tenantId = req.tenantId
 
   if (!items?.length)          return res.status(400).json({ error: 'La venta debe tener al menos un item' })
@@ -25,10 +23,10 @@ router.post('/', async (req, res, next) => {
   try {
     const venta = await transaction(async (client) => {
       const { rows: [v] } = await client.query(`
-        INSERT INTO ventas (tenant_id, fecha, hora, cliente, canal, metodo_pago, total)
-        VALUES ($1, ${fecha ? '$2' : 'CURRENT_DATE'}, ${hora ? `'${hora}'::TIME` : 'NOW()::TIME'}, $${fecha ? 3 : 2}, $${fecha ? 4 : 3}, $${fecha ? 5 : 4}, $${fecha ? 6 : 5})
+        INSERT INTO ventas (tenant_id, fecha, hora, cliente, canal, metodo_pago, total, sucursal_id)
+        VALUES ($1, ${fecha ? '$2' : 'CURRENT_DATE'}, ${hora ? `'${hora}'::TIME` : 'NOW()::TIME'}, $${fecha ? 3 : 2}, $${fecha ? 4 : 3}, $${fecha ? 5 : 4}, $${fecha ? 6 : 5}, $${fecha ? 7 : 6})
         RETURNING *
-      `, fecha ? [tenantId, fecha, cliente, canal, metodo_pago, total] : [tenantId, cliente, canal, metodo_pago, total])
+      `, fecha ? [tenantId, fecha, cliente, canal, metodo_pago, total, sucursal_id || null] : [tenantId, cliente, canal, metodo_pago, total, sucursal_id || null])
 
       if (items.length > 0) {
         // Cada fila de items lleva también tenant_id — 4 params por item ahora.
@@ -44,6 +42,40 @@ router.post('/', async (req, res, next) => {
         'SELECT * FROM venta_items WHERE venta_id = $1 AND tenant_id = $2 ORDER BY id',
         [v.id, tenantId]
       )
+
+      // Descontar inventario_terminado de la sucursal indicada (si se indicó una)
+      if (sucursal_id) {
+        const { rows: stocks } = await client.query(
+          `SELECT id, producto, stock, stock_minimo FROM inventario_terminado
+           WHERE tenant_id = $1 AND sucursal_id = $2 FOR UPDATE`,
+          [tenantId, sucursal_id]
+        )
+        const stockMap = {}
+        stocks.forEach(s => { stockMap[norm(s.producto)] = s })
+
+        // Agregar cantidades por producto normalizado, por si hay líneas repetidas
+        const cantidadPorProducto = {}
+        itemsRows.forEach(it => {
+          const key = norm(it.producto)
+          cantidadPorProducto[key] = (cantidadPorProducto[key] || 0) + parseInt(it.cantidad)
+        })
+
+        for (const [key, cantidad] of Object.entries(cantidadPorProducto)) {
+          const stockRow = stockMap[key]
+          if (!stockRow) continue // sin registro en esa sucursal — no se descuenta, la venta sigue igual
+
+          const { rows: [actualizado] } = await client.query(
+            `UPDATE inventario_terminado SET stock = GREATEST(0, stock - $1), actualizado_en = NOW()
+             WHERE id = $2 AND tenant_id = $3 RETURNING *`,
+            [cantidad, stockRow.id, tenantId]
+          )
+          await verificarSugerencia(
+            client, tenantId, sucursal_id, actualizado.producto,
+            Number(actualizado.stock), Number(actualizado.stock_minimo)
+          )
+        }
+      }
+
       return { ...v, items: itemsRows }
     })
 
