@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 
 import { requireAuth, requirePermission } from '../middleware/authMiddleware.js'
+import { distribuirLote, verificarSugerencia } from '../services/produccionService.js'
 
 const router = Router()
 
@@ -42,53 +43,43 @@ router.post('/distribuir', requirePermission('gestionar_produccion'), async (req
     if (!loteRes.rows[0]) return res.status(404).json({ error: 'Lote no encontrado' })
     const lote = loteRes.rows[0]
 
-    const totalDist = distribuciones.reduce((s, d) => s + Number(d.cantidad), 0)
-    if (totalDist > lote.cantidad)
-      return res.status(400).json({ error: `Total distribuido (${totalDist}) supera la producción del lote (${lote.cantidad})` })
-
     const result = await transaction(async (client) => {
-      const registros = []
-      for (const dist of distribuciones) {
-        // Registrar distribución
-        await client.query(
-          `INSERT INTO lote_distribuciones (tenant_id, lote_id, sucursal_id, cantidad)
-           VALUES ($1,$2,$3,$4)
-           ON CONFLICT (lote_id, sucursal_id) DO UPDATE SET cantidad = lote_distribuciones.cantidad + EXCLUDED.cantidad`,
-          [req.tenantId, lote_id, dist.sucursal_id, dist.cantidad]
-        )
-        // Incrementar inventario terminado
-        const inv = await client.query(
-          `INSERT INTO inventario_terminado (tenant_id, sucursal_id, producto, stock, unidad)
-           VALUES ($1,$2,$3,$4,$5)
-           ON CONFLICT (tenant_id, sucursal_id, producto)
-           DO UPDATE SET stock = inventario_terminado.stock + EXCLUDED.stock,
-                         actualizado_en = NOW()
-           RETURNING *`,
-          [req.tenantId, dist.sucursal_id, lote.producto, dist.cantidad, lote.unidad]
-        )
-        registros.push(inv.rows[0])
-      }
-      return registros
+      return distribuirLote(client, req.tenantId, lote, distribuciones)
     })
     res.status(201).json(result)
-  } catch (e) { next(e) }
+  } catch (e) {
+    if (e.status === 400) return res.status(400).json({ error: e.message })
+    next(e)
+  }
 })
 
 // PATCH /api/inventario-terminado/:id — ajuste manual de stock o stock_minimo
 router.patch('/:id', requirePermission('gestionar_produccion'), async (req, res, next) => {
   try {
     const { stock, stock_minimo } = req.body
-    const { rows } = await query(
-      `UPDATE inventario_terminado
-       SET stock        = COALESCE($1, stock),
-           stock_minimo = COALESCE($2, stock_minimo),
-           actualizado_en = NOW()
-       WHERE id = $3 AND tenant_id = $4 RETURNING *`,
-      [stock, stock_minimo, req.params.id, req.tenantId]
-    )
-    if (!rows[0]) return res.status(404).json({ error: 'Registro no encontrado' })
-    res.json(rows[0])
-  } catch (e) { next(e) }
+    const result = await transaction(async (client) => {
+      const { rows } = await client.query(
+        `UPDATE inventario_terminado
+         SET stock        = COALESCE($1, stock),
+             stock_minimo = COALESCE($2, stock_minimo),
+             actualizado_en = NOW()
+         WHERE id = $3 AND tenant_id = $4 RETURNING *`,
+        [stock, stock_minimo, req.params.id, req.tenantId]
+      )
+      const registro = rows[0]
+      if (!registro) throw Object.assign(new Error('Registro no encontrado'), { status: 404 })
+
+      await verificarSugerencia(
+        client, req.tenantId, registro.sucursal_id, registro.producto,
+        Number(registro.stock), Number(registro.stock_minimo)
+      )
+      return registro
+    })
+    res.json(result)
+  } catch (e) {
+    if (e.status === 404) return res.status(404).json({ error: e.message })
+    next(e)
+  }
 })
 
 export default router

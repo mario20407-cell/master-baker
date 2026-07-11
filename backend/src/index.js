@@ -20,6 +20,7 @@ import produccionRoutes from './routes/produccion.js'
 import inventarioTerminadoRoutes from './routes/inventario-terminado.js'
 import lotesRoutes      from './routes/lotes.js'
 import sucursalesRoutes from './routes/sucursales.js'
+import sugerenciasProduccionRoutes from './routes/sugerencias-produccion.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 import { query } from './db/client.js'
 
@@ -93,6 +94,7 @@ app.use('/api/produccion', produccionRoutes)
 app.use('/api/inventario-terminado', inventarioTerminadoRoutes)
 app.use('/api/lotes',      lotesRoutes)
 app.use('/api/sucursales', sucursalesRoutes)
+app.use('/api/sugerencias-produccion', sugerenciasProduccionRoutes)
 
 // Health check
 app.get('/api/health', (_, res) => res.json({
