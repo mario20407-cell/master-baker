@@ -64,7 +64,12 @@ app.use(cors({
   credentials: true
 }))
 app.use(morgan('dev'))
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf
+  }
+}))
 app.use(express.urlencoded({ extended: true }))
 
 // Rate limiting global
@@ -121,18 +126,20 @@ app.use((err, req, res, _next) => {
   res.status(err.status || 500).json({ error: err.message || 'Error interno' })
 })
 
-app.listen(PORT, () => {
-  console.log(`\n🥐 Maestro Panadero IA — Marquéz v3.0`)
-  console.log(`   Servidor:    http://localhost:${PORT}`)
-  console.log(`   Auth:        /api/auth/login | /api/auth/registrar | /api/auth/me`)
-  console.log(`   Rutas:       catalogo | recetas | costeos | inventario | compras | ventas | fiscal | ai | whatsapp`)
-  console.log(`   IA activas:`)
-  console.log(`   - GPT-4 mini:       ${process.env.OPENAI_API_KEY    ? '✅' : '⏳ pendiente'}`)
-  console.log(`   - Claude 3.5:       ${process.env.ANTHROPIC_API_KEY ? '✅' : '⏳ pendiente'}`)
-  console.log(`   - DeepSeek V3/R1:   ${process.env.DEEPSEEK_API_KEY  ? '✅' : '⏳ pendiente'}`)
-  console.log(`   - Gemini 1.5 Flash: ${process.env.GEMINI_API_KEY    ? '✅' : '⏳ pendiente'}`)
-  console.log(`   WhatsApp Bot:       ${process.env.WHATSAPP_TOKEN     ? '✅ activo' : '⏳ pendiente'}`)
-  console.log(`   Webhook URL:        http://localhost:${PORT}/api/whatsapp/webhook\n`)
-})
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`\n🥐 Maestro Panadero IA — Marquéz v3.0`)
+    console.log(`   Servidor:    http://localhost:${PORT}`)
+    console.log(`   Auth:        /api/auth/login | /api/auth/registrar | /api/auth/me`)
+    console.log(`   Rutas:       catalogo | recetas | costeos | inventario | compras | ventas | fiscal | ai | whatsapp`)
+    console.log(`   IA activas:`)
+    console.log(`   - GPT-4 mini:       ${process.env.OPENAI_API_KEY    ? '✅' : '⏳ pendiente'}`)
+    console.log(`   - Claude 3.5:       ${process.env.ANTHROPIC_API_KEY ? '✅' : '⏳ pendiente'}`)
+    console.log(`   - DeepSeek V3/R1:   ${process.env.DEEPSEEK_API_KEY  ? '✅' : '⏳ pendiente'}`)
+    console.log(`   - Gemini 1.5 Flash: ${process.env.GEMINI_API_KEY    ? '✅' : '⏳ pendiente'}`)
+    console.log(`   WhatsApp Bot:       ${process.env.WHATSAPP_TOKEN     ? '✅ activo' : '⏳ pendiente'}`)
+    console.log(`   Webhook URL:        http://localhost:${PORT}/api/whatsapp/webhook\n`)
+  })
+}
 
 export default app

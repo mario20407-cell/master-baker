@@ -9,8 +9,10 @@ import {
   AI_CONFIG,
 } from '../services/ai/aiProvider.js'
 import { verificarYRegistrarUso, requierePlan } from '../middleware/planMiddleware.js'
+import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
+router.use(requireAuth)
 
 // ── Clasificador de tareas ────────────────────────────────────────────────────
 const TASK_TYPES = {
@@ -194,22 +196,6 @@ Solo JSON, sin texto adicional.`,
       } catch {}
     }
     res.json({ datos, modelo: resultado.modelo })
-  } catch (e) { next(e) }
-})
-
-// POST /api/ai/whatsapp — endpoint específico para el bot de WhatsApp
-// NOTA: el bot real (routes/whatsapp.js) todavía no llama a este endpoint —
-// tiene su propia integración standalone con OpenAI. Este queda listo para
-// cuando se unifique esa lógica con aiProvider.js.
-router.post('/whatsapp', requierePlan('whatsapp_bot'), async (req, res, next) => {
-  const { mensaje, historial = [] } = req.body
-  if (!mensaje) return res.status(400).json({ error: 'mensaje requerido' })
-
-  const messages = [...historial.slice(-6), { role: 'user', content: mensaje }]
-
-  try {
-    const resultado = await chatCliente(messages, SYSTEM_PROMPTS[TASK_TYPES.CHAT_CLIENTE])
-    res.json({ respuesta: resultado.respuesta, modelo: resultado.modelo })
   } catch (e) { next(e) }
 })
 
