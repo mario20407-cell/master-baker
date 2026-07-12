@@ -29,6 +29,21 @@ INSERT INTO tenants (id, slug, nombre_negocio, pais, moneda, margen_objetivo)
 VALUES ('00000000-0000-0000-0000-000000000001', 'marquez', 'Marquéz Panadería & Repostería', 'Nicaragua', 'C$', 57)
 ON CONFLICT (id) DO NOTHING;
 
+-- ── Usuarios del sistema ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS usuarios (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id      UUID NOT NULL REFERENCES tenants(id),
+  email          VARCHAR(120) NOT NULL,
+  password_hash  TEXT,
+  nombre         VARCHAR(120) NOT NULL,
+  rol            VARCHAR(30) NOT NULL DEFAULT 'operario',
+  permisos       VARCHAR(50)[] DEFAULT ARRAY[]::VARCHAR(50)[],
+  activo         BOOLEAN DEFAULT true,
+  ultimo_login   TIMESTAMPTZ,
+  creado_en      TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (tenant_id, email)
+);
+
 -- ── Catálogo de productos ──────────────────────────────────────
 CREATE TABLE IF NOT EXISTS productos (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -178,6 +193,7 @@ CREATE TABLE IF NOT EXISTS venta_items (
 );
 
 -- ── Índices ───────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_usuarios_tenant      ON usuarios(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_productos_tenant     ON productos(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_recetas_tenant       ON recetas(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_ingredientes_tenant  ON ingredientes(tenant_id);

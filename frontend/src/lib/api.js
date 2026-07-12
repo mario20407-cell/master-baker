@@ -80,7 +80,6 @@ export const getCompras = () => api.get('/compras')
 export const saveFactura = (data) => api.post('/compras', data)
 
 // ── IA ───────────────────────────────────────────────────────────────────────
-export const chatIA = (messages, context) => api.post('/ia/chat', { messages, context })
 
 // ── Exportar ─────────────────────────────────────────────────────────────────
 export const exportarReporte = (tipo) => api.get(`/exportar/${tipo}`, { responseType: 'blob' })
