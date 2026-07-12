@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import OpenAI from 'openai'
+import crypto from 'crypto'
 import { verificarYRegistrarUso } from '../middleware/planMiddleware.js'
+import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 
 export const publicRouter = Router()
 export const privateRouter = Router()
@@ -8,7 +10,7 @@ export const privateRouter = Router()
 // ── Configuración ─────────────────────────────────────────────────────────────
 const WA_TOKEN    = process.env.WHATSAPP_TOKEN
 const WA_PHONE_ID = process.env.WHATSAPP_PHONE_ID
-const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'marquez_verify_2024'
+const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN
 const WA_API      = `https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`
 
 // Historial de conversaciones por número (en memoria, se limpia al reiniciar)
@@ -196,6 +198,11 @@ function respuestaFallback(mensaje) {
 
 // ── Webhook: verificación Meta ────────────────────────────────────────────────
 publicRouter.get('/webhook', (req, res) => {
+  if (!VERIFY_TOKEN) {
+    console.error('[WhatsApp] WHATSAPP_VERIFY_TOKEN no configurado en las variables de entorno')
+    return res.status(500).json({ error: 'Error de configuración del servidor' })
+  }
+
   const mode      = req.query['hub.mode']
   const token     = req.query['hub.verify_token']
   const challenge = req.query['hub.challenge']
@@ -211,6 +218,29 @@ publicRouter.get('/webhook', (req, res) => {
 
 // ── Webhook: recibir mensajes ─────────────────────────────────────────────────
 publicRouter.post('/webhook', async (req, res) => {
+  // Validar firma x-hub-signature-256 de Meta
+  const signatureHeader = req.headers['x-hub-signature-256']
+  const appSecret = process.env.META_APP_SECRET
+
+  if (appSecret) {
+    if (!signatureHeader) {
+      console.error('[WhatsApp Webhook] Firma x-hub-signature-256 ausente')
+      return res.status(401).send('Firma ausente')
+    }
+    const signature = signatureHeader.split('=')[1]
+    const expectedSignature = crypto
+      .createHmac('sha256', appSecret)
+      .update(req.rawBody || '')
+      .digest('hex')
+
+    if (signature !== expectedSignature) {
+      console.error('[WhatsApp Webhook] Firma x-hub-signature-256 inválida')
+      return res.status(401).send('Firma inválida')
+    }
+  } else {
+    console.warn('[WhatsApp Webhook] META_APP_SECRET no configurado. Omitiendo validación de firma.')
+  }
+
   // Responder 200 inmediatamente para que Meta no reintente
   res.status(200).send('OK')
 
@@ -258,7 +288,7 @@ publicRouter.post('/webhook', async (req, res) => {
 })
 
 // ── Endpoint: enviar mensaje manual desde el dashboard ───────────────────────
-privateRouter.post('/enviar', async (req, res, next) => {
+privateRouter.post('/enviar', requireAuth, async (req, res, next) => {
   const { telefono, mensaje } = req.body
   if (!telefono || !mensaje) {
     return res.status(400).json({ error: 'telefono y mensaje son requeridos' })
@@ -269,27 +299,36 @@ privateRouter.post('/enviar', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// ── Endpoint: listar conversaciones activas ───────────────────────────────────
+privateRouter.get('/conversaciones', requireAuth, (req, res) => {
+  const lista = Array.from(conversaciones.entries()).map(([telefono, historial]) => ({
+    telefono,
+    mensajes: historial.length,
+    ultimo_mensaje: historial[historial.length - 1] || null,
+  }))
+  res.json({ conversaciones: lista })
+})
+
 // ── Endpoint: ver historial de conversación ───────────────────────────────────
-privateRouter.get('/conversacion/:telefono', (req, res) => {
+privateRouter.get('/conversacion/:telefono', requireAuth, (req, res) => {
   const historial = conversaciones.get(req.params.telefono) || []
   res.json({ telefono: req.params.telefono, mensajes: historial.length, historial })
 })
 
 // ── Endpoint: limpiar historial ───────────────────────────────────────────────
-privateRouter.delete('/conversacion/:telefono', (req, res) => {
+privateRouter.delete('/conversacion/:telefono', requireAuth, requireRol('admin'), (req, res) => {
   conversaciones.delete(req.params.telefono)
   res.json({ ok: true, mensaje: 'Historial limpiado' })
 })
 
 // ── Endpoint: status del bot ──────────────────────────────────────────────────
-privateRouter.get('/status', (req, res) => {
+privateRouter.get('/status', requireAuth, (req, res) => {
   res.json({
     activo:           !!WA_TOKEN && !!WA_PHONE_ID,
     phone_id:         WA_PHONE_ID || 'No configurado',
     ia_activa:        !!process.env.OPENAI_API_KEY,
     modelo:           'gpt-4o-mini',
     conversaciones:   conversaciones.size,
-    verify_token:     VERIFY_TOKEN,
   })
 })
 
