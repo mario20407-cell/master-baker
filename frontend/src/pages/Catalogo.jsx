@@ -1,11 +1,13 @@
 // ─── pages/Catalogo.jsx ───────────────────────────────────────────────────────
 // v2.8.1 — Edición protegida con PIN de Admin + historial de auditoría + Modo Oscuro.
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   getCatalogo, updateProducto, updateProductosPorCategoria, getAuditoriaProductos,
+  crearProducto, deleteProducto, descargarPlantillaCatalogo,
+  previewImportarCatalogo, confirmarImportarCatalogo,
 } from '../lib/api'
 import { CAT_COLORS } from '../lib/catalogo'
-import { Search, Calculator, Scale, Pencil, Check, X, Percent, RefreshCw, History } from 'lucide-react'
+import { Search, Calculator, Scale, Pencil, Check, X, Percent, RefreshCw, History, Plus, Trash2, Upload, Download } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import AdminPinModal from '../components/AdminPinModal'
@@ -27,6 +29,13 @@ export function Catalogo() {
   const [pinAccion, setPinAccion] = useState(null)  // función a ejecutar tras confirmar PIN
   const [panelAuditoria, setPanelAuditoria] = useState(false)
   const [auditoria, setAuditoria] = useState([])
+  const [panelNuevo, setPanelNuevo] = useState(false)
+  const [nuevoProducto, setNuevoProducto] = useState({ nombre: '', categoria: '', presentacion: 'unidad', precio: '' })
+  const [panelImportar, setPanelImportar] = useState(false)
+  const [archivoImportar, setArchivoImportar] = useState(null)
+  const [previewImportar, setPreviewImportar] = useState(null)
+  const [resultadoImportar, setResultadoImportar] = useState(null)
+  const fileInputRef = useRef(null)
   const navigate = useNavigate()
 
   const cargar = useCallback(async () => {
@@ -118,6 +127,95 @@ export function Catalogo() {
     }
   }
 
+  // ── Nuevo producto — requiere PIN ───────────────────────────────────────
+  const confirmarNuevo = () => {
+    const nombre = nuevoProducto.nombre.trim()
+    const categoria = nuevoProducto.categoria.trim()
+    const presentacion = nuevoProducto.presentacion.trim() || 'unidad'
+    const precio = parseFloat(nuevoProducto.precio)
+    if (!nombre) { toast.error('El nombre no puede estar vacío'); return }
+    if (!categoria) { toast.error('La categoría no puede estar vacía'); return }
+    if (!precio || precio <= 0) { toast.error('Precio inválido'); return }
+
+    setPinAccion(() => async (pin) => {
+      try {
+        await crearProducto({ nombre, categoria, presentacion, precio }, pin)
+        toast.success(`${nombre} agregado al catálogo`)
+        setNuevoProducto({ nombre: '', categoria: '', presentacion: 'unidad', precio: '' })
+        setPanelNuevo(false)
+        await cargar()
+      } catch (e) {
+        toast.error(e.response?.data?.error || 'No se pudo crear el producto')
+      }
+    })
+  }
+
+  // ── Eliminar producto (soft-delete) — requiere PIN ──────────────────────
+  const eliminarProducto = (p) => {
+    const mensaje = p.tiene_receta
+      ? `Este producto tiene una receta asociada. ¿Eliminarlo de todas formas?`
+      : `¿Eliminar "${p.nombre}" del catálogo?`
+    if (!confirm(mensaje)) return
+
+    setPinAccion(() => async (pin) => {
+      try {
+        await deleteProducto(p.id, pin)
+        setProductos(prev => prev.filter(x => x.id !== p.id))
+        toast.success(`${p.nombre} eliminado`)
+      } catch (e) {
+        toast.error(e.response?.data?.error || 'No se pudo eliminar el producto')
+      }
+    })
+  }
+
+  // ── Importar Excel/CSV ───────────────────────────────────────────────────
+  const descargarPlantilla = async () => {
+    try {
+      const { data } = await descargarPlantillaCatalogo()
+      const url = window.URL.createObjectURL(new Blob([data]))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'plantilla_catalogo.xlsx'
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      toast.error('No se pudo descargar la plantilla')
+    }
+  }
+
+  const verPreviewImportar = async () => {
+    if (!archivoImportar) { toast.error('Seleccioná un archivo primero'); return }
+    try {
+      const { data } = await previewImportarCatalogo(archivoImportar)
+      setPreviewImportar(data)
+      setResultadoImportar(null)
+    } catch (e) {
+      toast.error(e.response?.data?.error || 'No se pudo procesar el archivo')
+    }
+  }
+
+  const confirmarImportar = () => {
+    setPinAccion(() => async (pin) => {
+      try {
+        const { data } = await confirmarImportarCatalogo(archivoImportar, pin)
+        setResultadoImportar(data)
+        setPreviewImportar(null)
+        toast.success(`${data.creados} creados, ${data.actualizados} actualizados`)
+        await cargar()
+      } catch (e) {
+        toast.error(e.response?.data?.error || 'No se pudo confirmar la importación')
+      }
+    })
+  }
+
+  const cerrarPanelImportar = () => {
+    setPanelImportar(false)
+    setArchivoImportar(null)
+    setPreviewImportar(null)
+    setResultadoImportar(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   if (loading) return <div className="text-sm text-gray-400 dark:text-gray-500 py-8 text-center">Cargando catálogo…</div>
 
   return (
@@ -127,6 +225,14 @@ export function Catalogo() {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input className="pl-8 w-full" value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar producto..." />
         </div>
+        <button onClick={() => setPanelNuevo(p => !p)}
+          className="btn-primary flex items-center gap-1.5 text-xs whitespace-nowrap">
+          <Plus size={13} /> Nuevo producto
+        </button>
+        <button onClick={() => setPanelImportar(p => !p)}
+          className="btn-secondary flex items-center gap-1.5 text-xs whitespace-nowrap">
+          <Upload size={13} /> Importar Excel
+        </button>
         <button onClick={() => setPanelMasivo(p => !p)}
           className="btn-secondary flex items-center gap-1.5 text-xs whitespace-nowrap">
           <Percent size={13} /> Ajuste masivo
@@ -136,6 +242,166 @@ export function Catalogo() {
           <History size={13} /> Historial de cambios
         </button>
       </div>
+
+      {panelNuevo && (
+        <div className="card mb-4 border border-[#C29C53] dark:border-brand-600">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">Nuevo producto</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+            <div className="form-group">
+              <label className="form-label">Nombre</label>
+              <input value={nuevoProducto.nombre}
+                onChange={e => setNuevoProducto(s => ({ ...s, nombre: e.target.value }))}
+                placeholder="Ej: Pan francés" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Categoría</label>
+              <input value={nuevoProducto.categoria}
+                onChange={e => setNuevoProducto(s => ({ ...s, categoria: e.target.value }))}
+                placeholder="Ej: Panes" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Unidad</label>
+              <input value={nuevoProducto.presentacion}
+                onChange={e => setNuevoProducto(s => ({ ...s, presentacion: e.target.value }))}
+                placeholder="unidad" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Precio</label>
+              <input type="number" step="0.5" value={nuevoProducto.precio}
+                onChange={e => setNuevoProducto(s => ({ ...s, precio: e.target.value }))}
+                placeholder="Ej: 5" />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button onClick={confirmarNuevo} className="btn-primary text-xs flex items-center gap-1.5">
+              <Check size={13} /> Crear producto
+            </button>
+            <button onClick={() => setPanelNuevo(false)} className="btn-secondary text-xs">Cancelar</button>
+          </div>
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">Requiere PIN de administrador.</p>
+        </div>
+      )}
+
+      {panelImportar && (
+        <div className="card mb-4 border border-[#C29C53] dark:border-brand-600">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">Importar catálogo desde Excel/CSV</h3>
+            <button onClick={cerrarPanelImportar} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+              <X size={15} />
+            </button>
+          </div>
+
+          <button onClick={descargarPlantilla} className="text-xs text-brand-600 dark:text-brand-400 flex items-center gap-1 mb-3 hover:underline">
+            <Download size={12} /> Descargar plantilla
+          </button>
+
+          <div className="flex gap-2 items-center flex-wrap mb-3">
+            <input ref={fileInputRef} type="file" accept=".xlsx,.csv"
+              onChange={e => { setArchivoImportar(e.target.files[0] || null); setPreviewImportar(null); setResultadoImportar(null) }}
+              className="text-xs" />
+            <button onClick={verPreviewImportar} className="btn-secondary text-xs whitespace-nowrap">Ver preview</button>
+          </div>
+
+          {previewImportar && (
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1.5">
+                  ✅ Nuevos ({previewImportar.resumen.crear})
+                </h4>
+                {previewImportar.resumen.crear === 0 ? (
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500">Ninguno.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="table-base text-xs">
+                      <thead><tr><th>Fila</th><th>Nombre</th><th>Categoría</th><th>Unidad</th><th className="text-right">Precio</th></tr></thead>
+                      <tbody>
+                        {previewImportar.filas.filter(f => f.accion === 'crear').map(f => (
+                          <tr key={f.fila}>
+                            <td className="text-gray-400 dark:text-gray-500">{f.fila}</td>
+                            <td className="font-medium">{f.datos.nombre}</td>
+                            <td>{f.datos.categoria}</td>
+                            <td>{f.datos.presentacion}</td>
+                            <td className="text-right">{fmt(f.datos.precio)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-1.5">
+                  ⚠️ Van a actualizar ({previewImportar.resumen.actualizar})
+                </h4>
+                {previewImportar.resumen.actualizar === 0 ? (
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500">Ninguno.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="table-base text-xs">
+                      <thead><tr><th>Fila</th><th>Nombre</th><th>Categoría (antes → ahora)</th><th>Precio (antes → ahora)</th></tr></thead>
+                      <tbody>
+                        {previewImportar.filas.filter(f => f.accion === 'actualizar').map(f => (
+                          <tr key={f.fila} className="bg-amber-50 dark:bg-amber-950/20">
+                            <td className="text-gray-400 dark:text-gray-500">{f.fila}</td>
+                            <td className="font-medium">{f.datos.nombre}</td>
+                            <td>{f.valorActual.categoria} → {f.datos.categoria}</td>
+                            <td>{fmt(f.valorActual.precio)} → <strong>{fmt(f.datos.precio)}</strong></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-red-600 dark:text-red-400 mb-1.5">
+                  ❌ Con error ({previewImportar.resumen.error})
+                </h4>
+                {previewImportar.resumen.error === 0 ? (
+                  <p className="text-[11px] text-gray-400 dark:text-gray-500">Ninguno.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="table-base text-xs">
+                      <thead><tr><th>Fila</th><th>Motivo</th></tr></thead>
+                      <tbody>
+                        {previewImportar.filas.filter(f => f.accion === 'error').map(f => (
+                          <tr key={f.fila}>
+                            <td className="text-gray-400 dark:text-gray-500">{f.fila}</td>
+                            <td className="text-red-550">{f.motivo}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <button onClick={confirmarImportar}
+                disabled={previewImportar.resumen.crear + previewImportar.resumen.actualizar === 0}
+                className="btn-primary text-xs flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+                <Check size={13} /> Confirmar importación
+              </button>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">Requiere PIN de administrador.</p>
+            </div>
+          )}
+
+          {resultadoImportar && (
+            <div className="mt-3 p-3 rounded-lg bg-[#FAEEDA] dark:bg-amber-950/20 text-xs">
+              <p><strong>{resultadoImportar.creados}</strong> productos creados, <strong>{resultadoImportar.actualizados}</strong> actualizados.</p>
+              {resultadoImportar.errores.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-red-550 font-medium">Filas con error:</p>
+                  <ul className="list-disc list-inside text-red-550">
+                    {resultadoImportar.errores.map(e => <li key={e.fila}>Fila {e.fila}: {e.motivo}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {panelMasivo && (
         <div className="card mb-4 border border-[#C29C53] dark:border-brand-600">
@@ -224,7 +490,14 @@ export function Catalogo() {
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-[10px] px-2 py-0.5 rounded-md font-medium"
                       style={{ background: color.bg, color: color.text }}>{p.categoria}</span>
-                    {p.tiene_receta && <span className="badge-ok text-[9px] font-bold">Receta ✓</span>}
+                    <div className="flex items-center gap-1">
+                      {p.tiene_receta && <span className="badge-ok text-[9px] font-bold">Receta ✓</span>}
+                      <button onClick={() => eliminarProducto(p)}
+                        className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-gray-300 hover:text-red-550 transition-colors"
+                        title="Eliminar producto">
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   </div>
                   <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1 leading-tight">
                     {estaEditando ? (

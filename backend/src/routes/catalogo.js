@@ -1,10 +1,17 @@
 import { Router } from 'express'
+import multer from 'multer'
+import ExcelJS from 'exceljs'
+import { parse as parseCsv } from 'csv-parse/sync'
 import { query, transaction } from '../db/client.js'
 import { requireAdminPin } from '../middleware/adminPinMiddleware.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 
 const router = Router()
 router.use(requireAuth)
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } })
+
+const COLUMNAS_ESPERADAS = ['nombre', 'categoria', 'presentacion', 'precio']
 // No lanza si falla — la auditoría nunca debe tumbar la escritura real.
 // NOTA: valor_nuevo es NOT NULL en la tabla (pensada originalmente solo
 // para precios) — para cambios de texto (nombre/categoría) se manda 0
@@ -22,6 +29,106 @@ async function registrarAuditoria(client, { tenantId, tipo, entidadId, entidadNo
     console.error('No se pudo registrar auditoría de cambio:', e.message)
   }
 }
+// ── Parseo compartido de archivo de importación (preview y confirmar usan la misma función) ──
+async function parsearArchivo(file) {
+  const nombreArchivo = (file.originalname || '').toLowerCase()
+  let filasRaw = []
+
+  if (nombreArchivo.endsWith('.csv')) {
+    const registros = parseCsv(file.buffer, { columns: true, skip_empty_lines: true, trim: true })
+    filasRaw = registros.map(r => ({ nombre: r.nombre, categoria: r.categoria, presentacion: r.presentacion, precio: r.precio }))
+    if (registros.length) {
+      const columnas = Object.keys(registros[0]).map(c => c.trim().toLowerCase())
+      validarEncabezados(columnas)
+    } else {
+      validarEncabezados([])
+    }
+  } else {
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(file.buffer)
+    const hoja = workbook.worksheets[0]
+    if (!hoja) throw new Error('El archivo no tiene hojas con datos')
+
+    const filaEncabezado = hoja.getRow(1)
+    const columnas = []
+    filaEncabezado.eachCell({ includeEmpty: false }, cell => {
+      columnas.push(String(cell.value || '').trim().toLowerCase())
+    })
+    validarEncabezados(columnas)
+
+    const idx = {}
+    columnas.forEach((c, i) => { idx[c] = i + 1 })
+
+    hoja.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return
+      filasRaw.push({
+        nombre: row.getCell(idx.nombre).value,
+        categoria: row.getCell(idx.categoria).value,
+        presentacion: row.getCell(idx.presentacion).value,
+        precio: row.getCell(idx.precio).value,
+      })
+    })
+  }
+
+  return filasRaw
+}
+
+function validarEncabezados(columnas) {
+  const faltantes = COLUMNAS_ESPERADAS.filter(c => !columnas.includes(c))
+  if (faltantes.length) {
+    const err = new Error(`El archivo no tiene las columnas esperadas: ${COLUMNAS_ESPERADAS.join(', ')}`)
+    err.status = 400
+    throw err
+  }
+}
+
+// Valida y clasifica cada fila. `existentes` es un Map nombre_normalizado -> producto de la base.
+function evaluarFilas(filasRaw, existentes) {
+  const vistosEnArchivo = new Map() // nombre_normalizado -> número de fila donde apareció primero
+  const filas = []
+
+  filasRaw.forEach((f, i) => {
+    const numFila = i + 2 // +2: fila 1 es encabezado, arrays 0-indexados
+    const nombre = String(f.nombre ?? '').trim()
+    const categoria = String(f.categoria ?? '').trim()
+    const presentacion = String(f.presentacion ?? '').trim() || 'unidad'
+    const precioNum = parseFloat(f.precio)
+
+    if (!nombre) {
+      filas.push({ fila: numFila, accion: 'error', motivo: 'El nombre no puede estar vacío' })
+      return
+    }
+    if (!categoria) {
+      filas.push({ fila: numFila, accion: 'error', motivo: 'La categoría no puede estar vacía' })
+      return
+    }
+    if (isNaN(precioNum) || precioNum <= 0 || precioNum > 1000000) {
+      filas.push({ fila: numFila, accion: 'error', motivo: 'Precio inválido (debe ser mayor a cero y menor a 1,000,000)' })
+      return
+    }
+
+    const nombreNorm = nombre.toLowerCase()
+    if (vistosEnArchivo.has(nombreNorm)) {
+      filas.push({ fila: numFila, accion: 'error', motivo: `Nombre duplicado dentro del archivo (ya aparece en la fila ${vistosEnArchivo.get(nombreNorm)})` })
+      return
+    }
+    vistosEnArchivo.set(nombreNorm, numFila)
+
+    const datos = { nombre, categoria, presentacion, precio: precioNum }
+    const existente = existentes.get(nombreNorm)
+    if (existente) {
+      filas.push({
+        fila: numFila, accion: 'actualizar', datos,
+        valorActual: { categoria: existente.categoria, presentacion: existente.presentacion, precio: parseFloat(existente.precio) },
+      })
+    } else {
+      filas.push({ fila: numFila, accion: 'crear', datos })
+    }
+  })
+
+  return filas
+}
+
 router.get('/', async (req, res, next) => {
   try {
     const { rows } = await query(`
@@ -51,8 +158,162 @@ router.get('/auditoria', async (req, res, next) => {
 })
 
 // ── Rutas de escritura — protegidas con PIN de Admin ──────────────────────
-// IMPORTANTE: las rutas masivas van antes de /:id, si no Express toma
-// "masivo" como si fuera el parámetro :id.
+// IMPORTANTE: las rutas masivas y de importación van antes de /:id, si no
+// Express toma "masivo" o "importar" como si fuera el parámetro :id.
+
+// POST /api/catalogo — creación individual de producto
+router.post('/', requireRol('admin'), requireAdminPin, async (req, res, next) => {
+  const { nombre, categoria, precio, presentacion } = req.body
+
+  if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre no puede estar vacío' })
+  if (!categoria || !categoria.trim()) return res.status(400).json({ error: 'La categoría no puede estar vacía' })
+  const pr = parseFloat(precio)
+  if (isNaN(pr) || pr <= 0 || pr > 1000000) {
+    return res.status(400).json({ error: 'El precio debe ser un número válido, mayor a cero y menor a 1,000,000' })
+  }
+
+  try {
+    const creado = await transaction(async (client) => {
+      const { rows } = await client.query(
+        `INSERT INTO productos (tenant_id, nombre, categoria, precio, presentacion, activo)
+         VALUES ($1, $2, $3, $4, $5, true) RETURNING *`,
+        [req.tenantId, nombre.trim(), categoria.trim(), pr, (presentacion || 'unidad').trim()]
+      )
+      const producto = rows[0]
+      await registrarAuditoria(client, {
+        tenantId: req.tenantId, tipo: 'producto', entidadId: producto.id,
+        entidadNombre: producto.nombre, campo: 'creacion',
+        valorNuevo: producto.precio, metodo: 'creacion', ip: req.ip,
+      })
+      return producto
+    })
+    res.status(201).json(creado)
+  } catch (e) {
+    if (e.code === '23505') {
+      return res.status(409).json({ error: 'Ya existe un producto con ese nombre' })
+    }
+    next(e)
+  }
+})
+
+// DELETE /api/catalogo/:id — soft-delete (activo=false), no borra físicamente
+router.delete('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(req.params.id)) {
+    return res.status(400).json({ error: 'ID de producto inválido' })
+  }
+
+  try {
+    const eliminado = await transaction(async (client) => {
+      const { rows } = await client.query(
+        `UPDATE productos SET activo=false, actualizado_en=NOW()
+         WHERE id=$1 AND tenant_id=$2 AND activo=true RETURNING *`,
+        [req.params.id, req.tenantId]
+      )
+      if (!rows.length) return null
+      const producto = rows[0]
+      await registrarAuditoria(client, {
+        tenantId: req.tenantId, tipo: 'producto', entidadId: producto.id,
+        entidadNombre: producto.nombre, campo: 'eliminacion',
+        valorAnterior: producto.precio, valorNuevo: producto.precio,
+        metodo: 'eliminacion', ip: req.ip,
+      })
+      return producto
+    })
+    if (!eliminado) return res.status(404).json({ error: 'Producto no encontrado' })
+    res.json({ eliminado: true, producto: eliminado })
+  } catch (e) { next(e) }
+})
+
+// GET /api/catalogo/importar/plantilla — descarga plantilla .xlsx con columnas esperadas
+router.get('/importar/plantilla', async (req, res, next) => {
+  try {
+    const workbook = new ExcelJS.Workbook()
+    const hoja = workbook.addWorksheet('Catálogo')
+    hoja.addRow(COLUMNAS_ESPERADAS)
+    hoja.addRow(['Pan francés', 'Panes', 'unidad', 5])
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', 'attachment; filename="plantilla_catalogo.xlsx"')
+    await workbook.xlsx.write(res)
+    res.end()
+  } catch (e) { next(e) }
+})
+
+// POST /api/catalogo/importar/preview — parsea y valida, NO escribe en la base
+router.post('/importar/preview', requireRol('admin'), upload.single('archivo'), async (req, res, next) => {
+  if (!req.file) return res.status(400).json({ error: 'Se requiere un archivo (.xlsx o .csv)' })
+
+  try {
+    const filasRaw = await parsearArchivo(req.file)
+    const { rows: existentesRows } = await query(
+      'SELECT nombre, categoria, presentacion, precio FROM productos WHERE tenant_id=$1 AND activo=true',
+      [req.tenantId]
+    )
+    const existentes = new Map(existentesRows.map(p => [p.nombre.toLowerCase(), p]))
+
+    const filas = evaluarFilas(filasRaw, existentes)
+    const resumen = {
+      crear: filas.filter(f => f.accion === 'crear').length,
+      actualizar: filas.filter(f => f.accion === 'actualizar').length,
+      error: filas.filter(f => f.accion === 'error').length,
+    }
+    res.json({ filas, resumen })
+  } catch (e) {
+    if (e.status === 400) return res.status(400).json({ error: e.message })
+    next(e)
+  }
+})
+
+// POST /api/catalogo/importar/confirmar — revalida contra el estado actual y escribe (upsert por nombre)
+router.post('/importar/confirmar', requireRol('admin'), requireAdminPin, upload.single('archivo'), async (req, res, next) => {
+  if (!req.file) return res.status(400).json({ error: 'Se requiere un archivo (.xlsx o .csv)' })
+
+  try {
+    const filasRaw = await parsearArchivo(req.file)
+    const { rows: existentesRows } = await query(
+      'SELECT nombre, categoria, presentacion, precio FROM productos WHERE tenant_id=$1 AND activo=true',
+      [req.tenantId]
+    )
+    const existentes = new Map(existentesRows.map(p => [p.nombre.toLowerCase(), p]))
+    const filas = evaluarFilas(filasRaw, existentes)
+
+    let creados = 0, actualizados = 0
+    const errores = filas.filter(f => f.accion === 'error').map(f => ({ fila: f.fila, motivo: f.motivo }))
+
+    await transaction(async (client) => {
+      for (const f of filas) {
+        if (f.accion === 'error') continue
+        const { nombre, categoria, presentacion, precio } = f.datos
+
+        const { rows } = await client.query(
+          `INSERT INTO productos (tenant_id, nombre, categoria, precio, presentacion, activo)
+           VALUES ($1, $2, $3, $4, $5, true)
+           ON CONFLICT (tenant_id, nombre) DO UPDATE
+             SET categoria=$3, precio=$4, presentacion=$5, activo=true, actualizado_en=NOW()
+           RETURNING *`,
+          [req.tenantId, nombre, categoria, precio, presentacion]
+        )
+        const producto = rows[0]
+
+        if (f.accion === 'crear') creados++
+        else actualizados++
+
+        await registrarAuditoria(client, {
+          tenantId: req.tenantId, tipo: 'producto', entidadId: producto.id,
+          entidadNombre: producto.nombre, campo: 'importacion',
+          valorAnterior: f.valorActual?.precio, valorNuevo: producto.precio,
+          metodo: 'importacion', ip: req.ip,
+        })
+      }
+    })
+
+    res.json({ creados, actualizados, errores })
+  } catch (e) {
+    if (e.status === 400) return res.status(400).json({ error: e.message })
+    next(e)
+  }
+})
 
 // PUT /api/catalogo/masivo/lista — edición masiva: lista explícita de {id, precio}
 router.put('/masivo/lista', requireRol('admin'), requireAdminPin, async (req, res, next) => {
