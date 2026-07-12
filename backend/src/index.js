@@ -30,11 +30,10 @@ query(`
   ALTER TABLE auditoria_precios ADD COLUMN IF NOT EXISTS valor_nuevo_texto VARCHAR(255);
   ALTER TABLE tenants ADD COLUMN IF NOT EXISTS trial_vence_en TIMESTAMPTZ;
   UPDATE tenants SET trial_vence_en = creado_en + INTERVAL '30 days' WHERE trial_vence_en IS NULL;
-  UPDATE usuarios SET password_hash = '$2a$12$315qYQXKgPv24Pd5NSZO.OXoZxyNO/kXuJB0zJms/uwl57c/yQrou', activo = true WHERE email = 'admin@marquez.com';
 `).then(() => {
-  console.log('   Esquema:     Columnas de auditoría, trial_vence_en y contraseña admin verificadas')
+  console.log('   Esquema:     Columnas de auditoría y trial_vence_en verificadas')
 }).catch(err => {
-  console.warn('   Esquema:     (Aviso) No se pudieron verificar columnas o resetear contraseña:', err.message)
+  console.warn('   Esquema:     (Aviso) No se pudieron verificar columnas:', err.message)
 })
 
 const app = express()
