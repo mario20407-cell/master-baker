@@ -50,6 +50,22 @@ export const updateProductosMasivo = (productos, pin) =>
   api.put('/catalogo/masivo/lista', { productos }, { headers: { 'x-admin-pin': pin } })
 export const updateProductosPorCategoria = (categoria, porcentaje, pin) =>
   api.put('/catalogo/masivo/categoria', { categoria, porcentaje }, { headers: { 'x-admin-pin': pin } })
+export const crearProducto = (data, pin) =>
+  api.post('/catalogo', data, { headers: { 'x-admin-pin': pin } })
+export const deleteProducto = (id, pin) =>
+  api.delete(`/catalogo/${id}`, { headers: { 'x-admin-pin': pin } })
+export const descargarPlantillaCatalogo = () =>
+  api.get('/catalogo/importar/plantilla', { responseType: 'blob' })
+export const previewImportarCatalogo = (archivo) => {
+  const form = new FormData()
+  form.append('archivo', archivo)
+  return api.post('/catalogo/importar/preview', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+}
+export const confirmarImportarCatalogo = (archivo, pin) => {
+  const form = new FormData()
+  form.append('archivo', archivo)
+  return api.post('/catalogo/importar/confirmar', form, { headers: { 'Content-Type': 'multipart/form-data', 'x-admin-pin': pin } })
+}
 
 // ── Recetas ──────────────────────────────────────────────────────────────────
 export const getRecetas = () => api.get('/recetas')
