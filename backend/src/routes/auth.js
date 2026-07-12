@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { query, transaction } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
+import { registrarActividad } from '../services/bitacoraService.js'
 
 const router = Router()
 
@@ -231,8 +232,6 @@ router.post('/logout', requireAuth, (req, res) => {
   res.json({ ok: true, mensaje: 'Sesion cerrada' })
 })
 
-export default router
-
 // POST /api/auth/reset-password — reset de contraseña con PIN de admin
 router.post('/reset-password', requireAuth, requireRol('admin'), async (req, res, next) => {
   const { email, nueva_password } = req.body
@@ -249,6 +248,16 @@ router.post('/reset-password', requireAuth, requireRol('admin'), async (req, res
       [hash, email.toLowerCase().trim(), req.tenantId]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
+
+    await registrarActividad(req, {
+      modulo: 'seguridad',
+      accion: 'RESET_PASSWORD_ADMIN',
+      descripcion: `Contraseña restablecida por admin para el usuario "${rows[0].nombre}" (${rows[0].email})`,
+      detalles: { usuario_afectado_id: rows[0].id, usuario_afectado_email: rows[0].email }
+    })
+
     res.json({ ok: true, mensaje: `Contraseña actualizada para ${rows[0].nombre}` })
   } catch (e) { next(e) }
 })
+
+export default router
