@@ -243,6 +243,22 @@ router.post('/', requireAuth, requirePermission('gestionar_produccion'), async (
         [req.tenantId, producto, cantidadPiezas, notas, req.usuarioId]
       )
 
+      // NOTA HISTÓRICA (documentado 2026-07-12): antes del commit 5c0d73b
+      // ("unificar producción y reposición automática", 2026-07-10) las
+      // ordenes_produccion NO generaban un lote vinculado — ese diseño
+      // recién se introdujo en ese commit. Como resultado, existen 6
+      // ordenes_produccion históricas (todas del tenant Marquéz por
+      // defecto, creadas entre 2026-06-22 y 2026-07-10) sin ningún lote
+      // asociado. No es un bug: se confirmó que el código actual, al
+      // correr ambos INSERT dentro de la misma transacción (ver
+      // transaction() en db/client.js), no puede volver a producir este
+      // caso. No se hizo backfill de esas 6 filas — decisión intencional,
+      // quedan como están.
+      //
+      // Cualquier reporte o query que haga JOIN entre ordenes_produccion
+      // y lotes debe usar LEFT JOIN (nunca INNER JOIN), o esas 6 órdenes
+      // históricas desaparecerán silenciosamente del resultado.
+
       // Crear automáticamente el lote correspondiente a esta producción, vinculado a la orden
       const { rows: [lote] } = await client.query(
         `INSERT INTO lotes (tenant_id, producto, cantidad, unidad, costo_total, notas, orden_produccion_id)
