@@ -1,4 +1,5 @@
 // backend/src/routes/__tests__/sucursal-stock.test.js
+import 'dotenv/config'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import express from 'express'
 import request from 'supertest'
