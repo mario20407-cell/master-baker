@@ -20,6 +20,7 @@ import CajaProduccion from './pages/CajaProduccion'
 import InventarioTerminado from './pages/InventarioTerminado'
 import Reportes from './pages/Reportes'
 import Equipo from './pages/Equipo'
+import MiCuenta from './pages/MiCuenta'
 
 // Ruta protegida: redirige a /login si no hay sesión activa
 function RutaProtegida({ children }) {
@@ -86,6 +87,7 @@ export default function App() {
         <Route path="fiscal"       element={<RutaPorPermiso role="admin"><ConfigFiscal /></RutaPorPermiso>} />
         <Route path="ayuda"        element={<Ayuda />} />
         <Route path="equipo"       element={<RutaPorPermiso role="admin"><Equipo /></RutaPorPermiso>} />
+        <Route path="mi-cuenta"    element={<MiCuenta />} />
       </Route>
     </Routes>
   )
