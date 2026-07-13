@@ -213,6 +213,36 @@ router.put('/usuarios/:id/password', requireAuth, requireRol('admin'), async (re
   } catch (e) { next(e) }
 })
 
+// PUT /api/auth/password — Autoservicio: el usuario cambia su propia contraseña
+router.put('/password', requireAuth, async (req, res, next) => {
+  const { passwordActual, passwordNueva } = req.body
+  if (!passwordActual || !passwordNueva) {
+    return res.status(400).json({ error: 'passwordActual y passwordNueva son requeridas' })
+  }
+  if (passwordNueva.length < 8) {
+    return res.status(400).json({ error: 'La contraseña nueva debe tener al menos 8 caracteres' })
+  }
+  try {
+    const { rows } = await query('SELECT password_hash FROM usuarios WHERE id = $1', [req.usuarioId])
+    if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
+
+    const passwordValida = await bcrypt.compare(passwordActual, rows[0].password_hash)
+    if (!passwordValida) return res.status(401).json({ error: 'Contraseña actual incorrecta' })
+
+    const hash = await bcrypt.hash(passwordNueva, 12)
+    await query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [hash, req.usuarioId])
+
+    await registrarActividad(req, {
+      modulo: 'seguridad',
+      accion: 'CAMBIO_PASSWORD_PROPIO',
+      descripcion: `El usuario "${req.nombre}" (${req.email}) cambió su propia contraseña`,
+      detalles: { usuario_id: req.usuarioId }
+    })
+
+    res.json({ ok: true, mensaje: 'Contraseña actualizada correctamente' })
+  } catch (e) { next(e) }
+})
+
 // DELETE /api/auth/usuarios/:id — Eliminar colaborador (solo admin)
 router.delete('/usuarios/:id', requireAuth, requireRol('admin'), async (req, res, next) => {
   if (req.params.id === req.usuarioId) {

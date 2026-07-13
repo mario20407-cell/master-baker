@@ -126,6 +126,8 @@ export const resetUsuarioPassword = (id, password) => api.put(`/auth/usuarios/${
 export const deleteUsuario = (id) => api.delete(`/auth/usuarios/${id}`)
 export const updateUsuario = (id, data) => api.put(`/auth/usuarios/${id}`, data)
 export const getBitacora = (limite) => api.get('/auth/bitacora', { params: { limite } })
+export const cambiarMiPassword = (passwordActual, passwordNueva) =>
+  api.put('/auth/password', { passwordActual, passwordNueva })
 
 // ── Sucursales / Inventario Terminado ─────────────────────────────────────────
 export const getSucursales = () => api.get('/sucursales')
