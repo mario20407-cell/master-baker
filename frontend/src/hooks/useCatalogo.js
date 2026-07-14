@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 
-const API = import.meta.env.VITE_API_URL ?? ''
+const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api'
 
 export function useCatalogo() {
   const { usuario } = useAuth()
@@ -15,7 +15,7 @@ export function useCatalogo() {
     setCargando(true)
     setError(null)
     try {
-      const res = await fetch(`${API}/api/catalogo`, {
+      const res = await fetch(`${API}/catalogo`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (!res.ok) throw new Error(`Error ${res.status}`)

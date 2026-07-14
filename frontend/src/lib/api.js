@@ -96,6 +96,9 @@ export const getCompras = () => api.get('/compras')
 export const saveFactura = (data) => api.post('/compras', data)
 
 // ── IA ───────────────────────────────────────────────────────────────────────
+export const getAiStatus  = () => api.get('/ai/status')
+export const chatIA       = (messages, tipo, context) => api.post('/ai/chat', { messages, tipo, context })
+export const analizarPdf  = (fileBase64, mimeType, tipo) => api.post('/ai/analizar-pdf', { fileBase64, mimeType, tipo })
 
 // ── Exportar ─────────────────────────────────────────────────────────────────
 export const exportarReporte = (tipo) => api.get(`/exportar/${tipo}`, { responseType: 'blob' })
