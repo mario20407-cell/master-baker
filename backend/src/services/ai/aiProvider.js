@@ -50,7 +50,7 @@ function clasificarComplejidad(messages) {
   const ultimo = String(messages?.[messages.length - 1]?.content || '').toLowerCase()
   const esComplejo = PALABRAS_COMPLEJAS.some(p => ultimo.includes(p)) || ultimo.length > 120
   return {
-    max_tokens:    esComplejo ? 1024 : 300,
+    max_tokens:    esComplejo ? 2048 : 800,
     historial:     esComplejo ? 6    : 4,
   }
 }

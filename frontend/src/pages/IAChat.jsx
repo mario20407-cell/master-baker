@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { Bot, Send, User, Upload, FileText, Zap, Brain, Image } from 'lucide-react'
-import axios from 'axios'
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { getAiStatus, chatIA, analizarPdf } from '../lib/api'
 
 const MODELOS = [
   { id: 'logica_negocio', label: 'Asesor de negocio',  desc: 'Márgenes y decisiones', color: '#534AB7' },
@@ -39,7 +37,7 @@ export default function IAChat() {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   useEffect(() => {
-    axios.get(`${API}/api/ai/status`).then(r => setStatus(r.data)).catch(() => {})
+    getAiStatus().then(r => setStatus(r.data)).catch(() => {})
   }, [])
 
   const handleArchivo = (e) => {
@@ -72,14 +70,11 @@ export default function IAChat() {
       if (archivo && archivoB64) {
         const tipo = archivoMime?.includes('pdf') ? 'receta' : archivoMime?.includes('image') ? 'factura' : 'manual'
         tipoUsado = 'pdf'
-        const { data } = await axios.post(`${API}/api/ai/analizar-pdf`, { fileBase64: archivoB64, mimeType: archivoMime, tipo })
+        const { data } = await analizarPdf(archivoB64, archivoMime, tipo)
         resultado = { respuesta: typeof data.datos === 'string' ? data.datos : JSON.stringify(data.datos, null, 2), modelo: data.modelo }
         setArchivo(null); setArchivoB64(null); setArchivoMime(null)
       } else {
-        const { data } = await axios.post(`${API}/api/ai/chat`, {
-          messages: historial, tipo: modeloSel,
-          context: { recetas: Object.keys(recetas).join(', ') || 'Ninguna' }
-        })
+        const { data } = await chatIA(historial, modeloSel, { recetas: Object.keys(recetas).join(', ') || 'Ninguna' })
         resultado = data
       }
       setMessages(prev => [...prev, { role: 'assistant', content: resultado.respuesta, modelo: resultado.modelo, tipoUsado, razonamiento: resultado.razonamiento }])
