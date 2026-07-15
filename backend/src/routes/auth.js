@@ -83,6 +83,58 @@ router.post('/registrar-negocio', async (req, res, next) => {
         )
       }
 
+      // Producto + receta de ejemplo, claramente marcados como "EJEMPLO".
+      // El catálogo real queda vacío a propósito (cada negocio tiene sus
+      // propios productos) — esto solo existe para que el socio fundador
+      // vea el flujo completo (producto → receta → costeo) funcionando
+      // antes de armar el suyo. Se puede borrar sin afectar nada más.
+      const nombreProductoDemo = 'Pan Dulce (EJEMPLO — podés borrarlo)'
+      await client.query(
+        `INSERT INTO productos (tenant_id, nombre, precio, presentacion, categoria)
+         VALUES ($1, $2, $3, 'unidad', $4)`,
+        [nuevoTenant.id, nombreProductoDemo, 5.00, 'Ejemplo / Demo']
+      )
+
+      const ingredientesDemo = [
+        { nombre: 'Harina de Trigo', cantidad: 2,    unidad: 'kg',     precio: 22.00 },
+        { nombre: 'Azúcar',          cantidad: 0.5,  unidad: 'kg',     precio: 18.00 },
+        { nombre: 'Manteca',         cantidad: 0.3,  unidad: 'kg',     precio: 45.00 },
+        { nombre: 'Huevo',           cantidad: 4,    unidad: 'unidad', precio: 4.50  },
+        { nombre: 'Levadura Seca',   cantidad: 30,   unidad: 'g',      precio: 0.15  },
+        { nombre: 'Sal',             cantidad: 0.03, unidad: 'kg',     precio: 10.00 },
+      ]
+      const piezasDemo = 50
+      const mermaDemo = 3
+      const margenDemo = 57
+      const costoDirectoDemo = ingredientesDemo.reduce((sum, i) => sum + i.cantidad * i.precio, 0)
+      const costoIndirectoDemo = 0 // sin configuración de costeo todavía (gas/luz/mano en 0)
+      const piezasEfectivas = piezasDemo * (1 - mermaDemo / 100)
+      const costoUnitarioDemo = (costoDirectoDemo + costoIndirectoDemo) / piezasEfectivas
+      const precioSugeridoDemo = costoUnitarioDemo / (1 - margenDemo / 100)
+
+      const { rows: recetaDemoRows } = await client.query(
+        `INSERT INTO recetas (tenant_id, producto, piezas, peso_por_pieza, merma_pct, notas, costo_directo, costo_indirecto, margen_aplicado, precio_sugerido)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+        [
+          nuevoTenant.id, nombreProductoDemo, piezasDemo, 60, mermaDemo,
+          'Receta de ejemplo para que veas cómo funciona el costeo. Podés editarla o borrarla cuando quieras — no afecta tus datos reales.',
+          costoDirectoDemo, costoIndirectoDemo, margenDemo, precioSugeridoDemo
+        ]
+      )
+      const recetaDemo = recetaDemoRows[0]
+
+      const valsIngDemo = ingredientesDemo.map((_, idx) =>
+        `($${idx * 7 + 1}, $${idx * 7 + 2}, $${idx * 7 + 3}, $${idx * 7 + 4}, $${idx * 7 + 5}, $${idx * 7 + 6}, $${idx * 7 + 7})`
+      )
+      const paramsIngDemo = ingredientesDemo.flatMap((ing, idx) => [
+        nuevoTenant.id, recetaDemo.id, ing.nombre, ing.cantidad, ing.unidad, ing.precio, idx
+      ])
+      await client.query(
+        `INSERT INTO ingredientes (tenant_id, receta_id, nombre, cantidad, unidad, precio, orden)
+         VALUES ${valsIngDemo.join(', ')}`,
+        paramsIngDemo
+      )
+
       const hash = await bcrypt.hash(password, 12)
       const { rows: userRows } = await client.query(
         `INSERT INTO usuarios (tenant_id, email, password_hash, nombre, rol)
