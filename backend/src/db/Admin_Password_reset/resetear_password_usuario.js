@@ -12,7 +12,7 @@
 
 import 'dotenv/config'
 import pg from 'pg'
-import bcrypt from 'bcryptjs'
+import bcrypt from 'bcrypt'
 import readline from 'readline'
 
 const { Client } = pg
