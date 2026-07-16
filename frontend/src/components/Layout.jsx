@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import axios from 'axios'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle,
@@ -80,6 +81,29 @@ export default function Layout() {
     }
     localStorage.setItem('theme', theme)
   }, [theme])
+
+  // "Tiempo en pantalla" para el panel de fundadores — un heartbeat cada
+  // 60s mientras haya sesión y la pestaña esté visible. Cada fila en
+  // actividad_heartbeats representa ~1 minuto de uso activo del tenant.
+  // Usa axios "pelado" (no la instancia `api` de lib/api.js) a propósito:
+  // esto es telemetría de fondo y nunca debe mostrar un toast de error ni,
+  // peor, forzar un logout si un heartbeat puntual falla — cosa que sí
+  // haría el interceptor global de `api` ante cualquier 401/error de red.
+  useEffect(() => {
+    if (!usuario) return
+    const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+    const enviarHeartbeat = () => {
+      if (document.visibilityState !== 'visible') return
+      const token = localStorage.getItem('marquez_token')
+      if (!token) return
+      axios.post(API + '/actividad/heartbeat', {}, {
+        headers: { Authorization: 'Bearer ' + token }
+      }).catch(() => {})
+    }
+    enviarHeartbeat()
+    const intervalo = setInterval(enviarHeartbeat, 60000)
+    return () => clearInterval(intervalo)
+  }, [usuario])
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-navy-950 overflow-hidden text-gray-900 dark:text-gray-100 transition-colors duration-200">
