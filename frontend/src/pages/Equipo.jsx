@@ -65,6 +65,7 @@ export default function Equipo() {
   // Pasivos Laborales (INSS, aguinaldo, vacaciones, indemnización)
   const [dossier, setDossier] = useState(null)
   const [loadingDossier, setLoadingDossier] = useState(false)
+  const [perfilesSinFecha, setPerfilesSinFecha] = useState([])
   const [editPerfilUser, setEditPerfilUser] = useState(null)
   const [perfilForm, setPerfilForm] = useState({ tipo_pago: 'fijo', salario_mensual: '', fecha_ingreso: '' })
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
@@ -100,8 +101,12 @@ export default function Equipo() {
   const cargarDossier = async () => {
     setLoadingDossier(true)
     try {
-      const { data } = await getDossierPasivosLaborales()
-      setDossier(data)
+      const [{ data: dossierData }, { data: perfilesData }] = await Promise.all([
+        getDossierPasivosLaborales(),
+        getPerfilesLaborales()
+      ])
+      setDossier(dossierData)
+      setPerfilesSinFecha(perfilesData.filter(p => !p.fecha_ingreso))
     } catch (e) {
       toast.error('No se pudo calcular el dossier de pasivos laborales')
     } finally {
@@ -800,6 +805,23 @@ export default function Equipo() {
                           </td>
                         </tr>
                       ))}
+                      {perfilesSinFecha.map(p => (
+                        <tr key={p.id} className="opacity-70">
+                          <td className="font-medium text-gray-800 dark:text-gray-250">{p.nombre}</td>
+                          <td colSpan={5} className="text-xs text-amber-600 dark:text-amber-500">
+                            Falta fecha de ingreso — completá el perfil laboral para calcular su pasivo.
+                          </td>
+                          <td className="text-right">
+                            <button
+                              onClick={() => handleAbrirPerfilLaboral(p)}
+                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-450 hover:text-[#C29C53] transition-colors"
+                              title="Completar Perfil Laboral"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -807,7 +829,7 @@ export default function Equipo() {
                 {dossier.colaboradoresConDatos < dossier.colaboradoresTotal && (
                   <p className="text-xs text-gray-400 mt-3">
                     {dossier.colaboradoresTotal - dossier.colaboradoresConDatos} colaborador(es) sin fecha de ingreso
-                    registrada — usá el lápiz para completar su perfil laboral.
+                    registrada — usá el lápiz en su fila para completar su perfil laboral.
                   </p>
                 )}
               </div>
