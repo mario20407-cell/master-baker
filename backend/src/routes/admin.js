@@ -101,26 +101,40 @@ router.get('/estado-fundadores', async (req, res, next) => {
 })
 
 // POST /api/admin/reset-password
-// Genera una contraseña temporal nueva para el usuario admin de un tenant
-// (identificado por slug) y la devuelve una sola vez. Pensado para cuando
-// un socio fundador olvida su contraseña y no hay flujo de autoservicio.
+// Genera una contraseña temporal nueva. Acepta `slug` (resetea al primer
+// admin de ese negocio) o `email` (resetea esa cuenta puntual, sin importar
+// el negocio o rol). La devuelve una sola vez. Pensado para cuando un socio
+// fundador olvida su contraseña y no hay flujo de autoservicio.
 router.post('/reset-password', async (req, res, next) => {
   try {
-    const { slug } = req.body || {}
-    if (!slug) return res.status(400).json({ error: 'Falta slug del negocio' })
+    const { slug, email } = req.body || {}
+    if (!slug && !email) return res.status(400).json({ error: 'Falta slug del negocio o email' })
 
-    const { rows: tenants } = await query(
-      'SELECT id, nombre_negocio FROM tenants WHERE slug = $1',
-      [slug]
-    )
-    if (!tenants[0]) return res.status(404).json({ error: 'Negocio no encontrado' })
-    const tenantId = tenants[0].id
+    let negocioNombre = null
+    let objetivo
 
-    const { rows: admins } = await query(
-      "SELECT id, email FROM usuarios WHERE tenant_id = $1 AND rol = 'admin' ORDER BY creado_en LIMIT 1",
-      [tenantId]
-    )
-    if (!admins[0]) return res.status(404).json({ error: 'Este negocio no tiene un usuario admin' })
+    if (email) {
+      const { rows } = await query(
+        'SELECT id, email, activo FROM usuarios WHERE email = $1 ORDER BY creado_en LIMIT 1',
+        [email.toLowerCase().trim()]
+      )
+      objetivo = rows[0]
+      if (!objetivo) return res.status(404).json({ error: 'No existe un usuario con ese email' })
+    } else {
+      const { rows: tenants } = await query(
+        'SELECT id, nombre_negocio FROM tenants WHERE slug = $1',
+        [slug]
+      )
+      if (!tenants[0]) return res.status(404).json({ error: 'Negocio no encontrado' })
+      negocioNombre = tenants[0].nombre_negocio
+
+      const { rows: admins } = await query(
+        "SELECT id, email, activo FROM usuarios WHERE tenant_id = $1 AND rol = 'admin' ORDER BY creado_en LIMIT 1",
+        [tenants[0].id]
+      )
+      objetivo = admins[0]
+      if (!objetivo) return res.status(404).json({ error: 'Este negocio no tiene un usuario admin' })
+    }
 
     // Contraseña temporal legible — evita caracteres ambiguos (0/O, 1/l/I).
     const alfabeto = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
@@ -128,12 +142,16 @@ router.post('/reset-password', async (req, res, next) => {
     for (let i = 0; i < 10; i++) nuevaPassword += alfabeto[crypto.randomInt(alfabeto.length)]
 
     const hash = await bcrypt.hash(nuevaPassword, 12)
-    await query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [hash, admins[0].id])
+    // Reactiva la cuenta por si quedó desactivada — de lo contrario el login
+    // (que filtra WHERE activo = true) rechazaría la contraseña nueva aunque
+    // el hash sea correcto.
+    await query('UPDATE usuarios SET password_hash = $1, activo = true WHERE id = $2', [hash, objetivo.id])
 
     res.json({
-      negocio: tenants[0].nombre_negocio,
-      email: admins[0].email,
-      nueva_password: nuevaPassword
+      negocio: negocioNombre,
+      email: objetivo.email,
+      nueva_password: nuevaPassword,
+      estaba_activo: objetivo.activo
     })
   } catch (e) { next(e) }
 })
