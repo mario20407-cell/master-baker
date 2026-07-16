@@ -83,6 +83,35 @@
   .num { text-align: right; font-variant-numeric: tabular-nums; }
   .empty, .error, .loading { padding: 40px 20px; text-align: center; color: #888780; font-size: 14px; background: #fff; border-radius: 8px; }
   .error { color: #993c1d; }
+  .reset-btn {
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid #d3d1c7;
+    border-radius: 6px;
+    background: #fff;
+    color: #263D4F;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .reset-btn:hover { background: #f7f6f2; }
+  .reset-btn:disabled { color: #c8c6bc; cursor: default; }
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(38,61,79,0.45);
+    display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 10;
+  }
+  .modal {
+    background: #fff; border-radius: 10px; padding: 20px; max-width: 360px; width: 100%;
+  }
+  .modal h2 { font-size: 15px; margin: 0 0 4px; color: #263D4F; }
+  .modal p { font-size: 13px; color: #6b6b68; margin: 0 0 14px; }
+  .modal .cred-box {
+    background: #f7f6f2; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 13px;
+  }
+  .modal .cred-box div { margin-bottom: 6px; }
+  .modal .cred-box code { background: #fff; border: 1px solid #e4e2da; border-radius: 4px; padding: 2px 6px; font-size: 13px; }
+  .modal .actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal .warn { color: #993c1d; font-size: 12px; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -105,6 +134,7 @@
 
 <div id="summary"></div>
 <div id="content"></div>
+<div id="modalRoot"></div>
 
 <script>
   const API_URL = 'https://master-baker-production.up.railway.app/api/admin/estado-fundadores';
@@ -172,6 +202,9 @@
       const badge = r.admin_email
         ? `<span class="badge ${activo ? 'badge-activo' : 'badge-inactivo'}">${activo ? 'Activo' : 'Inactivo'}</span>`
         : '<span class="badge badge-inactivo">Sin admin</span>';
+      const resetBtn = r.admin_email
+        ? `<button class="reset-btn" data-slug="${escapeHtml(r.slug)}" data-negocio="${escapeHtml(r.negocio || r.slug)}">Resetear contraseña</button>`
+        : `<button class="reset-btn" disabled>—</button>`;
       return `
         <tr>
           <td>
@@ -184,6 +217,7 @@
           <td class="num">${r.ventas}</td>
           <td class="num">${r.items_inventario}</td>
           <td class="muted">${timeAgo(r.creado_en)}</td>
+          <td>${resetBtn}</td>
         </tr>`;
     }).join('');
 
@@ -192,11 +226,66 @@
         <thead>
           <tr>
             <th>Negocio</th><th>Estado</th><th>Último login</th>
-            <th class="num">Productos</th><th class="num">Ventas</th><th class="num">Inventario</th><th>Registrado</th>
+            <th class="num">Productos</th><th class="num">Ventas</th><th class="num">Inventario</th><th>Registrado</th><th></th>
           </tr>
         </thead>
         <tbody>${body}</tbody>
       </table>`;
+
+    content.querySelectorAll('.reset-btn[data-slug]').forEach((btn) => {
+      btn.addEventListener('click', () => resetPassword(btn.dataset.slug, btn.dataset.negocio));
+    });
+  }
+
+  async function resetPassword(slug, negocio) {
+    if (!confirm(`¿Generar una contraseña nueva para "${negocio}"? La contraseña actual dejará de funcionar.`)) return;
+
+    const token = getToken();
+    try {
+      const res = await fetch(API_URL.replace('/estado-fundadores', '/reset-password'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+        body: JSON.stringify({ slug })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert('Error: ' + (data.error || res.status));
+        return;
+      }
+      showPasswordModal(data);
+    } catch (e) {
+      alert('No se pudo conectar con el servidor.');
+    }
+  }
+
+  function showPasswordModal({ negocio, email, nueva_password }) {
+    const modalRoot = document.getElementById('modalRoot');
+    modalRoot.innerHTML = `
+      <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+          <h2>Contraseña restablecida</h2>
+          <p>${escapeHtml(negocio)}</p>
+          <div class="cred-box">
+            <div>Usuario: <code>${escapeHtml(email)}</code></div>
+            <div>Contraseña nueva: <code id="newPass">${escapeHtml(nueva_password)}</code></div>
+          </div>
+          <div class="actions">
+            <button class="reset-btn" id="copyBtn">Copiar</button>
+            <button class="reset-btn" id="closeModal">Cerrar</button>
+          </div>
+          <p class="warn">Compartila con el socio ahora — no se vuelve a mostrar acá.</p>
+        </div>
+      </div>`;
+
+    document.getElementById('closeModal').addEventListener('click', () => { modalRoot.innerHTML = ''; });
+    document.getElementById('modalOverlay').addEventListener('click', (e) => {
+      if (e.target.id === 'modalOverlay') modalRoot.innerHTML = '';
+    });
+    document.getElementById('copyBtn').addEventListener('click', () => {
+      navigator.clipboard.writeText(`Usuario: ${email}\nContraseña: ${nueva_password}`).then(() => {
+        document.getElementById('copyBtn').textContent = 'Copiado';
+      });
+    });
   }
 
   async function load() {
