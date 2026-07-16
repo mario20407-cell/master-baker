@@ -38,7 +38,8 @@ router.use((req, res, next) => {
 // GET /api/admin/estado-fundadores
 // Reporte de estado por tenant: quién se registró, último login,
 // cuántos productos reales (fuera del producto de EJEMPLO), ventas
-// registradas e ítems de inventario. Pensado para el panel de
+// registradas, ítems de inventario, consumo de tokens de IA y tiempo en
+// pantalla (total histórico y últimos 7 días). Pensado para el panel de
 // seguimiento de socios fundadores.
 router.get('/estado-fundadores', async (req, res, next) => {
   try {
@@ -48,7 +49,7 @@ router.get('/estado-fundadores', async (req, res, next) => {
 
     const out = []
     for (const t of tenants) {
-      const [admin, productos, ventas, inventario] = await Promise.all([
+      const [admin, productos, ventas, inventario, tokensTotal, tokens7d, tiempoTotal, tiempo7d] = await Promise.all([
         query(
           "SELECT email, ultimo_login FROM usuarios WHERE tenant_id = $1 AND rol = 'admin' ORDER BY creado_en LIMIT 1",
           [t.id]
@@ -58,7 +59,25 @@ router.get('/estado-fundadores', async (req, res, next) => {
           [t.id]
         ),
         query('SELECT count(*) FROM ventas WHERE tenant_id = $1', [t.id]),
-        query('SELECT count(*) FROM inventario WHERE tenant_id = $1', [t.id])
+        query('SELECT count(*) FROM inventario WHERE tenant_id = $1', [t.id]),
+        query(
+          'SELECT COALESCE(SUM(input_tokens + output_tokens), 0) AS total FROM ai_usage_log WHERE tenant_id = $1',
+          [t.id]
+        ),
+        query(
+          "SELECT COALESCE(SUM(input_tokens + output_tokens), 0) AS total FROM ai_usage_log WHERE tenant_id = $1 AND creado_en >= NOW() - INTERVAL '7 days'",
+          [t.id]
+        ),
+        // Cada heartbeat representa ~1 minuto activo (ver actividad.js) —
+        // contar filas equivale directamente a minutos en pantalla.
+        query(
+          'SELECT count(*) FROM actividad_heartbeats WHERE tenant_id = $1',
+          [t.id]
+        ),
+        query(
+          "SELECT count(*) FROM actividad_heartbeats WHERE tenant_id = $1 AND creado_en >= NOW() - INTERVAL '7 days'",
+          [t.id]
+        )
       ])
 
       out.push({
@@ -69,6 +88,10 @@ router.get('/estado-fundadores', async (req, res, next) => {
         productos_reales: parseInt(productos.rows[0].count, 10),
         ventas: parseInt(ventas.rows[0].count, 10),
         items_inventario: parseInt(inventario.rows[0].count, 10),
+        tokens_total: parseInt(tokensTotal.rows[0].total, 10),
+        tokens_7d: parseInt(tokens7d.rows[0].total, 10),
+        tiempo_pantalla_min_total: parseInt(tiempoTotal.rows[0].count, 10),
+        tiempo_pantalla_min_7d: parseInt(tiempo7d.rows[0].count, 10),
         creado_en: t.creado_en
       })
     }

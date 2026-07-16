@@ -10,6 +10,7 @@ import {
 } from '../services/ai/aiProvider.js'
 import { verificarYRegistrarUso, requierePlan } from '../middleware/planMiddleware.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
+import { registrarUsoTokens } from '../services/aiUsageService.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -127,6 +128,7 @@ router.post('/chat', async (req, res, next) => {
       default:
         resultado = await logicaNegocio(messages, system, context)
     }
+    registrarUsoTokens(req.tenantId, resultado.tokens)
     res.json({ ...resultado, taskType })
   } catch (e) {
     // Fallback: si el modelo principal falla, usar Claude (lógica de negocio)
@@ -138,6 +140,7 @@ router.post('/chat', async (req, res, next) => {
           SYSTEM_PROMPTS[TASK_TYPES.LOGICA_NEGOCIO],
           context
         )
+        registrarUsoTokens(req.tenantId, resultado.tokens)
         return res.json({ ...resultado, taskType, fallback: true })
       } catch (e2) { return next(e2) }
     }
@@ -164,6 +167,7 @@ Devuelve SOLO un array JSON, sin explicaciones adicionales.`
     const txt = resultado.respuesta.replace(/```json|```/g, '').trim()
     let costeos
     try { costeos = JSON.parse(txt) } catch { costeos = resultado.respuesta }
+    registrarUsoTokens(req.tenantId, resultado.tokens)
     res.json({ costeos, modelo: resultado.modelo, tokens: resultado.tokens })
   } catch (e) { next(e) }
 })
