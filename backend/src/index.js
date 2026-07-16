@@ -23,6 +23,7 @@ import sucursalesRoutes from './routes/sucursales.js'
 import sugerenciasProduccionRoutes from './routes/sugerencias-produccion.js'
 import adminRoutes      from './routes/admin.js'
 import actividadRoutes  from './routes/actividad.js'
+import pasivosLaboralesRoutes from './routes/pasivosLaborales.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 import { query } from './db/client.js'
 
@@ -61,6 +62,31 @@ query(`
   console.log('   Esquema:     Tablas de métricas (ai_usage_log, actividad_heartbeats) verificadas')
 }).catch(err => {
   console.warn('   Esquema:     (Aviso) No se pudieron verificar tablas de métricas:', err.message)
+})
+
+// Perfil laboral por colaborador (salario/tipo de pago/fecha de ingreso)
+// e historial de pagos variables (destajo, ej. pago por quintal), para el
+// dossier de pasivos laborales (INSS, aguinaldo, vacaciones, indemnización).
+// No bloqueante — igual que los patches anteriores.
+query(`
+  ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tipo_pago VARCHAR(10) NOT NULL DEFAULT 'fijo';
+  ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS salario_mensual NUMERIC;
+  ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS fecha_ingreso DATE;
+
+  CREATE TABLE IF NOT EXISTS pagos_variables (
+    id SERIAL PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    usuario_id UUID NOT NULL,
+    mes DATE NOT NULL,
+    monto NUMERIC NOT NULL,
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(usuario_id, mes)
+  );
+  CREATE INDEX IF NOT EXISTS idx_pagos_variables_usuario ON pagos_variables(usuario_id, mes DESC);
+`).then(() => {
+  console.log('   Esquema:     Perfil laboral y pagos_variables (pasivos laborales) verificados')
+}).catch(err => {
+  console.warn('   Esquema:     (Aviso) No se pudieron verificar tablas de pasivos laborales:', err.message)
 })
 
 const app = express()
@@ -132,6 +158,7 @@ app.use('/api/lotes',      lotesRoutes)
 app.use('/api/sucursales', sucursalesRoutes)
 app.use('/api/sugerencias-produccion', sugerenciasProduccionRoutes)
 app.use('/api/actividad', actividadRoutes)
+app.use('/api/pasivos-laborales', pasivosLaboralesRoutes)
 
 // Health check
 app.get('/api/health', (_, res) => res.json({
