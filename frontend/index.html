@@ -6,23 +6,12 @@
     <meta name="theme-color" content="#263D4F" />
     <meta name="description" content="Master Baker — Gestión inteligente de panadería" />
     <link rel="icon" type="image/png" href="/branding/logo-emblema.png" />
-    <link rel="apple-touch-icon" href="/branding/logo-emblema.png" />
+    <link rel="apple-touch-icon" href="/branding/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <title>Master Baker — Gestión Inteligente de Panadería</title>
-    <script>
-      // Forzar limpieza de Service Workers viejos en caché
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for(let registration of registrations) {
-            registration.unregister().then(function() {
-              console.log('Service Worker desregistrado para actualizar caché.');
-            });
-          }
-        });
-      }
-    </script>
   </head>
   <body>
     <div id="root"></div>
