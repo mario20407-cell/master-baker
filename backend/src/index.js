@@ -45,6 +45,11 @@ const PORT = process.env.PORT || 3001
 // en cada request porque no confía en el header X-Forwarded-For.
 app.set('trust proxy', 1)
 
+// Montado antes del CORS/helmet globales: el panel de estado de fundadores
+// vive fuera de los dominios de la app y necesita su propio CORS abierto
+// (protegido por ADMIN_TOKEN, no por origen). Ver routes/admin.js.
+app.use('/api/admin', adminRoutes)
+
 app.use(helmet())
 
 const allowedOrigins = [
@@ -100,7 +105,6 @@ app.use('/api/inventario-terminado', inventarioTerminadoRoutes)
 app.use('/api/lotes',      lotesRoutes)
 app.use('/api/sucursales', sucursalesRoutes)
 app.use('/api/sugerencias-produccion', sugerenciasProduccionRoutes)
-app.use('/api/admin',      adminRoutes)
 
 // Health check
 app.get('/api/health', (_, res) => res.json({
