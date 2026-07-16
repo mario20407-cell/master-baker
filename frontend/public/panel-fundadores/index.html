@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Fundadores">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
 <style>
 * { box-sizing: border-box; }
 body {
@@ -352,7 +352,7 @@ summary.innerHTML = `
 <div class="stat s-coral"><div class="stat-icon">⚡</div><p class="stat-label">Tokens IA (total)</p><p class="stat-value">${formatTokens(totalTokens)}</p></div>
 </div>`;
 
-renderDashboard(rows);
+try { renderDashboard(rows); } catch (e) { console.warn('No se pudo renderizar el dashboard:', e); dashboard.innerHTML = ''; }
 
 if (!rows || rows.length === 0) {
 content.innerHTML = '<div class="empty">Todavía no hay negocios registrados.</div>';
@@ -518,4 +518,3 @@ load();
 
 </body>
 </html>
-                                   
