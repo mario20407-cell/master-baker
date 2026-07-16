@@ -5,6 +5,12 @@ import axios from 'axios'
 import toast from 'react-hot-toast'
 import { Eye, EyeOff, ShieldCheck, Landmark, User, Mail, Lock } from 'lucide-react'
 
+// Mismo patrón que AuthContext.jsx: en producción VITE_API_URL apunta directo
+// al backend de Railway. La ruta relativa '/api/...' no sirve aquí porque
+// Vercel no tiene un rewrite configurado para /api/* (solo el catch-all a
+// index.html), así que un POST a esa ruta relativa devuelve 405 de Vercel.
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+
 export default function Registro() {
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -30,7 +36,7 @@ export default function Registro() {
 
     setCargando(true)
     try {
-      const response = await axios.post('/api/auth/registrar-negocio', {
+      const response = await axios.post(API + '/auth/registrar-negocio', {
         nombreNegocio,
         nombreAdmin,
         email,
@@ -40,10 +46,10 @@ export default function Registro() {
 
       const { token } = response.data
       localStorage.setItem('marquez_token', token)
-      
+
       // Realizar login automático guardando los datos del usuario en el context
       await login(email.trim(), password)
-      
+
       toast.success('¡Registro Exitoso! Bienvenido a tu demo de 30 días.')
       navigate('/dashboard', { replace: true })
     } catch (err) {
@@ -86,12 +92,12 @@ export default function Registro() {
               <label className="form-label flex items-center gap-1.5 text-xs text-slate-350">
                 <Landmark size={14} className="text-[#C29C53]" /> Nombre del Negocio / Panadería
               </label>
-              <input 
-                type="text" 
-                value={nombreNegocio} 
+              <input
+                type="text"
+                value={nombreNegocio}
                 onChange={e => setNombreNegocio(e.target.value)}
-                placeholder="Ej. Panadería El Mana" 
-                disabled={cargando} 
+                placeholder="Ej. Panadería El Mana"
+                disabled={cargando}
                 className="w-full px-3.5 py-2 border rounded-lg bg-navy-950 border-navy-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
               />
             </div>
@@ -100,12 +106,12 @@ export default function Registro() {
               <label className="form-label flex items-center gap-1.5 text-xs text-slate-350">
                 <User size={14} className="text-[#C29C53]" /> Nombre del Administrador
               </label>
-              <input 
-                type="text" 
-                value={nombreAdmin} 
+              <input
+                type="text"
+                value={nombreAdmin}
                 onChange={e => setNombreAdmin(e.target.value)}
-                placeholder="Ej. Juan Pérez" 
-                disabled={cargando} 
+                placeholder="Ej. Juan Pérez"
+                disabled={cargando}
                 className="w-full px-3.5 py-2 border rounded-lg bg-navy-950 border-navy-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
               />
             </div>
@@ -114,12 +120,12 @@ export default function Registro() {
               <label className="form-label flex items-center gap-1.5 text-xs text-slate-350">
                 <Mail size={14} className="text-[#C29C53]" /> Correo Electrónico
               </label>
-              <input 
-                type="email" 
-                value={email} 
+              <input
+                type="email"
+                value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="correo@ejemplo.com" 
-                disabled={cargando} 
+                placeholder="correo@ejemplo.com"
+                disabled={cargando}
                 className="w-full px-3.5 py-2 border rounded-lg bg-navy-950 border-navy-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
               />
             </div>
@@ -129,16 +135,16 @@ export default function Registro() {
                 <Lock size={14} className="text-[#C29C53]" /> Contraseña (Mín. 8 caracteres)
               </label>
               <div className="relative">
-                <input 
-                  type={showPass ? 'text' : 'password'} 
-                  value={password} 
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={password}
                   onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••" 
-                  disabled={cargando} 
+                  placeholder="••••••••"
+                  disabled={cargando}
                   className="w-full px-3.5 py-2 border rounded-lg bg-navy-950 border-navy-800 text-white placeholder-slate-500 text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
                 />
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setShowPass(p => !p)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-650"
                 >
@@ -151,18 +157,18 @@ export default function Registro() {
               <label className="form-label flex items-center gap-1.5 text-xs text-slate-350">
                 <ShieldCheck size={14} className="text-[#C29C53]" /> Código de Invitación Fundador
               </label>
-              <input 
-                type="text" 
-                value={codigoInvitacion} 
+              <input
+                type="text"
+                value={codigoInvitacion}
                 onChange={e => setCodigoInvitacion(e.target.value)}
-                placeholder="Código de acceso" 
-                disabled={cargando} 
+                placeholder="Código de acceso"
+                disabled={cargando}
                 className="w-full px-3.5 py-2 border rounded-lg bg-navy-950 border-navy-800 text-white placeholder-slate-500 text-sm tracking-wider uppercase focus:outline-none focus:ring-2 focus:ring-[#C29C53]/20 focus:border-[#C29C53]"
               />
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={cargando}
               className="btn-primary w-full py-2.5 mt-4 flex items-center justify-center gap-2"
             >
