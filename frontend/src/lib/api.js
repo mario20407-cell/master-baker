@@ -143,3 +143,7 @@ export const getDossierPasivosLaborales = () => api.get('/pasivos-laborales/doss
 // ── Sucursales / Inventario Terminado ─────────────────────────────────────────
 export const getSucursales = () => api.get('/sucursales')
 export const getInventarioTerminado = (params) => api.get('/inventario-terminado', { params })
+
+// ── PIN de Administrador (por negocio, confirma cambios de precio) ─────────────
+export const getAdminPinEstado = () => api.get('/admin-pin/estado')
+export const setAdminPin = (pin_actual, pin_nuevo) => api.put('/admin-pin', { pin_actual, pin_nuevo })
