@@ -22,6 +22,7 @@ import lotesRoutes      from './routes/lotes.js'
 import sucursalesRoutes from './routes/sucursales.js'
 import sugerenciasProduccionRoutes from './routes/sugerencias-produccion.js'
 import adminRoutes      from './routes/admin.js'
+import actividadRoutes  from './routes/actividad.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 import { query } from './db/client.js'
 
@@ -35,6 +36,31 @@ query(`
   console.log('   Esquema:     Columnas de auditoría y trial_vence_en verificadas')
 }).catch(err => {
   console.warn('   Esquema:     (Aviso) No se pudieron verificar columnas:', err.message)
+})
+
+// Tablas para métricas del panel de fundadores: consumo de tokens de IA y
+// actividad de pantalla por tenant. No bloqueante — igual que el patch de arriba.
+query(`
+  CREATE TABLE IF NOT EXISTS ai_usage_log (
+    id SERIAL PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    input_tokens INT NOT NULL DEFAULT 0,
+    output_tokens INT NOT NULL DEFAULT 0,
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_ai_usage_log_tenant ON ai_usage_log(tenant_id, creado_en);
+
+  CREATE TABLE IF NOT EXISTS actividad_heartbeats (
+    id SERIAL PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    usuario_id UUID,
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_actividad_heartbeats_tenant ON actividad_heartbeats(tenant_id, creado_en);
+`).then(() => {
+  console.log('   Esquema:     Tablas de métricas (ai_usage_log, actividad_heartbeats) verificadas')
+}).catch(err => {
+  console.warn('   Esquema:     (Aviso) No se pudieron verificar tablas de métricas:', err.message)
 })
 
 const app = express()
@@ -105,6 +131,7 @@ app.use('/api/inventario-terminado', inventarioTerminadoRoutes)
 app.use('/api/lotes',      lotesRoutes)
 app.use('/api/sucursales', sucursalesRoutes)
 app.use('/api/sugerencias-produccion', sugerenciasProduccionRoutes)
+app.use('/api/actividad', actividadRoutes)
 
 // Health check
 app.get('/api/health', (_, res) => res.json({
