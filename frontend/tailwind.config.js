@@ -24,6 +24,7 @@ export default {
           600: '#263D4F',
           800: '#1B2C39',
           900: '#101A22',
+          950: '#0A1017',
         },
         success: { light: '#EAF3DE', DEFAULT: '#3B6D11', dark: '#27500A' },
         danger:  { light: '#FCEBEB', DEFAULT: '#A32D2D', dark: '#791F1F' },
