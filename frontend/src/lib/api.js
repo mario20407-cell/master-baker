@@ -132,6 +132,14 @@ export const getBitacora = (limite) => api.get('/auth/bitacora', { params: { lim
 export const cambiarMiPassword = (passwordActual, passwordNueva) =>
   api.put('/auth/password', { passwordActual, passwordNueva })
 
+// ── Pasivos Laborales (INSS, aguinaldo, vacaciones, indemnización) ─────────────
+export const getPerfilesLaborales = () => api.get('/pasivos-laborales/perfil')
+export const updatePerfilLaboral = (usuarioId, data) => api.put(`/pasivos-laborales/perfil/${usuarioId}`, data)
+export const getPagosVariables = (usuarioId) => api.get(`/pasivos-laborales/pagos-variables/${usuarioId}`)
+export const savePagoVariable = (usuarioId, mes, monto) =>
+  api.post(`/pasivos-laborales/pagos-variables/${usuarioId}`, { mes, monto })
+export const getDossierPasivosLaborales = () => api.get('/pasivos-laborales/dossier')
+
 // ── Sucursales / Inventario Terminado ─────────────────────────────────────────
 export const getSucursales = () => api.get('/sucursales')
 export const getInventarioTerminado = (params) => api.get('/inventario-terminado', { params })
