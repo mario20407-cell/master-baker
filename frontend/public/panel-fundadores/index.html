@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Master Baker — Panel Fundadores</title>
+<link rel="manifest" href="/panel-fundadores/manifest.json">
+<meta name="theme-color" content="#263D4F">
+<link rel="apple-touch-icon" href="/branding/logo-emblema.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Fundadores">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: #FBF6EC;
+    color: #1a1a1a;
+    padding: 20px;
+    padding-bottom: 40px;
+  }
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    color: #263D4F;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #6b6b68;
+    margin: 0 0 20px;
+  }
+  .token-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 16px;
+    background: #ffffff;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #e4e2da;
+  }
+  .token-form input {
+    flex: 1;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid #d3d1c7;
+    border-radius: 6px;
+    font-size: 16px;
+  }
+  .token-form button, .toolbar button {
+    height: 40px;
+    padding: 0 16px;
+    border: 1px solid #263D4F;
+    border-radius: 6px;
+    background: #263D4F;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .toolbar button {
+    background: #ffffff;
+    color: #263D4F;
+  }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .toolbar .right { display: flex; gap: 8px; align-items: center; }
+  .updated { font-size: 12px; color: #888780; }
+  .small-link { font-size: 12px; color: #888780; cursor: pointer; text-decoration: underline; background: none; border: none; padding: 0; }
+  .summary { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .stat { background: #ffffff; border: 1px solid #e4e2da; border-radius: 8px; padding: 10px 14px; flex: 1; min-width: 120px; }
+  .stat-label { font-size: 11px; color: #888780; margin: 0 0 4px; }
+  .stat-value { font-size: 20px; font-weight: 600; margin: 0; color: #263D4F; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; border-radius: 8px; overflow: hidden; }
+  th { text-align: left; font-weight: 600; color: #6b6b68; padding: 8px 10px; border-bottom: 1px solid #e4e2da; white-space: nowrap; }
+  td { padding: 10px; border-bottom: 1px solid #f0eee6; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .negocio { font-weight: 600; }
+  .muted { color: #9a988f; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+  .badge-activo { background: #eaf3de; color: #27500a; }
+  .badge-inactivo { background: #f1efe8; color: #5f5e5a; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .empty, .error, .loading { padding: 40px 20px; text-align: center; color: #888780; font-size: 14px; background: #fff; border-radius: 8px; }
+  .error { color: #993c1d; }
+</style>
+</head>
+<body>
+
+<h1>Estado de socios fundadores</h1>
+<p class="subtitle">Registro, actividad y avance de cada panadería sobre Master Baker.</p>
+
+<div id="tokenForm" class="token-form" style="display:none">
+  <input type="password" id="tokenInput" placeholder="Pegá tu ADMIN_TOKEN" autocomplete="off" />
+  <button id="tokenSave">Guardar</button>
+</div>
+
+<div id="toolbar" class="toolbar" style="display:none">
+  <span class="updated" id="updatedAt"></span>
+  <div class="right">
+    <button class="small-link" id="changeToken">Cambiar token</button>
+    <button id="refreshBtn">Actualizar</button>
+  </div>
+</div>
+
+<div id="summary"></div>
+<div id="content"></div>
+
+<script>
+  const API_URL = 'https://master-baker-production.up.railway.app/api/admin/estado-fundadores';
+  const STORAGE_KEY = 'mb_admin_token';
+
+  const tokenForm = document.getElementById('tokenForm');
+  const tokenInput = document.getElementById('tokenInput');
+  const tokenSave = document.getElementById('tokenSave');
+  const toolbar = document.getElementById('toolbar');
+  const summary = document.getElementById('summary');
+  const content = document.getElementById('content');
+  const updatedAt = document.getElementById('updatedAt');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const changeToken = document.getElementById('changeToken');
+
+  function getToken() { return localStorage.getItem(STORAGE_KEY) || ''; }
+
+  function showTokenForm() {
+    tokenForm.style.display = 'flex';
+    toolbar.style.display = 'none';
+    summary.innerHTML = '';
+    tokenInput.value = getToken();
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return null;
+    const d = new Date(iso);
+    const mins = Math.floor((Date.now() - d.getTime()) / 60000);
+    if (mins < 1) return 'recién';
+    if (mins < 60) return `hace ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `hace ${hours} h`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `hace ${days} d`;
+    const months = Math.floor(days / 30);
+    return `hace ${months} mes${months > 1 ? 'es' : ''}`;
+  }
+
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function render(rows) {
+    const registrados = rows.length;
+    const activos = rows.filter(r => r.admin_email && r.ultimo_login && (Date.now() - new Date(r.ultimo_login).getTime()) < 7 * 24 * 3600 * 1000).length;
+    const totalVentas = rows.reduce((acc, r) => acc + (r.ventas || 0), 0);
+
+    summary.innerHTML = `
+      <div class="summary">
+        <div class="stat"><p class="stat-label">Negocios registrados</p><p class="stat-value">${registrados}</p></div>
+        <div class="stat"><p class="stat-label">Activos (últimos 7 días)</p><p class="stat-value">${activos}</p></div>
+        <div class="stat"><p class="stat-label">Ventas registradas</p><p class="stat-value">${totalVentas}</p></div>
+      </div>`;
+
+    if (!rows || rows.length === 0) {
+      content.innerHTML = '<div class="empty">Todavía no hay negocios registrados.</div>';
+      return;
+    }
+
+    const sorted = [...rows].sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en));
+    const body = sorted.map(r => {
+      const activo = r.admin_email && r.ultimo_login && (Date.now() - new Date(r.ultimo_login).getTime()) < 7 * 24 * 3600 * 1000;
+      const badge = r.admin_email
+        ? `<span class="badge ${activo ? 'badge-activo' : 'badge-inactivo'}">${activo ? 'Activo' : 'Inactivo'}</span>`
+        : '<span class="badge badge-inactivo">Sin admin</span>';
+      return `
+        <tr>
+          <td>
+            <div class="negocio">${escapeHtml(r.negocio || r.slug)}</div>
+            <div class="muted">${escapeHtml(r.admin_email || 'sin registrar')}</div>
+          </td>
+          <td>${badge}</td>
+          <td>${r.ultimo_login ? timeAgo(r.ultimo_login) : '<span class="muted">nunca</span>'}</td>
+          <td class="num">${r.productos_reales}</td>
+          <td class="num">${r.ventas}</td>
+          <td class="num">${r.items_inventario}</td>
+          <td class="muted">${timeAgo(r.creado_en)}</td>
+        </tr>`;
+    }).join('');
+
+    content.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Negocio</th><th>Estado</th><th>Último login</th>
+            <th class="num">Productos</th><th class="num">Ventas</th><th class="num">Inventario</th><th>Registrado</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>`;
+  }
+
+  async function load() {
+    const token = getToken();
+    if (!token) { showTokenForm(); return; }
+
+    tokenForm.style.display = 'none';
+    toolbar.style.display = 'flex';
+    content.innerHTML = '<div class="loading">Cargando…</div>';
+
+    try {
+      const res = await fetch(API_URL, { headers: { 'x-admin-token': token } });
+      if (res.status === 401) {
+        localStorage.removeItem(STORAGE_KEY);
+        showTokenForm();
+        content.innerHTML = '';
+        return;
+      }
+      if (res.status === 503) {
+        content.innerHTML = '<div class="error">El servidor todavía no tiene ADMIN_TOKEN configurado.</div>';
+        return;
+      }
+      if (!res.ok) { content.innerHTML = `<div class="error">Error del servidor (${res.status}).</div>`; return; }
+      const data = await res.json();
+      render(data);
+      updatedAt.textContent = 'Actualizado ' + new Date().toLocaleString('es', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+    } catch (e) {
+      content.innerHTML = '<div class="error">No se pudo conectar. Revisá tu conexión y probá de nuevo.</div>';
+    }
+  }
+
+  tokenSave.addEventListener('click', () => {
+    const v = tokenInput.value.trim();
+    if (!v) return;
+    localStorage.setItem(STORAGE_KEY, v);
+    load();
+  });
+  tokenInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tokenSave.click(); });
+  refreshBtn.addEventListener('click', load);
+  changeToken.addEventListener('click', showTokenForm);
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/panel-fundadores/sw.js', { scope: '/panel-fundadores/' }).catch(() => {});
+    });
+  }
+
+  load();
+</script>
+
+</body>
+</html>
