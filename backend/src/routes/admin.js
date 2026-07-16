@@ -3,6 +3,17 @@ import { query } from '../db/client.js'
 
 const router = Router()
 
+// Este router se monta antes del CORS restrictivo global (ver index.js),
+// porque el panel de estado vive fuera de los dominios de la app (masterbaker.store /
+// vercel). El acceso sigue protegido por el token, no por el origen.
+router.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Headers', 'x-admin-token, Content-Type')
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  if (req.method === 'OPTIONS') return res.sendStatus(204)
+  next()
+})
+
 // Todas las rutas de este router requieren el token de administrador.
 // Se configura como variable de entorno ADMIN_TOKEN en Railway — nunca
 // se guarda en el código ni lo ingresa el asistente.
