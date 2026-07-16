@@ -5,118 +5,181 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Master Baker — Panel Fundadores</title>
 <link rel="manifest" href="/panel-fundadores/manifest.json">
-<meta name="theme-color" content="#263D4F">
+<meta name="theme-color" content="#0B1220">
 <link rel="apple-touch-icon" href="/branding/logo-emblema.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Fundadores">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
 * { box-sizing: border-box; }
 body {
 margin: 0;
 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-background: #FBF6EC;
-color: #1a1a1a;
-padding: 20px;
-padding-bottom: 40px;
+background: radial-gradient(circle at 15% 0%, #182338 0%, #0B1220 45%), #0B1220;
+background-attachment: fixed;
+color: #EDEFF4;
+padding: 24px;
+padding-bottom: 60px;
+min-height: 100vh;
 }
+.wrap { max-width: 1100px; margin: 0 auto; }
 h1 {
-font-size: 18px;
-font-weight: 600;
+font-size: 22px;
+font-weight: 700;
 margin: 0 0 4px;
-color: #263D4F;
+background: linear-gradient(90deg, #F3D9A4, #C29C53);
+-webkit-background-clip: text;
+background-clip: text;
+color: transparent;
 }
 .subtitle {
 font-size: 13px;
-color: #6b6b68;
-margin: 0 0 20px;
+color: #8B92A6;
+margin: 0 0 24px;
 }
 .token-form {
 display: flex;
-gap: 8px;
+gap: 10px;
 align-items: center;
-padding: 16px;
-background: #ffffff;
-border-radius: 8px;
-margin-bottom: 20px;
-border: 1px solid #e4e2da;
+padding: 18px;
+background: linear-gradient(145deg, #182338, #131C2C);
+border-radius: 14px;
+margin-bottom: 24px;
+border: 1px solid #263049;
 }
 .token-form input {
 flex: 1;
-height: 40px;
-padding: 0 12px;
-border: 1px solid #d3d1c7;
-border-radius: 6px;
+height: 42px;
+padding: 0 14px;
+border: 1px solid #2E3A56;
+border-radius: 8px;
 font-size: 16px;
+background: #0F1626;
+color: #EDEFF4;
 }
+.token-form input::placeholder { color: #5C6579; }
 .token-form button, .toolbar button {
-height: 40px;
-padding: 0 16px;
-border: 1px solid #263D4F;
-border-radius: 6px;
-background: #263D4F;
-color: #fff;
+height: 42px;
+padding: 0 18px;
+border: none;
+border-radius: 8px;
+background: linear-gradient(135deg, #E9C077, #C29C53);
+color: #2A1D06;
 font-size: 14px;
+font-weight: 700;
 cursor: pointer;
 }
 .toolbar button {
-background: #ffffff;
-color: #263D4F;
+background: #182338;
+color: #C7CCDA;
+border: 1px solid #2E3A56;
+font-weight: 600;
 }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
 .toolbar .right { display: flex; gap: 8px; align-items: center; }
-.updated { font-size: 12px; color: #888780; }
-.small-link { font-size: 12px; color: #888780; cursor: pointer; text-decoration: underline; background: none; border: none; padding: 0; }
-.summary { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-.stat { background: #ffffff; border: 1px solid #e4e2da; border-radius: 8px; padding: 10px 14px; flex: 1; min-width: 120px; }
-.stat-label { font-size: 11px; color: #888780; margin: 0 0 4px; }
-.stat-value { font-size: 20px; font-weight: 600; margin: 0; color: #263D4F; }
-.table-scroll { overflow-x: auto; border-radius: 8px; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; border-radius: 8px; overflow: hidden; }
-th { text-align: left; font-weight: 600; color: #6b6b68; padding: 8px 10px; border-bottom: 1px solid #e4e2da; white-space: nowrap; }
-td { padding: 10px; border-bottom: 1px solid #f0eee6; vertical-align: top; white-space: nowrap; }
+.updated { font-size: 12px; color: #6B7387; }
+.small-link { font-size: 12px; color: #8B92A6; cursor: pointer; text-decoration: underline; background: none; border: none; padding: 0; }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.stat {
+position: relative;
+overflow: hidden;
+border-radius: 14px;
+padding: 16px 18px;
+background: linear-gradient(145deg, #182338, #131C2C);
+border: 1px solid #263049;
+}
+.stat::before {
+content: '';
+position: absolute; inset: 0;
+opacity: .12;
+background: var(--accent-grad);
+}
+.stat-icon {
+width: 34px; height: 34px; border-radius: 9px;
+display: flex; align-items: center; justify-content: center;
+font-size: 16px; margin-bottom: 10px;
+background: var(--accent-grad);
+position: relative;
+}
+.stat-label { font-size: 11px; color: #8B92A6; margin: 0 0 4px; position: relative; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.stat-value { font-size: 26px; font-weight: 700; margin: 0; color: #F5F6FA; position: relative; }
+.s-teal   { --accent-grad: linear-gradient(135deg, #34D9B5, #12876E); }
+.s-gold   { --accent-grad: linear-gradient(135deg, #E9C077, #C29C53); }
+.s-blue   { --accent-grad: linear-gradient(135deg, #6FA8FF, #3A6FD8); }
+.s-coral  { --accent-grad: linear-gradient(135deg, #FF9E80, #E2593A); }
+
+.dash-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; margin-bottom: 20px; }
+@media (max-width: 760px) { .dash-grid { grid-template-columns: 1fr; } }
+.panel-card {
+background: linear-gradient(145deg, #182338, #131C2C);
+border: 1px solid #263049;
+border-radius: 14px;
+padding: 18px 20px;
+}
+.panel-card h2 { font-size: 13px; font-weight: 700; margin: 0 0 14px; color: #C7CCDA; text-transform: uppercase; letter-spacing: .04em; }
+.chart-box { position: relative; height: 220px; }
+
+.table-scroll { overflow-x: auto; border-radius: 14px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; background: linear-gradient(145deg, #182338, #131C2C); border-radius: 14px; overflow: hidden; border: 1px solid #263049; }
+th { text-align: left; font-weight: 700; color: #8B92A6; padding: 12px 14px; border-bottom: 1px solid #263049; white-space: nowrap; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+td { padding: 14px; border-bottom: 1px solid #1C2638; vertical-align: middle; white-space: nowrap; }
 tr:last-child td { border-bottom: none; }
-.negocio { font-weight: 600; }
-.muted { color: #9a988f; }
-.badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
-.badge-activo { background: #eaf3de; color: #27500a; }
-.badge-inactivo { background: #f1efe8; color: #5f5e5a; }
-.num { text-align: right; font-variant-numeric: tabular-nums; }
-.submetric { font-size: 11px; color: #9a988f; }
-.empty, .error, .loading { padding: 40px 20px; text-align: center; color: #888780; font-size: 14px; background: #fff; border-radius: 8px; }
-.error { color: #993c1d; }
+tr:hover td { background: rgba(194,156,83,0.05); }
+.negocio-cell { display: flex; align-items: center; gap: 10px; }
+.avatar {
+width: 34px; height: 34px; border-radius: 50%;
+display: flex; align-items: center; justify-content: center;
+font-size: 13px; font-weight: 700; color: #2A1D06;
+background: linear-gradient(135deg, #E9C077, #C29C53);
+flex-shrink: 0;
+}
+.negocio { font-weight: 700; color: #F5F6FA; }
+.muted { color: #6B7387; }
+.badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 700; white-space: nowrap; }
+.badge-activo { background: rgba(52,217,181,0.15); color: #34D9B5; }
+.badge-inactivo { background: rgba(139,146,166,0.15); color: #8B92A6; }
+.num { text-align: right; font-variant-numeric: tabular-nums; color: #EDEFF4; }
+.submetric { font-size: 11px; color: #6B7387; }
+.empty, .error, .loading { padding: 50px 20px; text-align: center; color: #6B7387; font-size: 14px; background: linear-gradient(145deg, #182338, #131C2C); border-radius: 14px; border: 1px solid #263049; }
+.error { color: #FF9E80; }
 .reset-btn {
-height: 28px;
-padding: 0 10px;
-border: 1px solid #d3d1c7;
-border-radius: 6px;
-background: #fff;
-color: #263D4F;
+height: 30px;
+padding: 0 12px;
+border: 1px solid #2E3A56;
+border-radius: 8px;
+background: #0F1626;
+color: #C7CCDA;
 font-size: 12px;
+font-weight: 600;
 cursor: pointer;
 white-space: nowrap;
 }
-.reset-btn:hover { background: #f7f6f2; }
-.reset-btn:disabled { color: #c8c6bc; cursor: default; }
+.reset-btn:hover { border-color: #C29C53; color: #E9C077; }
+.reset-btn:disabled { color: #454C5E; cursor: default; }
 .modal-overlay {
-position: fixed; inset: 0; background: rgba(38,61,79,0.45);
+position: fixed; inset: 0; background: rgba(6,9,16,0.65);
 display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 10;
 }
 .modal {
-background: #fff; border-radius: 10px; padding: 20px; max-width: 360px; width: 100%;
+background: linear-gradient(145deg, #182338, #131C2C); border: 1px solid #263049;
+border-radius: 14px; padding: 22px; max-width: 360px; width: 100%;
 }
-.modal h2 { font-size: 15px; margin: 0 0 4px; color: #263D4F; }
-.modal p { font-size: 13px; color: #6b6b68; margin: 0 0 14px; }
+.modal h2 { font-size: 16px; margin: 0 0 4px; color: #F5F6FA; text-transform: none; letter-spacing: 0; }
+.modal p { font-size: 13px; color: #8B92A6; margin: 0 0 14px; }
 .modal .cred-box {
-background: #f7f6f2; border-radius: 8px; padding: 12px; margin-bottom: 14px; font-size: 13px;
+background: #0F1626; border: 1px solid #263049; border-radius: 10px; padding: 14px; margin-bottom: 14px; font-size: 13px;
 }
-.modal .cred-box div { margin-bottom: 6px; }
-.modal .cred-box code { background: #fff; border: 1px solid #e4e2da; border-radius: 4px; padding: 2px 6px; font-size: 13px; }
+.modal .cred-box div { margin-bottom: 8px; color: #C7CCDA; }
+.modal .cred-box div:last-child { margin-bottom: 0; }
+.modal .cred-box code { background: #182338; border: 1px solid #2E3A56; border-radius: 4px; padding: 3px 7px; font-size: 13px; color: #E9C077; }
 .modal .actions { display: flex; gap: 8px; justify-content: flex-end; }
-.modal .warn { color: #993c1d; font-size: 12px; margin-top: 10px; }
+.modal .warn { color: #FF9E80; font-size: 12px; margin-top: 12px; }
 </style>
 </head>
 <body>
+<div class="wrap">
 
 <h1>Estado de socios fundadores</h1>
 <p class="subtitle">Registro, actividad y avance de cada panadería sobre Master Baker.</p>
@@ -135,8 +198,11 @@ background: #f7f6f2; border-radius: 8px; padding: 12px; margin-bottom: 14px; fon
 </div>
 
 <div id="summary"></div>
+<div id="dashboard"></div>
 <div id="content"></div>
 <div id="modalRoot"></div>
+
+</div>
 
 <script>
 const API_URL = 'https://master-baker-production.up.railway.app/api/admin/estado-fundadores';
@@ -147,10 +213,14 @@ const tokenInput = document.getElementById('tokenInput');
 const tokenSave = document.getElementById('tokenSave');
 const toolbar = document.getElementById('toolbar');
 const summary = document.getElementById('summary');
+const dashboard = document.getElementById('dashboard');
 const content = document.getElementById('content');
 const updatedAt = document.getElementById('updatedAt');
 const refreshBtn = document.getElementById('refreshBtn');
 const changeToken = document.getElementById('changeToken');
+
+let chartInstance = null;
+let doughnutInstance = null;
 
 function getToken() { return localStorage.getItem(STORAGE_KEY) || ''; }
 
@@ -158,6 +228,7 @@ function showTokenForm() {
 tokenForm.style.display = 'flex';
 toolbar.style.display = 'none';
 summary.innerHTML = '';
+dashboard.innerHTML = '';
 tokenInput.value = getToken();
 }
 
@@ -200,17 +271,88 @@ div.textContent = s;
 return div.innerHTML;
 }
 
+function iniciales(nombre) {
+if (!nombre) return '?';
+const partes = nombre.trim().split(/\s+/);
+if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+function renderDashboard(rows) {
+if (!rows || rows.length === 0) { dashboard.innerHTML = ''; return; }
+
+dashboard.innerHTML = `
+<div class="dash-grid">
+<div class="panel-card">
+<h2>Ventas y productos por negocio</h2>
+<div class="chart-box"><canvas id="barChart"></canvas></div>
+</div>
+<div class="panel-card">
+<h2>Estado de la base</h2>
+<div class="chart-box"><canvas id="doughnutChart"></canvas></div>
+</div>
+</div>`;
+
+const sorted = [...rows].sort((a, b) => new Date(a.creado_en) - new Date(b.creado_en));
+const labels = sorted.map(r => r.negocio || r.slug);
+const ventas = sorted.map(r => r.ventas || 0);
+const productos = sorted.map(r => r.productos_reales || 0);
+
+if (chartInstance) chartInstance.destroy();
+const ctx = document.getElementById('barChart').getContext('2d');
+chartInstance = new Chart(ctx, {
+type: 'bar',
+data: {
+labels,
+datasets: [
+{ label: 'Ventas', data: ventas, backgroundColor: '#34D9B5', borderRadius: 6, maxBarThickness: 34 },
+{ label: 'Productos', data: productos, backgroundColor: '#E9C077', borderRadius: 6, maxBarThickness: 34 }
+]
+},
+options: {
+responsive: true, maintainAspectRatio: false,
+plugins: { legend: { labels: { color: '#C7CCDA', font: { size: 11 } } } },
+scales: {
+x: { ticks: { color: '#8B92A6', font: { size: 11 } }, grid: { display: false } },
+y: { ticks: { color: '#8B92A6', font: { size: 11 } }, grid: { color: '#1C2638' }, beginAtZero: true }
+}
+}
+});
+
+const activos = rows.filter(r => r.admin_email && r.ultimo_login && (Date.now() - new Date(r.ultimo_login).getTime()) < 7 * 24 * 3600 * 1000).length;
+const inactivos = rows.length - activos;
+
+if (doughnutInstance) doughnutInstance.destroy();
+const ctx2 = document.getElementById('doughnutChart').getContext('2d');
+doughnutInstance = new Chart(ctx2, {
+type: 'doughnut',
+data: {
+labels: ['Activos', 'Inactivos'],
+datasets: [{ data: [activos, inactivos], backgroundColor: ['#34D9B5', '#3A4560'], borderWidth: 0 }]
+},
+options: {
+responsive: true, maintainAspectRatio: false,
+cutout: '68%',
+plugins: { legend: { position: 'bottom', labels: { color: '#C7CCDA', font: { size: 11 }, padding: 12 } } }
+}
+});
+}
+
 function render(rows) {
 const registrados = rows.length;
 const activos = rows.filter(r => r.admin_email && r.ultimo_login && (Date.now() - new Date(r.ultimo_login).getTime()) < 7 * 24 * 3600 * 1000).length;
 const totalVentas = rows.reduce((acc, r) => acc + (r.ventas || 0), 0);
+const totalTokens = rows.reduce((acc, r) => acc + (r.tokens_total || 0), 0);
 
 summary.innerHTML = `
 <div class="summary">
-<div class="stat"><p class="stat-label">Negocios registrados</p><p class="stat-value">${registrados}</p></div>
-<div class="stat"><p class="stat-label">Activos (últimos 7 días)</p><p class="stat-value">${activos}</p></div>
-<div class="stat"><p class="stat-label">Ventas registradas</p><p class="stat-value">${totalVentas}</p></div>
+<div class="stat s-gold"><div class="stat-icon">🏪</div><p class="stat-label">Negocios registrados</p><p class="stat-value">${registrados}</p></div>
+<div class="stat s-teal"><div class="stat-icon">✓</div><p class="stat-label">Activos (7 días)</p><p class="stat-value">${activos}</p></div>
+<div class="stat s-blue"><div class="stat-icon">📈</div><p class="stat-label">Ventas registradas</p><p class="stat-value">${totalVentas}</p></div>
+<div class="stat s-coral"><div class="stat-icon">⚡</div><p class="stat-label">Tokens IA (total)</p><p class="stat-value">${formatTokens(totalTokens)}</p></div>
 </div>`;
+
+renderDashboard(rows);
 
 if (!rows || rows.length === 0) {
 content.innerHTML = '<div class="empty">Todavía no hay negocios registrados.</div>';
@@ -229,8 +371,13 @@ const resetBtn = r.admin_email
 return `
 <tr>
 <td>
+<div class="negocio-cell">
+<div class="avatar">${iniciales(r.negocio || r.slug)}</div>
+<div>
 <div class="negocio">${escapeHtml(r.negocio || r.slug)}</div>
 <div class="muted">${escapeHtml(r.admin_email || 'sin registrar')}</div>
+</div>
+</div>
 </td>
 <td>${badge}</td>
 <td>${r.ultimo_login ? timeAgo(r.ultimo_login) : '<span class="muted">nunca</span>'}</td>
@@ -371,3 +518,4 @@ load();
 
 </body>
 </html>
+                                   
