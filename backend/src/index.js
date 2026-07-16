@@ -24,6 +24,7 @@ import sugerenciasProduccionRoutes from './routes/sugerencias-produccion.js'
 import adminRoutes      from './routes/admin.js'
 import actividadRoutes  from './routes/actividad.js'
 import pasivosLaboralesRoutes from './routes/pasivosLaborales.js'
+import adminPinRoutes   from './routes/adminPin.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 import { query } from './db/client.js'
 
@@ -87,6 +88,17 @@ query(`
   console.log('   Esquema:     Perfil laboral y pagos_variables (pasivos laborales) verificados')
 }).catch(err => {
   console.warn('   Esquema:     (Aviso) No se pudieron verificar tablas de pasivos laborales:', err.message)
+})
+
+// PIN de administrador por tenant (reemplaza la variable de entorno global
+// ADMIN_PIN — ver middleware/adminPinMiddleware.js y routes/adminPin.js).
+// No bloqueante — igual que los patches anteriores.
+query(`
+  ALTER TABLE tenants ADD COLUMN IF NOT EXISTS admin_pin_hash TEXT;
+`).then(() => {
+  console.log('   Esquema:     Columna admin_pin_hash en tenants verificada')
+}).catch(err => {
+  console.warn('   Esquema:     (Aviso) No se pudo verificar admin_pin_hash:', err.message)
 })
 
 const app = express()
@@ -159,6 +171,7 @@ app.use('/api/sucursales', sucursalesRoutes)
 app.use('/api/sugerencias-produccion', sugerenciasProduccionRoutes)
 app.use('/api/actividad', actividadRoutes)
 app.use('/api/pasivos-laborales', pasivosLaboralesRoutes)
+app.use('/api/admin-pin', adminPinRoutes)
 
 // Health check
 app.get('/api/health', (_, res) => res.json({
@@ -175,7 +188,7 @@ app.get('/api/health', (_, res) => res.json({
     activo:   !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID,
     phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
   },
-  admin_pin_configurado: !!process.env.ADMIN_PIN,
+  admin_pin: 'por tenant (ver /api/admin-pin/estado con sesión de admin)',
   jwt_configurado:       !!process.env.JWT_SECRET,
   timestamp: new Date().toISOString(),
 }))
