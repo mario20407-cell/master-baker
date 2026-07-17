@@ -2,7 +2,8 @@ import { Router } from 'express'
 import OpenAI from 'openai'
 import crypto from 'crypto'
 import { verificarYRegistrarUso } from '../middleware/planMiddleware.js'
-import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
+import { requireAuth } from '../middleware/authMiddleware.js'
+import { query } from '../db/client.js'
 
 export const publicRouter = Router()
 export const privateRouter = Router()
@@ -13,9 +14,7 @@ const WA_PHONE_ID = process.env.WHATSAPP_PHONE_ID
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN
 const WA_API      = `https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`
 
-// Historial de conversaciones por número (en memoria, se limpia al reiniciar)
-const conversaciones = new Map()
-const MAX_HISTORIAL = 10
+const MAX_HISTORIAL = 10 // mensajes recientes que se pasan como contexto a la IA
 
 // ── Catálogo completo Marquéz ─────────────────────────────────────────────────
 const CATALOGO = `
@@ -86,11 +85,130 @@ const CATALOGO = `
 - Chocochips - C$40
 `
 
-const SYSTEM_BOT = `Eres el asistente virtual de Marquéz Panadería & Repostería en Nicaragua.
+// ── Herramienta que la IA puede llamar para registrar un pedido confirmado ────
+const HERRAMIENTAS = [{
+  type: 'function',
+  function: {
+    name: 'registrar_pedido',
+    description: 'Registra un pedido YA CONFIRMADO por el cliente (productos, cantidades y precios claros). Úsala también para pedidos agendados para más adelante.',
+    parameters: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          description: 'Productos del pedido',
+          items: {
+            type: 'object',
+            properties: {
+              producto: { type: 'string' },
+              cantidad: { type: 'integer' },
+              precio_unitario: { type: 'number' },
+            },
+            required: ['producto', 'cantidad', 'precio_unitario'],
+          },
+        },
+        total: { type: 'number', description: 'Total del pedido en córdobas' },
+        direccion: { type: 'string', description: 'Dirección de entrega, si el cliente la dio' },
+        tipo_entrega: { type: 'string', enum: ['inmediato', 'agendado'] },
+        fecha_programada: {
+          type: 'string',
+          description: 'Solo si tipo_entrega es "agendado". Fecha y hora en formato ISO 8601 con offset -06:00, ej: 2026-07-18T15:00:00-06:00',
+        },
+      },
+      required: ['items', 'total', 'tipo_entrega'],
+    },
+  },
+}]
+
+// ── CRM: clientes, historial y pedidos persistentes en la base de datos ───────
+// Reemplaza el Map en RAM que se usaba antes (se borraba en cada redeploy).
+
+async function obtenerOCrearCliente(tenantId, telefono) {
+  const { rows } = await query(
+    `INSERT INTO clientes_whatsapp (tenant_id, telefono, ultima_interaccion)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (tenant_id, telefono)
+     DO UPDATE SET ultima_interaccion = NOW()
+     RETURNING *`,
+    [tenantId, telefono]
+  )
+  return rows[0]
+}
+
+async function guardarMensaje(tenantId, clienteId, rol, contenido) {
+  if (!contenido) return
+  await query(
+    `INSERT INTO mensajes_whatsapp (tenant_id, cliente_id, rol, contenido) VALUES ($1, $2, $3, $4)`,
+    [tenantId, clienteId, rol, contenido]
+  )
+}
+
+async function obtenerHistorial(clienteId, limite = MAX_HISTORIAL) {
+  const { rows } = await query(
+    `SELECT rol, contenido FROM mensajes_whatsapp
+     WHERE cliente_id = $1
+     ORDER BY creado_en DESC
+     LIMIT $2`,
+    [clienteId, limite]
+  )
+  return rows.reverse().map(r => ({ role: r.rol, content: r.contenido }))
+}
+
+// Productos que más pidió este cliente históricamente — base de la sugerencia.
+async function obtenerProductosFavoritos(clienteId, limite = 3) {
+  const { rows } = await query(
+    `SELECT item->>'producto' AS producto, COUNT(*) AS veces
+     FROM pedidos_whatsapp, jsonb_array_elements(items) AS item
+     WHERE cliente_id = $1 AND estado != 'cancelado'
+     GROUP BY producto
+     ORDER BY veces DESC
+     LIMIT $2`,
+    [clienteId, limite]
+  )
+  return rows.map(r => r.producto).filter(Boolean)
+}
+
+async function guardarPedido(tenantId, clienteId, datos) {
+  const items = Array.isArray(datos.items) ? datos.items : []
+  const tipoEntrega = datos.tipo_entrega === 'agendado' ? 'agendado' : 'inmediato'
+  const { rows } = await query(
+    `INSERT INTO pedidos_whatsapp (tenant_id, cliente_id, items, total, direccion, tipo_entrega, fecha_programada)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING *`,
+    [
+      tenantId,
+      clienteId,
+      JSON.stringify(items),
+      datos.total ?? null,
+      datos.direccion ?? null,
+      tipoEntrega,
+      tipoEntrega === 'agendado' ? (datos.fecha_programada ?? null) : null,
+    ]
+  )
+  return rows[0]
+}
+
+// ── Prompt del sistema, con contexto real del cliente (fecha, favoritos) ──────
+function construirSystemPrompt({ nombreCliente, favoritos }) {
+  const ahoraNicaragua = new Date().toLocaleString('es-NI', {
+    timeZone: 'America/Managua',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+
+  let contextoCliente = ''
+  if (nombreCliente) contextoCliente += `El cliente se llama ${nombreCliente}. `
+  if (favoritos?.length) {
+    contextoCliente += `Historial: suele pedir ${favoritos.join(', ')}. Si viene al caso podés recordárselo o sugerírselo, sin insistir.`
+  }
+
+  return `Eres el asistente virtual de Marquéz Panadería & Repostería en Nicaragua.
 Eres amable, eficiente y orientado a ventas. Respondes SIEMPRE en español.
 Usas emojis con moderación para hacer la conversación más amena.
 Moneda: Córdobas nicaragüenses (C$).
 
+FECHA Y HORA ACTUAL: ${ahoraNicaragua} (Nicaragua, UTC-6). Usala como referencia para calcular fechas cuando el cliente pida agendar algo ("mañana", "el sábado", etc.).
+${contextoCliente ? `\nDATOS DE ESTE CLIENTE:\n${contextoCliente}\n` : ''}
 CATÁLOGO COMPLETO:
 ${CATALOGO}
 
@@ -101,13 +219,16 @@ REGLAS:
 4. Si preguntan por algo que no está en el menú, di amablemente que no está disponible.
 5. Respuestas cortas y directas — máximo 3-4 líneas por respuesta.
 6. Si el cliente saluda, saluda de vuelta y ofrece el menú.
-7. Al confirmar un pedido, da el total y di que pronto le contactarán para coordinar.
+7. Cuando el cliente CONFIRME un pedido completo (productos, cantidades claras), llamá a la función registrar_pedido con tipo_entrega "inmediato". No la llames si el pedido todavía no está confirmado.
+8. Si el cliente quiere agendar el pedido para otro día u hora ("para mañana", "el sábado a las 3pm"), calculá la fecha exacta a partir de la fecha actual de arriba y llamá a registrar_pedido con tipo_entrega "agendado" y fecha_programada en ISO 8601 con offset -06:00. Si no dio la hora, preguntala antes de registrar.
+9. Al confirmar un pedido, da el total y avisá que le avisarás por este mismo WhatsApp en cuanto esté listo.
 
 COMANDOS ESPECIALES que debes detectar:
 - Si el cliente escribe "menu", "menú" o "ver productos" → muestra el catálogo completo
 - Si escribe "hola", "buenas", "buenos días/tardes/noches" → saluda y pregunta cómo puedes ayudar
 - Si escribe "horario" → responde: "Estamos abiertos de lunes a sábado de 6am a 7pm 🕕"
 - Si escribe "ubicacion" o "dirección" → responde que te ubiques por WhatsApp para coordinar`
+}
 
 // ── Función: enviar mensaje a WhatsApp ────────────────────────────────────────
 async function enviarMensaje(telefono, texto) {
@@ -138,43 +259,69 @@ async function enviarMensaje(telefono, texto) {
   return data
 }
 
-// ── Función: procesar con GPT-4 mini ─────────────────────────────────────────
-async function procesarConIA(telefono, mensajeUsuario) {
+// ── Función: procesar con GPT-4 mini (con memoria y CRM persistentes) ────────
+async function procesarConIA(tenantId, telefono, mensajeUsuario) {
+  const cliente = await obtenerOCrearCliente(tenantId, telefono)
+  await guardarMensaje(tenantId, cliente.id, 'user', mensajeUsuario)
+
   if (!process.env.OPENAI_API_KEY) {
-    return respuestaFallback(mensajeUsuario)
+    const respuesta = respuestaFallback(mensajeUsuario)
+    await guardarMensaje(tenantId, cliente.id, 'assistant', respuesta)
+    return respuesta
   }
 
-  // Recuperar o iniciar historial
-  if (!conversaciones.has(telefono)) {
-    conversaciones.set(telefono, [])
-  }
-  const historial = conversaciones.get(telefono)
+  const [historial, favoritos] = await Promise.all([
+    obtenerHistorial(cliente.id),
+    obtenerProductosFavoritos(cliente.id),
+  ])
 
-  // Agregar mensaje del usuario
-  historial.push({ role: 'user', content: mensajeUsuario })
-
-  // Limitar historial
-  if (historial.length > MAX_HISTORIAL) {
-    historial.splice(0, historial.length - MAX_HISTORIAL)
-  }
-
+  const systemPrompt = construirSystemPrompt({ nombreCliente: cliente.nombre, favoritos })
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
   const res = await client.chat.completions.create({
     model: 'gpt-4o-mini',
-    messages: [
-      { role: 'system', content: SYSTEM_BOT },
-      ...historial,
-    ],
+    messages: [{ role: 'system', content: systemPrompt }, ...historial],
+    tools: HERRAMIENTAS,
+    tool_choice: 'auto',
     max_tokens: 300,
     temperature: 0.7,
   })
 
-  const respuesta = res.choices[0].message.content
+  const mensaje = res.choices[0].message
 
-  // Guardar respuesta en historial
-  historial.push({ role: 'assistant', content: respuesta })
-  conversaciones.set(telefono, historial)
+  // Si la IA decidió registrar un pedido, lo guardamos en el CRM y le
+  // pedimos que redacte la confirmación final para el cliente.
+  if (mensaje.tool_calls?.length) {
+    const llamada = mensaje.tool_calls[0]
+    let datos = {}
+    try { datos = JSON.parse(llamada.function.arguments) } catch { datos = {} }
 
+    const pedido = await guardarPedido(tenantId, cliente.id, datos)
+
+    const seguimiento = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...historial,
+        mensaje,
+        {
+          role: 'tool',
+          tool_call_id: llamada.id,
+          content: JSON.stringify({ ok: true, pedido_id: pedido.id }),
+        },
+      ],
+      max_tokens: 200,
+      temperature: 0.7,
+    })
+
+    const respuestaFinal = seguimiento.choices[0].message.content
+      || 'Perfecto, tu pedido quedó registrado 🎉 Te aviso por acá en cuanto esté listo.'
+    await guardarMensaje(tenantId, cliente.id, 'assistant', respuestaFinal)
+    return respuestaFinal
+  }
+
+  const respuesta = mensaje.content || respuestaFallback(mensajeUsuario)
+  await guardarMensaje(tenantId, cliente.id, 'assistant', respuesta)
   return respuesta
 }
 
@@ -273,8 +420,8 @@ publicRouter.post('/webhook', async (req, res) => {
 
           console.log(`[WhatsApp] Mensaje de ${telefono}: "${texto}"`)
 
-          // Procesar con IA
-          const respuesta = await procesarConIA(telefono, texto)
+          // Procesar con IA (guarda memoria y detecta pedidos en el CRM)
+          const respuesta = await procesarConIA(req.tenantId, telefono, texto)
 
           // Enviar respuesta
           await enviarMensaje(telefono, respuesta)
@@ -299,37 +446,136 @@ privateRouter.post('/enviar', requireAuth, async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-// ── Endpoint: listar conversaciones activas ───────────────────────────────────
-privateRouter.get('/conversaciones', requireAuth, (req, res) => {
-  const lista = Array.from(conversaciones.entries()).map(([telefono, historial]) => ({
-    telefono,
-    mensajes: historial.length,
-    ultimo_mensaje: historial[historial.length - 1] || null,
-  }))
-  res.json({ conversaciones: lista })
+// ── Endpoint: marcar un pedido como "listo" y avisarle al cliente ────────────
+privateRouter.put('/pedidos/:id/listo', requireAuth, async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT p.*, c.telefono, c.nombre
+       FROM pedidos_whatsapp p
+       JOIN clientes_whatsapp c ON c.id = p.cliente_id
+       WHERE p.id = $1 AND p.tenant_id = $2`,
+      [req.params.id, req.tenantId]
+    )
+    const pedido = rows[0]
+    if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' })
+
+    await query(
+      `UPDATE pedidos_whatsapp SET estado = 'listo', notificado_listo = true WHERE id = $1`,
+      [pedido.id]
+    )
+
+    const nombre = pedido.nombre ? pedido.nombre.split(' ')[0] : ''
+    const saludo = nombre ? `¡Hola ${nombre}!` : '¡Hola!'
+    const mensajeAviso = `${saludo} 🎉 Tu pedido en Marquéz Panadería ya está listo. ¡Te esperamos!`
+
+    let avisado = true
+    try {
+      await enviarMensaje(pedido.telefono, mensajeAviso)
+    } catch (e) {
+      avisado = false
+      console.error('[WhatsApp] No se pudo notificar al cliente:', e.message)
+    }
+
+    res.json({ ok: true, avisado })
+  } catch (e) { next(e) }
 })
 
-// ── Endpoint: ver historial de conversación ───────────────────────────────────
-privateRouter.get('/conversacion/:telefono', requireAuth, (req, res) => {
-  const historial = conversaciones.get(req.params.telefono) || []
-  res.json({ telefono: req.params.telefono, mensajes: historial.length, historial })
+// ── Endpoint: cambiar el estado de un pedido (confirmado, en_preparacion, etc.) ─
+privateRouter.put('/pedidos/:id/estado', requireAuth, async (req, res, next) => {
+  const ESTADOS_VALIDOS = ['pendiente', 'confirmado', 'en_preparacion', 'listo', 'entregado', 'cancelado']
+  const { estado } = req.body || {}
+  if (!ESTADOS_VALIDOS.includes(estado)) {
+    return res.status(400).json({ error: 'Estado inválido' })
+  }
+  try {
+    const { rows } = await query(
+      `UPDATE pedidos_whatsapp SET estado = $1 WHERE id = $2 AND tenant_id = $3 RETURNING id`,
+      [estado, req.params.id, req.tenantId]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Pedido no encontrado' })
+    res.json({ ok: true })
+  } catch (e) { next(e) }
 })
 
-// ── Endpoint: limpiar historial ───────────────────────────────────────────────
-privateRouter.delete('/conversacion/:telefono', requireAuth, requireRol('admin'), (req, res) => {
-  conversaciones.delete(req.params.telefono)
-  res.json({ ok: true, mensaje: 'Historial limpiado' })
+// ── Endpoint: listar pedidos (para el panel — pendientes y agendados primero) ─
+privateRouter.get('/pedidos', requireAuth, async (req, res, next) => {
+  try {
+    const { estado, tipo_entrega } = req.query
+    const condiciones = ['p.tenant_id = $1']
+    const params = [req.tenantId]
+
+    if (estado) {
+      params.push(estado)
+      condiciones.push(`p.estado = $${params.length}`)
+    }
+    if (tipo_entrega) {
+      params.push(tipo_entrega)
+      condiciones.push(`p.tipo_entrega = $${params.length}`)
+    }
+
+    const { rows } = await query(
+      `SELECT p.*, c.telefono, c.nombre
+       FROM pedidos_whatsapp p
+       JOIN clientes_whatsapp c ON c.id = p.cliente_id
+       WHERE ${condiciones.join(' AND ')}
+       ORDER BY COALESCE(p.fecha_programada, p.creado_en) ASC`,
+      params
+    )
+    res.json({ pedidos: rows })
+  } catch (e) { next(e) }
+})
+
+// ── Endpoint: listar clientes del bot con su historial de consumo (CRM) ───────
+privateRouter.get('/clientes', requireAuth, async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT c.*,
+              COUNT(p.id) FILTER (WHERE p.estado != 'cancelado') AS total_pedidos,
+              COALESCE(SUM(p.total) FILTER (WHERE p.estado != 'cancelado'), 0) AS total_gastado
+       FROM clientes_whatsapp c
+       LEFT JOIN pedidos_whatsapp p ON p.cliente_id = c.id
+       WHERE c.tenant_id = $1
+       GROUP BY c.id
+       ORDER BY c.ultima_interaccion DESC`,
+      [req.tenantId]
+    )
+    res.json({ clientes: rows })
+  } catch (e) { next(e) }
+})
+
+// ── Endpoint: ver historial de conversación de un cliente ────────────────────
+privateRouter.get('/clientes/:telefono/mensajes', requireAuth, async (req, res, next) => {
+  try {
+    const { rows: clienteRows } = await query(
+      `SELECT id FROM clientes_whatsapp WHERE tenant_id = $1 AND telefono = $2`,
+      [req.tenantId, req.params.telefono]
+    )
+    if (!clienteRows[0]) return res.json({ telefono: req.params.telefono, mensajes: [] })
+
+    const { rows } = await query(
+      `SELECT rol, contenido, creado_en FROM mensajes_whatsapp
+       WHERE cliente_id = $1 ORDER BY creado_en ASC`,
+      [clienteRows[0].id]
+    )
+    res.json({ telefono: req.params.telefono, mensajes: rows })
+  } catch (e) { next(e) }
 })
 
 // ── Endpoint: status del bot ──────────────────────────────────────────────────
-privateRouter.get('/status', requireAuth, (req, res) => {
-  res.json({
-    activo:           !!WA_TOKEN && !!WA_PHONE_ID,
-    phone_id:         WA_PHONE_ID || 'No configurado',
-    ia_activa:        !!process.env.OPENAI_API_KEY,
-    modelo:           'gpt-4o-mini',
-    conversaciones:   conversaciones.size,
-  })
+privateRouter.get('/status', requireAuth, async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT COUNT(*)::int AS clientes FROM clientes_whatsapp WHERE tenant_id = $1`,
+      [req.tenantId]
+    )
+    res.json({
+      activo:           !!WA_TOKEN && !!WA_PHONE_ID,
+      phone_id:         WA_PHONE_ID || 'No configurado',
+      ia_activa:        !!process.env.OPENAI_API_KEY,
+      modelo:           'gpt-4o-mini',
+      clientes:         rows[0]?.clientes || 0,
+    })
+  } catch (e) { next(e) }
 })
 
 const mainRouter = Router()
