@@ -21,6 +21,7 @@ import InventarioTerminado from './pages/InventarioTerminado'
 import Reportes from './pages/Reportes'
 import Equipo from './pages/Equipo'
 import MiCuenta from './pages/MiCuenta'
+import WhatsAppCRM from './pages/WhatsAppCRM'
 
 // Ruta protegida: redirige a /login si no hay sesión activa
 function RutaProtegida({ children }) {
@@ -87,6 +88,7 @@ export default function App() {
         <Route path="fiscal"       element={<RutaPorPermiso role="admin"><ConfigFiscal /></RutaPorPermiso>} />
         <Route path="ayuda"        element={<Ayuda />} />
         <Route path="equipo"       element={<RutaPorPermiso role="admin"><Equipo /></RutaPorPermiso>} />
+        <Route path="whatsapp-crm" element={<RutaPorPermiso role="admin"><WhatsAppCRM /></RutaPorPermiso>} />
         <Route path="mi-cuenta"    element={<MiCuenta />} />
       </Route>
     </Routes>

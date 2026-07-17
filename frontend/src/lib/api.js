@@ -132,6 +132,10 @@ export const getBitacora = (limite) => api.get('/auth/bitacora', { params: { lim
 export const cambiarMiPassword = (passwordActual, passwordNueva) =>
   api.put('/auth/password', { passwordActual, passwordNueva })
 
+// ── PIN de Administrador (por negocio, confirma cambios de precio) ─────────────
+export const getAdminPinEstado = () => api.get('/admin-pin/estado')
+export const setAdminPin = (pin_actual, pin_nuevo) => api.put('/admin-pin', { pin_actual, pin_nuevo })
+
 // ── Pasivos Laborales (INSS, aguinaldo, vacaciones, indemnización) ─────────────
 export const getPerfilesLaborales = () => api.get('/pasivos-laborales/perfil')
 export const updatePerfilLaboral = (usuarioId, data) => api.put(`/pasivos-laborales/perfil/${usuarioId}`, data)
@@ -144,6 +148,9 @@ export const getDossierPasivosLaborales = () => api.get('/pasivos-laborales/doss
 export const getSucursales = () => api.get('/sucursales')
 export const getInventarioTerminado = (params) => api.get('/inventario-terminado', { params })
 
-// ── PIN de Administrador (por negocio, confirma cambios de precio) ─────────────
-export const getAdminPinEstado = () => api.get('/admin-pin/estado')
-export const setAdminPin = (pin_actual, pin_nuevo) => api.put('/admin-pin', { pin_actual, pin_nuevo })
+// ── CRM del bot de WhatsApp (clientes, pedidos, sugerencias, agendados) ────────
+export const getPedidosWhatsapp = (params) => api.get('/whatsapp/pedidos', { params })
+export const marcarPedidoWhatsappListo = (id) => api.put(`/whatsapp/pedidos/${id}/listo`)
+export const cambiarEstadoPedidoWhatsapp = (id, estado) => api.put(`/whatsapp/pedidos/${id}/estado`, { estado })
+export const getClientesWhatsapp = () => api.get('/whatsapp/clientes')
+export const getMensajesClienteWhatsapp = (telefono) => api.get(`/whatsapp/clientes/${encodeURIComponent(telefono)}/mensajes`)
