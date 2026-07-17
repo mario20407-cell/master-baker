@@ -5,7 +5,8 @@ import axios from 'axios'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle,
-  Sun, Moon, ChevronDown, TrendingUp, Users, Layers, Store, FileText, LogOut, KeyRound
+  Sun, Moon, ChevronDown, TrendingUp, Users, Layers, Store, FileText, LogOut, KeyRound,
+  MessageCircle
 } from 'lucide-react'
 
 const NAV_GROUPS = [
@@ -15,6 +16,7 @@ const NAV_GROUPS = [
       { to: '/ventas',     icon: ShoppingCart,     label: 'Ventas',      badge: 'NEW', permission: 'registrar_ventas' },
       { to: '/inventario', icon: Package,          label: 'Inventario', permission: 'ver_inventario' },
       { to: '/compras',    icon: Receipt,          label: 'Compras', permission: 'ver_compras' },
+      { to: '/whatsapp-crm', icon: MessageCircle,  label: 'WhatsApp', badge: 'NEW', role: 'admin' },
     ]
   },
   {
