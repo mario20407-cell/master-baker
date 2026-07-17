@@ -101,6 +101,54 @@ query(`
   console.warn('   Esquema:     (Aviso) No se pudo verificar admin_pin_hash:', err.message)
 })
 
+// CRM del bot de WhatsApp: clientes, historial de mensajes persistente
+// (reemplaza el Map en RAM, que se borraba en cada redeploy) y pedidos
+// estructurados (con soporte para agendar y para avisar cuando estén listos).
+// No bloqueante — igual que los patches anteriores.
+query(`
+  CREATE TABLE IF NOT EXISTS clientes_whatsapp (
+    id SERIAL PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    telefono VARCHAR(30) NOT NULL,
+    nombre TEXT,
+    notas TEXT,
+    primera_interaccion TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ultima_interaccion TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(tenant_id, telefono)
+  );
+
+  CREATE TABLE IF NOT EXISTS mensajes_whatsapp (
+    id SERIAL PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    cliente_id INT NOT NULL REFERENCES clientes_whatsapp(id) ON DELETE CASCADE,
+    rol VARCHAR(10) NOT NULL,
+    contenido TEXT NOT NULL,
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_mensajes_whatsapp_cliente ON mensajes_whatsapp(cliente_id, creado_en);
+
+  CREATE TABLE IF NOT EXISTS pedidos_whatsapp (
+    id SERIAL PRIMARY KEY,
+    tenant_id UUID NOT NULL,
+    cliente_id INT NOT NULL REFERENCES clientes_whatsapp(id) ON DELETE CASCADE,
+    items JSONB NOT NULL DEFAULT '[]',
+    total NUMERIC,
+    direccion TEXT,
+    estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+    tipo_entrega VARCHAR(20) NOT NULL DEFAULT 'inmediato',
+    fecha_programada TIMESTAMPTZ,
+    notificado_listo BOOLEAN NOT NULL DEFAULT false,
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_pedidos_whatsapp_cliente ON pedidos_whatsapp(cliente_id, creado_en);
+  CREATE INDEX IF NOT EXISTS idx_pedidos_whatsapp_tenant_estado ON pedidos_whatsapp(tenant_id, estado);
+  CREATE INDEX IF NOT EXISTS idx_pedidos_whatsapp_programada ON pedidos_whatsapp(fecha_programada) WHERE tipo_entrega = 'agendado';
+`).then(() => {
+  console.log('   Esquema:     CRM WhatsApp (clientes_whatsapp, mensajes_whatsapp, pedidos_whatsapp) verificado')
+}).catch(err => {
+  console.warn('   Esquema:     (Aviso) No se pudo verificar CRM WhatsApp:', err.message)
+})
+
 const app = express()
 const PORT = process.env.PORT || 3001
 
