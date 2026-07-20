@@ -1,15 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import axios from 'axios'
+import api from '../lib/api'
 import toast from 'react-hot-toast'
 import { Eye, EyeOff, ShieldCheck, Landmark, User, Mail, Lock } from 'lucide-react'
-
-// Mismo patrón que AuthContext.jsx: en producción VITE_API_URL apunta directo
-// al backend de Railway. La ruta relativa '/api/...' no sirve aquí porque
-// Vercel no tiene un rewrite configurado para /api/* (solo el catch-all a
-// index.html), así que un POST a esa ruta relativa devuelve 405 de Vercel.
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
 export default function Registro() {
   const { login } = useAuth()
@@ -36,7 +30,7 @@ export default function Registro() {
 
     setCargando(true)
     try {
-      const response = await axios.post(API + '/auth/registrar-negocio', {
+      const response = await api.post('/auth/registrar-negocio', {
         nombreNegocio,
         nombreAdmin,
         email,

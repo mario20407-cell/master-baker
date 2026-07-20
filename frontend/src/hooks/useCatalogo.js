@@ -1,31 +1,25 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
-
-const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api'
+import { getCatalogo } from '../lib/api'
 
 export function useCatalogo() {
   const { usuario } = useAuth()
-  const token = localStorage.getItem('marquez_token')
   const [productos, setProductos] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
 
   const cargar = useCallback(async () => {
-    if (!token) return
     setCargando(true)
     setError(null)
     try {
-      const res = await fetch(`${API}/catalogo`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      if (!res.ok) throw new Error(`Error ${res.status}`)
-      setProductos(await res.json())
+      const { data } = await getCatalogo()
+      setProductos(data)
     } catch (e) {
       setError(e.message)
     } finally {
       setCargando(false)
     }
-  }, [token])
+  }, [])
 
   useEffect(() => { cargar() }, [cargar])
 
