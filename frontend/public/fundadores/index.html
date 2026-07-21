@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fundadores — Master Baker</title>
+<meta name="description" content="Estado de socios fundadores de Master Baker">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<meta name="theme-color" content="#0b1220">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: #0b1220;
+    color: #e8e6df;
+    padding: 20px;
+    padding-bottom: 60px;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+  .subtitle { font-size: 13px; color: #9a9890; margin: 0 0 4px; }
+  .updated { font-size: 12px; color: #6e6c66; margin: 0 0 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .btn-primary { background: #C29C53; color: #1a1408; }
+  .btn-secondary { background: #1c2536; color: #e8e6df; border: 1px solid #2c3648; }
+  .btn-danger { background: #3a1f1f; color: #f2b8b8; border: 1px solid #5a2e2e; }
+  .summary { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat { background: #121a2b; border: 1px solid #1e2740; border-radius: 10px; padding: 14px 16px; flex: 1; min-width: 130px; }
+  .stat-label { font-size: 12px; color: #8b8a83; margin: 0 0 4px; }
+  .stat-value { font-size: 22px; font-weight: 600; margin: 0; }
+  .charts { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .chart-box { background: #121a2b; border: 1px solid #1e2740; border-radius: 10px; padding: 14px 16px; flex: 1; min-width: 260px; height: 220px; }
+  .chart-box h3 { font-size: 12px; font-weight: 500; color: #8b8a83; margin: 0 0 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; background: #121a2b; border: 1px solid #1e2740; border-radius: 10px; overflow: hidden; }
+  th { text-align: left; font-weight: 500; color: #8b8a83; padding: 10px; border-bottom: 1px solid #1e2740; white-space: nowrap; }
+  td { padding: 10px; border-bottom: 0.5px solid #1a2337; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .negocio { font-weight: 500; }
+  .muted { color: #6e6c66; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; white-space: nowrap; }
+  .badge-activo { background: #1c3311; color: #a8d98a; }
+  .badge-inactivo { background: #241f14; color: #b8ac8a; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .empty { padding: 40px 20px; text-align: center; color: #6e6c66; font-size: 14px; background: #121a2b; border-radius: 10px; }
+  .row-actions { display: flex; gap: 6px; }
+  .row-actions button { padding: 4px 10px; font-size: 11px; }
+  .gate { max-width: 360px; margin: 80px auto; text-align: center; }
+  .gate input {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #2c3648;
+    background: #121a2b; color: #e8e6df; font-size: 14px; margin: 12px 0;
+  }
+  .error-msg { color: #f2b8b8; font-size: 13px; margin-top: 10px; }
+  .hidden { display: none !important; }
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex;
+    align-items: center; justify-content: center; z-index: 50;
+  }
+  .modal { background: #121a2b; border: 1px solid #2c3648; border-radius: 12px; padding: 20px; width: 300px; }
+  .modal h3 { margin: 0 0 10px; font-size: 15px; }
+  .modal p { font-size: 13px; color: #9a9890; margin: 4px 0 14px; }
+  .modal input { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #2c3648; background: #0b1220; color: #e8e6df; font-size: 13px; margin-bottom: 12px; }
+  .modal .actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .result-box { background: #0b1220; border: 1px solid #2c3648; border-radius: 8px; padding: 10px; font-size: 13px; margin-top: 12px; word-break: break-all; }
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate">
+  <h1>Panel de Fundadores</h1>
+  <p class="subtitle">Ingresá el token de administrador para ver el estado de los negocios.</p>
+  <input type="password" id="tokenInput" placeholder="Token de admin" autocomplete="off">
+  <button class="btn-primary" id="tokenSubmit" style="width:100%;">Entrar</button>
+  <p class="error-msg hidden" id="gateError"></p>
+</div>
+
+<div id="app" class="hidden">
+  <h1>Estado de socios fundadores</h1>
+  <p class="subtitle">Registro, actividad y avance de cada panadería sobre Master Baker.</p>
+  <p class="updated">
+    <span id="updatedAt"></span>
+    <button class="btn-secondary" id="refreshBtn">Actualizar</button>
+    <button class="btn-secondary" id="logoutBtn">Cambiar token</button>
+  </p>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="charts">
+    <div class="chart-box"><h3>Tokens de IA — últimos 7 días por negocio</h3><canvas id="chartTokens"></canvas></div>
+    <div class="chart-box"><h3>Minutos en pantalla — últimos 7 días por negocio</h3><canvas id="chartTiempo"></canvas></div>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<div id="resetModal" class="modal-backdrop hidden">
+  <div class="modal">
+    <h3>Resetear contraseña</h3>
+    <p id="resetTarget"></p>
+    <input type="text" id="resetPassInput" readonly>
+    <div class="actions">
+      <button class="btn-secondary" id="resetCancel">Cerrar</button>
+      <button class="btn-danger" id="resetConfirm">Generar contraseña nueva</button>
+    </div>
+    <div id="resetResult"></div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'https://master-baker-production.up.railway.app/api/admin';
+  const TOKEN_KEY = 'mb_fundadores_admin_token';
+
+  let DATA = [];
+  let chartTokens, chartTiempo;
+
+  const $ = (id) => document.getElementById(id);
+
+  function getToken() { return localStorage.getItem(TOKEN_KEY); }
+  function setToken(t) { localStorage.setItem(TOKEN_KEY, t); }
+  function clearToken() { localStorage.removeItem(TOKEN_KEY); }
+
+  async function apiFetch(path, opts = {}) {
+    const res = await fetch(API_BASE + path, {
+      ...opts,
+      headers: { 'x-admin-token': getToken(), 'Content-Type': 'application/json', ...(opts.headers || {}) }
+    });
+    if (res.status === 401) { clearToken(); showGate('Token inválido.'); throw new Error('401'); }
+    if (!res.ok) throw new Error('Error ' + res.status);
+    return res.json();
+  }
+
+  function showGate(err) {
+    $('app').classList.add('hidden');
+    $('gate').classList.remove('hidden');
+    if (err) { $('gateError').textContent = err; $('gateError').classList.remove('hidden'); }
+    else { $('gateError').classList.add('hidden'); }
+  }
+
+  function showApp() {
+    $('gate').classList.add('hidden');
+    $('app').classList.remove('hidden');
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return null;
+    const d = new Date(iso);
+    const diffMs = Date.now() - d.getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'recién';
+    if (mins < 60) return `hace ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `hace ${hours} h`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `hace ${days} d`;
+    const months = Math.floor(days / 30);
+    return `hace ${months} mes${months > 1 ? 'es' : ''}`;
+  }
+
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s == null ? '' : s;
+    return div.innerHTML;
+  }
+
+  function renderCharts(rows) {
+    const labels = rows.map(r => r.negocio || r.slug);
+    const tokens7d = rows.map(r => r.tokens_7d || 0);
+    const tiempo7d = rows.map(r => r.tiempo_pantalla_min_7d || 0);
+
+    if (chartTokens) chartTokens.destroy();
+    if (chartTiempo) chartTiempo.destroy();
+
+    chartTokens = new Chart($('chartTokens'), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: tokens7d, backgroundColor: '#C29C53', borderRadius: 4 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { ticks: { color: '#9a9890', font: { size: 10 } }, grid: { display: false } },
+                  y: { ticks: { color: '#9a9890' }, grid: { color: '#1e2740' } } }
+      }
+    });
+
+    chartTiempo = new Chart($('chartTiempo'), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: tiempo7d, backgroundColor: '#5b8ec2', borderRadius: 4 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { ticks: { color: '#9a9890', font: { size: 10 } }, grid: { display: false } },
+                  y: { ticks: { color: '#9a9890' }, grid: { color: '#1e2740' } } }
+      }
+    });
+  }
+
+  function render() {
+    $('updatedAt').textContent = 'Datos al ' + new Date().toLocaleString('es', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' });
+
+    const rows = DATA;
+    const registrados = rows.length;
+    const activos = rows.filter(r => r.admin_email && r.ultimo_login && (Date.now() - new Date(r.ultimo_login).getTime()) < 7 * 24 * 3600 * 1000).length;
+    const totalVentas = rows.reduce((acc, r) => acc + (r.ventas || 0), 0);
+    const tokensTotal = rows.reduce((acc, r) => acc + (r.tokens_total || 0), 0);
+
+    $('summary').innerHTML = `
+      <div class="stat"><p class="stat-label">Negocios registrados</p><p class="stat-value">${registrados}</p></div>
+      <div class="stat"><p class="stat-label">Activos (login últimos 7 días)</p><p class="stat-value">${activos}</p></div>
+      <div class="stat"><p class="stat-label">Ventas registradas (total)</p><p class="stat-value">${totalVentas}</p></div>
+      <div class="stat"><p class="stat-label">Tokens IA (total)</p><p class="stat-value">${tokensTotal.toLocaleString('es')}</p></div>
+    `;
+
+    const content = $('content');
+    if (rows.length === 0) {
+      content.innerHTML = '<div class="empty">Todavía no hay negocios registrados.</div>';
+      return;
+    }
+
+    renderCharts(rows);
+
+    const sorted = [...rows].sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en));
+
+    const body = sorted.map(r => {
+      const activo = r.admin_email && r.ultimo_login && (Date.now() - new Date(r.ultimo_login).getTime()) < 7 * 24 * 3600 * 1000;
+      const badge = r.admin_email
+        ? `<span class="badge ${activo ? 'badge-activo' : 'badge-inactivo'}">${activo ? 'Activo' : 'Inactivo'}</span>`
+        : '<span class="badge badge-inactivo">Sin admin</span>';
+      return `
+        <tr>
+          <td>
+            <div class="negocio">${escapeHtml(r.negocio || r.slug)}</div>
+            <div class="muted">${escapeHtml(r.admin_email || 'sin registrar')}</div>
+          </td>
+          <td>${badge}</td>
+          <td>${r.ultimo_login ? timeAgo(r.ultimo_login) : '<span class="muted">nunca</span>'}</td>
+          <td class="num">${r.productos_reales}</td>
+          <td class="num">${r.ventas}</td>
+          <td class="num">${r.items_inventario}</td>
+          <td class="num">${(r.tokens_7d || 0).toLocaleString('es')}</td>
+          <td class="num">${r.tiempo_pantalla_min_7d || 0} min</td>
+          <td class="muted">${timeAgo(r.creado_en)}</td>
+          <td class="row-actions">
+            <button class="btn-danger" data-slug="${escapeHtml(r.slug)}" data-negocio="${escapeHtml(r.negocio || r.slug)}" data-email="${escapeHtml(r.admin_email || '')}">Resetear</button>
+          </td>
+        </tr>`;
+    }).join('');
+
+    content.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Negocio</th>
+            <th>Estado</th>
+            <th>Último login</th>
+            <th class="num">Productos</th>
+            <th class="num">Ventas</th>
+            <th class="num">Inventario</th>
+            <th class="num">Tokens 7d</th>
+            <th class="num">Pantalla 7d</th>
+            <th>Registrado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>`;
+
+    content.querySelectorAll('button[data-slug]').forEach(btn => {
+      btn.addEventListener('click', () => openResetModal(btn.dataset.slug, btn.dataset.negocio, btn.dataset.email));
+    });
+  }
+
+  async function loadData() {
+    DATA = await apiFetch('/estado-fundadores');
+    render();
+  }
+
+  let resetTargetSlug = null;
+  function openResetModal(slug, negocio, email) {
+    resetTargetSlug = slug;
+    $('resetTarget').textContent = `${negocio}${email ? ' — ' + email : ''}`;
+    $('resetPassInput').value = '';
+    $('resetResult').innerHTML = '';
+    $('resetModal').classList.remove('hidden');
+  }
+
+  $('resetCancel').addEventListener('click', () => $('resetModal').classList.add('hidden'));
+
+  $('resetConfirm').addEventListener('click', async () => {
+    $('resetConfirm').disabled = true;
+    try {
+      const r = await apiFetch('/reset-password', { method: 'POST', body: JSON.stringify({ slug: resetTargetSlug }) });
+      $('resetResult').innerHTML = `<div class="result-box">Contraseña nueva para <b>${escapeHtml(r.email)}</b>:<br><b>${escapeHtml(r.nueva_password)}</b><br><span class="muted">Copiala ahora — no se vuelve a mostrar.</span></div>`;
+    } catch (e) {
+      $('resetResult').innerHTML = `<div class="result-box error-msg">No se pudo resetear: ${escapeHtml(e.message)}</div>`;
+    } finally {
+      $('resetConfirm').disabled = false;
+    }
+  });
+
+  $('refreshBtn').addEventListener('click', () => loadData().catch(e => console.error(e)));
+  $('logoutBtn').addEventListener('click', () => { clearToken(); showGate(); });
+
+  $('tokenSubmit').addEventListener('click', async () => {
+    const t = $('tokenInput').value.trim();
+    if (!t) return;
+    setToken(t);
+    try {
+      await loadData();
+      showApp();
+    } catch (e) {
+      showGate('No se pudo validar el token.');
+    }
+  });
+  $('tokenInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('tokenSubmit').click(); });
+
+  (async function init() {
+    if (getToken()) {
+      try { await loadData(); showApp(); }
+      catch (e) { showGate(); }
+    } else {
+      showGate();
+    }
+  })();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+</script>
+
+</body>
+</html>
