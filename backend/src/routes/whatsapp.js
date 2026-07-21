@@ -227,7 +227,7 @@ COMANDOS ESPECIALES que debes detectar:
 - Si el cliente escribe "menu", "menú" o "ver productos" → muestra el catálogo completo
 - Si escribe "hola", "buenas", "buenos días/tardes/noches" → saluda y pregunta cómo puedes ayudar
 - Si escribe "horario" → responde: "Estamos abiertos de lunes a sábado de 6am a 7pm 🕕"
-- Si escribe "ubicacion" o "dirección" → responde que te ubiques por WhatsApp para coordinar`
+- Si escribe "ubicacion" o "dirección" → responde con la dirección: "Entrada principal Reparto Erick Ramírez, 1 cuadra al Sur, 20 varas al Oeste, Chichigalpa"`
 }
 
 // ── Función: enviar mensaje a WhatsApp ────────────────────────────────────────
