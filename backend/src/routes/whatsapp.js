@@ -165,8 +165,36 @@ async function guardarPedido(tenantId, clienteId, datos) {
   return rows[0]
 }
 
+// ── Horario del negocio: lunes a sábado, 6am-7pm hora Nicaragua, domingo cerrado ──
+const DIAS_ES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+
+function obtenerEstadoNegocio() {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Managua', weekday: 'short', hour: 'numeric', hour12: false,
+  })
+  const parts = formatter.formatToParts(new Date())
+  const weekdayStr = parts.find(p => p.type === 'weekday').value
+  let hora = parseInt(parts.find(p => p.type === 'hour').value, 10)
+  if (hora === 24) hora = 0
+
+  const DIAS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const diaIndex = DIAS_EN.indexOf(weekdayStr)
+  const esDomingo = diaIndex === 0
+  const abierto = !esDomingo && hora >= 6 && hora < 19
+
+  let proximaApertura
+  if (!esDomingo && hora < 6) {
+    proximaApertura = `hoy ${DIAS_ES[diaIndex]} a las 6:00am`
+  } else {
+    const siguienteIndex = diaIndex === 6 ? 1 : diaIndex + 1 // domingo (0) se salta -> lunes (1)
+    proximaApertura = `el ${DIAS_ES[siguienteIndex]} a las 6:00am`
+  }
+
+  return { abierto, proximaApertura }
+}
+
 // ── Prompt del sistema, con contexto real del cliente (fecha, favoritos) ──────
-function construirSystemPrompt({ nombreCliente, favoritos, catalogo }) {
+function construirSystemPrompt({ nombreCliente, favoritos, catalogo, estadoNegocio }) {
   const ahoraNicaragua = new Date().toLocaleString('es-NI', {
     timeZone: 'America/Managua',
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -179,12 +207,17 @@ function construirSystemPrompt({ nombreCliente, favoritos, catalogo }) {
     contextoCliente += `Historial: suele pedir ${favoritos.join(', ')}. Si viene al caso podés recordárselo o sugerírselo, sin insistir.`
   }
 
+  const contextoNegocio = estadoNegocio.abierto
+    ? 'El negocio está ABIERTO en este momento.'
+    : `El negocio está CERRADO en este momento. Volvemos a abrir ${estadoNegocio.proximaApertura}.`
+
   return `Eres el asistente virtual de Marquéz Panadería & Repostería en Nicaragua.
 Eres amable, eficiente y orientado a ventas. Respondes SIEMPRE en español.
 Usas emojis con moderación para hacer la conversación más amena.
 Moneda: Córdobas nicaragüenses (C$).
 
 FECHA Y HORA ACTUAL: ${ahoraNicaragua} (Nicaragua, UTC-6). Usala como referencia para calcular fechas cuando el cliente pida agendar algo ("mañana", "el sábado", etc.).
+HORARIO DEL NEGOCIO: lunes a sábado, 6:00am a 7:00pm. Domingo cerrado. ${contextoNegocio}
 ${contextoCliente ? `\nDATOS DE ESTE CLIENTE:\n${contextoCliente}\n` : ''}
 CATÁLOGO COMPLETO:
 ${catalogo}
@@ -199,6 +232,7 @@ REGLAS:
 7. Cuando el cliente CONFIRME un pedido completo (productos, cantidades claras), llamá a la función registrar_pedido con tipo_entrega "inmediato". No la llames si el pedido todavía no está confirmado.
 8. Si el cliente quiere agendar el pedido para otro día u hora ("para mañana", "el sábado a las 3pm"), calculá la fecha exacta a partir de la fecha actual de arriba y llamá a registrar_pedido con tipo_entrega "agendado" y fecha_programada en ISO 8601 con offset -06:00. Si no dio la hora, preguntala antes de registrar.
 9. Al confirmar un pedido, da el total y avisá que le avisarás por este mismo WhatsApp en cuanto esté listo.
+10. Si el negocio está CERRADO ahora mismo: avisale al cliente de entrada que estamos cerrados y cuándo volvemos a abrir. Seguí siendo útil — podés mostrar el menú si preguntan y tomar el pedido, pero registralo con registrar_pedido usando tipo_entrega "agendado" y fecha_programada para el próximo horario de apertura (o la fecha/hora que el cliente prefiera dentro del horario del negocio). No ofrezcas entrega inmediata mientras el negocio está cerrado.
 
 COMANDOS ESPECIALES que debes detectar:
 - Si el cliente escribe "menu", "menú" o "ver productos" → muestra el catálogo completo
@@ -252,8 +286,9 @@ async function procesarConIA(tenantId, telefono, mensajeUsuario) {
     obtenerProductosFavoritos(cliente.id),
     construirCatalogoDelDia(tenantId),
   ])
+  const estadoNegocio = obtenerEstadoNegocio()
 
-  const systemPrompt = construirSystemPrompt({ nombreCliente: cliente.nombre, favoritos, catalogo })
+  const systemPrompt = construirSystemPrompt({ nombreCliente: cliente.nombre, favoritos, catalogo, estadoNegocio })
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   const res = await client.chat.completions.create({
@@ -306,12 +341,17 @@ async function procesarConIA(tenantId, telefono, mensajeUsuario) {
 // ── Fallback sin IA (respuestas básicas) ──────────────────────────────────────
 async function respuestaFallback(tenantId, mensaje) {
   const msg = mensaje.toLowerCase()
+  const estadoNegocio = obtenerEstadoNegocio()
+  const avisoCerrado = estadoNegocio.abierto
+    ? ''
+    : `🔒 Ahora mismo estamos cerrados. Abrimos de nuevo ${estadoNegocio.proximaApertura}.\n\n`
+
   if (msg.includes('menu') || msg.includes('menú') || msg.includes('productos')) {
     const catalogo = await construirCatalogoDelDia(tenantId)
-    return catalogo + '\n\n¿Qué te gustaría pedir? 😊'
+    return avisoCerrado + catalogo + '\n\n¿Qué te gustaría pedir? 😊'
   }
   if (msg.includes('hola') || msg.includes('buenas') || msg.includes('buenos')) {
-    return '¡Hola! 👋 Bienvenido a *Marquéz Panadería & Repostería*. ¿En qué te puedo ayudar? Escribe *menú* para ver nuestros productos.'
+    return avisoCerrado + '¡Hola! 👋 Bienvenido a *Marquéz Panadería & Repostería*. ¿En qué te puedo ayudar? Escribe *menú* para ver nuestros productos.'
   }
   if (msg.includes('horario')) {
     return '🕕 Estamos abiertos de *lunes a sábado* de 6am a 7pm. ¡Te esperamos!'
