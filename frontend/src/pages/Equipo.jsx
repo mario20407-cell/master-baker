@@ -1,3 +1,4 @@
+import { usePasivosLaborales } from '../hooks/usePasivosLaborales'
 import { useState, useEffect } from 'react'
 import {
   getUsuarios, saveUsuario, updateUsuario, resetUsuarioPassword, deleteUsuario, getBitacora,
@@ -62,15 +63,22 @@ export default function Equipo() {
   const [loadingBitacora, setLoadingBitacora] = useState(false)
   const [collapsedLogs, setCollapsedLogs] = useState({})
 
-  // Pasivos Laborales (INSS, aguinaldo, vacaciones, indemnización)
-  const [dossier, setDossier] = useState(null)
-  const [loadingDossier, setLoadingDossier] = useState(false)
-  const [perfilesSinFecha, setPerfilesSinFecha] = useState([])
+  // Hook de Pasivos Laborales
+  const {
+    dossier,
+    perfilesSinFecha,
+    loading: loadingDossier,
+    pagosVariables,
+    loadingPagos,
+    cargarDossier,
+    guardarPerfil,
+    cargarPagosVariables,
+    guardarPagoVariable
+  } = usePasivosLaborales()
+
   const [editPerfilUser, setEditPerfilUser] = useState(null)
   const [perfilForm, setPerfilForm] = useState({ tipo_pago: 'fijo', salario_mensual: '', fecha_ingreso: '' })
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
-  const [pagosVariables, setPagosVariables] = useState([])
-  const [loadingPagos, setLoadingPagos] = useState(false)
   const [nuevoPago, setNuevoPago] = useState({ mes: new Date().toISOString().slice(0, 7), monto: '' })
   const [guardandoPago, setGuardandoPago] = useState(false)
 
@@ -98,21 +106,7 @@ export default function Equipo() {
     }
   }
 
-  const cargarDossier = async () => {
-    setLoadingDossier(true)
-    try {
-      const [{ data: dossierData }, { data: perfilesData }] = await Promise.all([
-        getDossierPasivosLaborales(),
-        getPerfilesLaborales()
-      ])
-      setDossier(dossierData)
-      setPerfilesSinFecha(perfilesData.filter(p => !p.fecha_ingreso))
-    } catch (e) {
-      toast.error('No se pudo calcular el dossier de pasivos laborales')
-    } finally {
-      setLoadingDossier(false)
-    }
-  }
+
 
   useEffect(() => {
     if (activeTab === 'colaboradores') {
@@ -222,17 +216,10 @@ export default function Equipo() {
       salario_mensual: colaborador.salario_mensual || '',
       fecha_ingreso: colaborador.fecha_ingreso ? String(colaborador.fecha_ingreso).slice(0, 10) : ''
     })
-    setPagosVariables([])
     if ((colaborador.tipo_pago || colaborador.base?.fuente) === 'variable') {
-      setLoadingPagos(true)
       try {
-        const { data } = await getPagosVariables(colaborador.usuario_id || colaborador.id)
-        setPagosVariables(data)
-      } catch (e) {
-        toast.error('No se pudo cargar el historial de pagos')
-      } finally {
-        setLoadingPagos(false)
-      }
+        await cargarPagosVariables(colaborador.usuario_id || colaborador.id)
+      } catch (e) {}
     }
   }
 
@@ -249,18 +236,15 @@ export default function Equipo() {
     setGuardandoPerfil(true)
     try {
       const usuarioId = editPerfilUser.usuario_id || editPerfilUser.id
-      await updatePerfilLaboral(usuarioId, {
+      await guardarPerfil(usuarioId, {
         tipo_pago: perfilForm.tipo_pago,
         salario_mensual: perfilForm.tipo_pago === 'fijo' ? Number(perfilForm.salario_mensual) : null,
         fecha_ingreso: perfilForm.fecha_ingreso
       })
-      toast.success('Perfil laboral actualizado')
       if (perfilForm.tipo_pago !== 'variable') {
         setEditPerfilUser(null)
       }
-      cargarDossier()
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error al guardar el perfil laboral')
     } finally {
       setGuardandoPerfil(false)
     }
@@ -275,14 +259,9 @@ export default function Equipo() {
     setGuardandoPago(true)
     try {
       const usuarioId = editPerfilUser.usuario_id || editPerfilUser.id
-      await savePagoVariable(usuarioId, nuevoPago.mes, Number(nuevoPago.monto))
-      toast.success('Pago mensual registrado')
-      const { data } = await getPagosVariables(usuarioId)
-      setPagosVariables(data)
+      await guardarPagoVariable(usuarioId, nuevoPago.mes, Number(nuevoPago.monto))
       setNuevoPago({ mes: new Date().toISOString().slice(0, 7), monto: '' })
-      cargarDossier()
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Error al registrar el pago')
     } finally {
       setGuardandoPago(false)
     }

@@ -36,7 +36,7 @@ const NAV_GROUPS = [
       { to: '/dashboard',  icon: LayoutDashboard,  label: 'Dashboard' },
       { to: '/catalogo',   icon: BookOpen,         label: 'Catálogo', permission: 'ver_catalogo' },
       { to: '/ia',         icon: Bot,              label: 'Consultar IA' },
-      { to: '/fiscal',     icon: Shield,           label: 'Config. Fiscal', badge: 'DGI', role: 'admin' },
+      { to: '/configuracion', icon: Shield,        label: 'Ajustes / Config', role: 'admin' },
       { to: '/equipo',     icon: Users,            label: 'Mi Equipo', role: 'admin' },
       { to: '/mi-cuenta',  icon: KeyRound,         label: 'Mi Cuenta' },
       { to: '/ayuda',      icon: HelpCircle,       label: 'Ayuda' },
