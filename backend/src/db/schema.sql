@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS productos (
   presentacion  VARCHAR(50) DEFAULT 'unidad',
   categoria     VARCHAR(60),
   activo        BOOLEAN DEFAULT true,
+  disponible_hoy BOOLEAN NOT NULL DEFAULT true,
   creado_en     TIMESTAMPTZ DEFAULT NOW(),
   actualizado_en TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (tenant_id, nombre)

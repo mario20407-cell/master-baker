@@ -409,6 +409,39 @@ router.put('/masivo/categoria', requireRol('admin'), requireAdminPin, async (req
   } catch (e) { next(e) }
 })
 
+// PATCH /api/catalogo/:id/disponible-hoy — toggle rapido, sin PIN (se usa varias veces al dia)
+router.patch('/:id/disponible-hoy', async (req, res, next) => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(req.params.id)) {
+    return res.status(400).json({ error: 'ID de producto invalido' })
+  }
+  if (typeof req.body?.disponible_hoy !== 'boolean') {
+    return res.status(400).json({ error: 'disponible_hoy debe ser true o false' })
+  }
+
+  try {
+    const { rows } = await query(
+      `UPDATE productos SET disponible_hoy=$1, actualizado_en=NOW()
+       WHERE id=$2 AND tenant_id=$3 RETURNING *`,
+      [req.body.disponible_hoy, req.params.id, req.tenantId]
+    )
+    if (!rows.length) return res.status(404).json({ error: 'Producto no encontrado' })
+    res.json(rows[0])
+  } catch (e) { next(e) }
+})
+
+// POST /api/catalogo/disponible-hoy/reset-todo — marca todos los productos activos como disponibles hoy
+router.post('/disponible-hoy/reset-todo', async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `UPDATE productos SET disponible_hoy=true, actualizado_en=NOW()
+       WHERE tenant_id=$1 AND activo=true RETURNING id`,
+      [req.tenantId]
+    )
+    res.json({ actualizados: rows.length })
+  } catch (e) { next(e) }
+})
+
 router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!uuidRegex.test(req.params.id)) {

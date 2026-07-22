@@ -5,6 +5,7 @@ import {
   getCatalogo, updateProducto, updateProductosPorCategoria, getAuditoriaProductos,
   crearProducto, deleteProducto, descargarPlantillaCatalogo,
   previewImportarCatalogo, confirmarImportarCatalogo,
+  updateDisponibleHoy, resetDisponibleHoyTodo,
 } from '../lib/api'
 import { CAT_COLORS } from '../lib/catalogo'
 import { Search, Calculator, Scale, Pencil, Check, X, Percent, RefreshCw, History, Plus, Trash2, Upload, Download } from 'lucide-react'
@@ -166,6 +167,30 @@ export function Catalogo() {
         toast.error(e.response?.data?.error || 'No se pudo eliminar el producto')
       }
     })
+  }
+
+  // ── Disponible hoy — toggle sin PIN, actualización optimista ────────────
+  const toggleDisponibleHoy = async (p) => {
+    const nuevoValor = !p.disponible_hoy
+    setProductos(prev => prev.map(x => x.id === p.id ? { ...x, disponible_hoy: nuevoValor } : x))
+    try {
+      await updateDisponibleHoy(p.id, nuevoValor)
+    } catch (e) {
+      setProductos(prev => prev.map(x => x.id === p.id ? { ...x, disponible_hoy: !nuevoValor } : x))
+      toast.error(e.response?.data?.error || 'No se pudo actualizar la disponibilidad')
+    }
+  }
+
+  const marcarTodoDisponible = async () => {
+    const anterior = productos
+    setProductos(prev => prev.map(x => ({ ...x, disponible_hoy: true })))
+    try {
+      const { data } = await resetDisponibleHoyTodo()
+      toast.success(data.actualizados + ' productos marcados disponibles')
+    } catch (e) {
+      setProductos(anterior)
+      toast.error(e.response?.data?.error || 'No se pudo resetear la disponibilidad')
+    }
   }
 
   // ── Importar Excel/CSV ───────────────────────────────────────────────────
@@ -464,16 +489,22 @@ export function Catalogo() {
         </div>
       )}
 
-      <div className="flex gap-2 flex-wrap mb-4">
-        {['Todos', ...categorias].map(c => (
-          <button key={c} onClick={() => setCat(c)}
-            className={`px-3 py-1 text-xs rounded-lg border transition-all ${cat === c
-              ? 'border-brand-400 text-white font-medium bg-[#C29C53] dark:bg-brand-600'
-              : 'border-gray-200 dark:border-navy-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-navy-600'}`}
-          >
-            {c}
-          </button>
-        ))}
+      <div className="flex gap-2 flex-wrap mb-4 items-center justify-between">
+        <div className="flex gap-2 flex-wrap">
+          {['Todos', ...categorias].map(c => (
+            <button key={c} onClick={() => setCat(c)}
+              className={`px-3 py-1 text-xs rounded-lg border transition-all ${cat === c
+                ? 'border-brand-400 text-white font-medium bg-[#C29C53] dark:bg-brand-600'
+                : 'border-gray-200 dark:border-navy-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-navy-600'}`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        <button onClick={marcarTodoDisponible}
+          className="btn-secondary flex items-center gap-1.5 text-xs whitespace-nowrap">
+          <RefreshCw size={13} /> Marcar todo disponible
+        </button>
       </div>
 
       {lista.length === 0 ? (
@@ -562,6 +593,23 @@ export function Catalogo() {
                   )}
 
                   <div className="text-xs text-gray-400 dark:text-gray-500 mb-3">{p.presentacion}</div>
+
+                  <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={p.disponible_hoy}
+                      onClick={() => toggleDisponibleHoy(p)}
+                      className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${
+                        p.disponible_hoy ? 'bg-green-500' : 'bg-gray-300 dark:bg-navy-700'}`}
+                    >
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                        p.disponible_hoy ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                    </button>
+                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                      {p.disponible_hoy ? 'Disponible hoy' : 'No disponible hoy'}
+                    </span>
+                  </label>
                 </div>
 
                 <div>

@@ -16,74 +16,51 @@ const WA_API      = `https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`
 
 const MAX_HISTORIAL = 10 // mensajes recientes que se pasan como contexto a la IA
 
-// ── Catálogo completo Marquéz ─────────────────────────────────────────────────
-const CATALOGO = `
-🥐 *MENÚ MARQUÉZ PANADERÍA & REPOSTERÍA*
+// ── Catálogo del día — armado en vivo desde la tabla productos ────────────────
+const EMOJI_CATEGORIA = {
+  'salados': '🧆', 'pan dulce': '🍩', 'donas': '🍩', 'hojaldre': '🥐',
+  'tortas': '🍰', 'rines': '🎂', 'postres': '🍮', 'cheesecakes': '🍰',
+  'cupcakes': '🧁', 'galletas': '🍪',
+}
+const EMOJI_CATEGORIA_DEFAULT = '🥖'
 
-🧆 *SALADOS*
-- Pico de queso - C$20
-- Maleta de carne - C$35
-- Maleta de pollo - C$30
-- Empanada de queso - C$20
-- Churro de queso - C$20
-- Pan pizza - C$40
-- Choripán - C$30
+async function construirCatalogoDelDia(tenantId) {
+  let { rows } = await query(
+    `SELECT nombre, precio, categoria FROM productos
+     WHERE tenant_id = $1 AND activo = true AND disponible_hoy = true
+     ORDER BY categoria, nombre`,
+    [tenantId]
+  )
 
-🍩 *PAN DULCE*
-- Prisionero - C$25
-- Quesadilla - C$30
-- Trenza frita - C$20
-- Repollito - C$20
-- Repodona - C$35
-- Berlinesa - C$35
-- Rol de canela - C$35
-- Chemi - C$25
+  if (!rows.length) {
+    console.warn(`[WhatsApp] Tenant ${tenantId} no tiene productos marcados disponible_hoy — mostrando catálogo completo (activo=true) como respaldo`)
+    ;({ rows } = await query(
+      `SELECT nombre, precio, categoria FROM productos
+       WHERE tenant_id = $1 AND activo = true
+       ORDER BY categoria, nombre`,
+      [tenantId]
+    ))
+  }
 
-🍩 *DONAS*
-- Dona azucarada - C$20
-- Dona de chocolate - C$35
-- Dona glaseada - C$35
+  if (!rows.length) return '🥐 *MENÚ*\n\nAún no hay productos cargados en el catálogo.'
 
-🥐 *HOJALDRE*
-- Pañuelo de piña - C$30
-- Pañuelo dulce de leche - C$35
-- Bolovan - C$50
-- Croissant - C$50
-- Flor de hojaldre - C$40
-- Mil hojas - C$120
-- Palmeritas - C$60
+  const porCategoria = new Map()
+  for (const p of rows) {
+    const categoria = p.categoria || 'Otros'
+    if (!porCategoria.has(categoria)) porCategoria.set(categoria, [])
+    porCategoria.get(categoria).push(p)
+  }
 
-🍰 *TORTAS*
-- Torta de naranja - C$35
-- Torta de vainilla - C$30
-- Torta de chocolate - C$40
-
-🎂 *RINES*
-- Rin de vainilla - C$150
-- Rin de naranja - C$160
-- Rin de chocolate - C$190
-
-🍮 *POSTRES*
-- Volteado de piña 2oz - C$75
-- Volteado de piña 4oz - C$170
-- Volteado de piña ½lb - C$320
-
-🍰 *CHEESECAKES*
-- Maracuyá (porción) - C$120 | (libra) - C$1,250
-- Fresa (porción) - C$140 | (libra) - C$1,300
-- Oreo (porción) - C$120 | (libra) - C$1,250
-
-🧁 *CUPCAKES*
-- Vainilla - C$25
-- Chocolate - C$30
-
-🍪 *GALLETAS*
-- Avena - C$20
-- Mantequilla - C$20
-- Margarita - C$20
-- Coco - C$35
-- Chocochips - C$40
-`
+  let texto = '🥐 *MENÚ MARQUÉZ PANADERÍA & REPOSTERÍA*\n'
+  for (const [categoria, productos] of porCategoria) {
+    const emoji = EMOJI_CATEGORIA[categoria.toLowerCase()] || EMOJI_CATEGORIA_DEFAULT
+    texto += `\n${emoji} *${categoria.toUpperCase()}*\n`
+    for (const p of productos) {
+      texto += `- ${p.nombre} - C$${parseFloat(p.precio)}\n`
+    }
+  }
+  return texto.trimEnd()
+}
 
 // ── Herramienta que la IA puede llamar para registrar un pedido confirmado ────
 const HERRAMIENTAS = [{
@@ -189,7 +166,7 @@ async function guardarPedido(tenantId, clienteId, datos) {
 }
 
 // ── Prompt del sistema, con contexto real del cliente (fecha, favoritos) ──────
-function construirSystemPrompt({ nombreCliente, favoritos }) {
+function construirSystemPrompt({ nombreCliente, favoritos, catalogo }) {
   const ahoraNicaragua = new Date().toLocaleString('es-NI', {
     timeZone: 'America/Managua',
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -210,7 +187,7 @@ Moneda: Córdobas nicaragüenses (C$).
 FECHA Y HORA ACTUAL: ${ahoraNicaragua} (Nicaragua, UTC-6). Usala como referencia para calcular fechas cuando el cliente pida agendar algo ("mañana", "el sábado", etc.).
 ${contextoCliente ? `\nDATOS DE ESTE CLIENTE:\n${contextoCliente}\n` : ''}
 CATÁLOGO COMPLETO:
-${CATALOGO}
+${catalogo}
 
 REGLAS:
 1. Nunca inventes precios — solo usa los del catálogo.
@@ -265,17 +242,18 @@ async function procesarConIA(tenantId, telefono, mensajeUsuario) {
   await guardarMensaje(tenantId, cliente.id, 'user', mensajeUsuario)
 
   if (!process.env.OPENAI_API_KEY) {
-    const respuesta = respuestaFallback(mensajeUsuario)
+    const respuesta = await respuestaFallback(tenantId, mensajeUsuario)
     await guardarMensaje(tenantId, cliente.id, 'assistant', respuesta)
     return respuesta
   }
 
-  const [historial, favoritos] = await Promise.all([
+  const [historial, favoritos, catalogo] = await Promise.all([
     obtenerHistorial(cliente.id),
     obtenerProductosFavoritos(cliente.id),
+    construirCatalogoDelDia(tenantId),
   ])
 
-  const systemPrompt = construirSystemPrompt({ nombreCliente: cliente.nombre, favoritos })
+  const systemPrompt = construirSystemPrompt({ nombreCliente: cliente.nombre, favoritos, catalogo })
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   const res = await client.chat.completions.create({
@@ -320,16 +298,17 @@ async function procesarConIA(tenantId, telefono, mensajeUsuario) {
     return respuestaFinal
   }
 
-  const respuesta = mensaje.content || respuestaFallback(mensajeUsuario)
+  const respuesta = mensaje.content || await respuestaFallback(tenantId, mensajeUsuario)
   await guardarMensaje(tenantId, cliente.id, 'assistant', respuesta)
   return respuesta
 }
 
 // ── Fallback sin IA (respuestas básicas) ──────────────────────────────────────
-function respuestaFallback(mensaje) {
+async function respuestaFallback(tenantId, mensaje) {
   const msg = mensaje.toLowerCase()
   if (msg.includes('menu') || msg.includes('menú') || msg.includes('productos')) {
-    return CATALOGO + '\n\n¿Qué te gustaría pedir? 😊'
+    const catalogo = await construirCatalogoDelDia(tenantId)
+    return catalogo + '\n\n¿Qué te gustaría pedir? 😊'
   }
   if (msg.includes('hola') || msg.includes('buenas') || msg.includes('buenos')) {
     return '¡Hola! 👋 Bienvenido a *Marquéz Panadería & Repostería*. ¿En qué te puedo ayudar? Escribe *menú* para ver nuestros productos.'
