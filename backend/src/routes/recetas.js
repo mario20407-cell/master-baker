@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
-import { requireAuth } from '../middleware/authMiddleware.js'
+import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 import { registrarActividad } from '../services/bitacoraService.js'
 
 const router = Router()
@@ -48,7 +48,7 @@ router.put('/configuracion-costeo/settings', async (req, res, next) => {
 })
 
 // GET /api/recetas/configuracion-costeo/sugerencia-mano-obra
-router.get('/configuracion-costeo/sugerencia-mano-obra', async (req, res, next) => {
+router.get('/configuracion-costeo/sugerencia-mano-obra', requireRol('admin'), async (req, res, next) => {
   try {
     // 1. Obtener la producción mensual de config_fiscal
     const { rows: fiscalRows } = await query(
