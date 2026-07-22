@@ -66,6 +66,11 @@ export const confirmarImportarCatalogo = (archivo, pin) => {
   form.append('archivo', archivo)
   return api.post('/catalogo/importar/confirmar', form, { headers: { 'Content-Type': 'multipart/form-data', 'x-admin-pin': pin } })
 }
+// Toggle diario, sin PIN — se usa varias veces al día para marcar agotados.
+export const updateDisponibleHoy = (id, disponible_hoy) =>
+  api.patch(`/catalogo/${id}/disponible-hoy`, { disponible_hoy })
+export const resetDisponibleHoyTodo = () =>
+  api.post('/catalogo/disponible-hoy/reset-todo')
 
 // ── Recetas ──────────────────────────────────────────────────────────────────
 export const getRecetas = () => api.get('/recetas')
