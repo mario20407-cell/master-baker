@@ -47,6 +47,67 @@ router.put('/configuracion-costeo/settings', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// GET /api/recetas/configuracion-costeo/sugerencia-mano-obra
+router.get('/configuracion-costeo/sugerencia-mano-obra', async (req, res, next) => {
+  try {
+    // 1. Obtener la producción mensual de config_fiscal
+    const { rows: fiscalRows } = await query(
+      'SELECT produccion_mensual FROM config_fiscal WHERE tenant_id = $1',
+      [req.tenantId]
+    )
+    if (!fiscalRows.length || !fiscalRows[0].produccion_mensual || parseInt(fiscalRows[0].produccion_mensual) <= 0) {
+      return res.json({ sugerido: null, motivo: 'sin_produccion_mensual' })
+    }
+    const produccion_mensual = parseInt(fiscalRows[0].produccion_mensual)
+
+    // 2. Obtener colaboradores activos
+    const { rows: colaboradores } = await query(
+      'SELECT id, tipo_pago, salario_mensual FROM usuarios WHERE tenant_id = $1 AND activo = true',
+      [req.tenantId]
+    )
+
+    // Filtrar colaboradores con pago configurado (fijo con salario_mensual > 0 o variable)
+    const colaboradoresValidos = colaboradores.filter(c => 
+      c.tipo_pago === 'fijo' || c.tipo_pago === 'variable'
+    )
+
+    if (colaboradoresValidos.length === 0) {
+      return res.json({ sugerido: null, motivo: 'sin_datos_nomina' })
+    }
+
+    let sumaSalarios = 0
+    let colaboradoresConSueldo = 0
+
+    for (const c of colaboradoresValidos) {
+      if (c.tipo_pago === 'fijo') {
+        const salario = parseFloat(c.salario_mensual) || 0
+        if (salario > 0) {
+          sumaSalarios += salario
+          colaboradoresConSueldo++
+        }
+      } else if (c.tipo_pago === 'variable') {
+        // Promedio últimos 6 meses para variables
+        const { rows: pagos } = await query(
+          'SELECT AVG(monto) as promedio FROM pagos_variables WHERE tenant_id = $1 AND usuario_id = $2 AND mes >= NOW() - INTERVAL \'6 months\'',
+          [req.tenantId, c.id]
+        )
+        const prom = pagos[0]?.promedio ? parseFloat(pagos[0].promedio) : 0
+        if (prom > 0) {
+          sumaSalarios += prom
+          colaboradoresConSueldo++
+        }
+      }
+    }
+
+    if (colaboradoresConSueldo === 0) {
+      return res.json({ sugerido: null, motivo: 'sin_datos_nomina' })
+    }
+
+    const sugerido = Math.round((sumaSalarios / produccion_mensual) * 100) / 100
+    res.json({ sugerido })
+  } catch (e) { next(e) }
+})
+
 // GET /api/recetas — todas las recetas del tenant, con ingredientes
 router.get('/', async (req, res, next) => {
   try {

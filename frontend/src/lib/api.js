@@ -103,6 +103,12 @@ export const analizarPdf  = (fileBase64, mimeType, tipo) => api.post('/ai/analiz
 // ── Exportar ─────────────────────────────────────────────────────────────────
 export const exportarReporte = (tipo) => api.get(`/exportar/${tipo}`, { responseType: 'blob' })
 
+// ── Nuevas rutas de Configuración Unificada y Mano de obra
+export const updateNegocio = (data) => api.put('/auth/negocio', data)
+export const getSugerenciaManoObra = () => api.get('/recetas/configuracion-costeo/sugerencia-mano-obra')
+export const getConfiguracionCosteoSettings = () => api.get('/recetas/configuracion-costeo/settings')
+export const saveConfiguracionCosteoSettings = (data) => api.put('/recetas/configuracion-costeo/settings', data)
+
 export default api
 
 // ── Fiscal DGI ───────────────────────────────────────────────────────────────

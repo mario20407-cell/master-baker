@@ -342,4 +342,52 @@ router.post('/reset-password', requireAuth, requireRol('admin'), async (req, res
   } catch (e) { next(e) }
 })
 
+// PUT /api/auth/negocio — Actualizar nombre de negocio y administrador
+router.put('/negocio', requireAuth, requireRol('admin'), async (req, res, next) => {
+  const { nombreNegocio, nombreAdmin, email } = req.body
+  if (!nombreNegocio || !nombreAdmin || !email) {
+    return res.status(400).json({ error: 'Todos los campos (nombreNegocio, nombreAdmin, email) son requeridos' })
+  }
+  try {
+    const result = await transaction(async (client) => {
+      // 1. Actualizar el tenant (nombre_negocio)
+      await client.query(
+        'UPDATE tenants SET nombre_negocio = $1, actualizado_en = NOW() WHERE id = $2',
+        [nombreNegocio.trim(), req.tenantId]
+      )
+
+      // 2. Actualizar el usuario (nombre y email)
+      const { rows } = await client.query(
+        'UPDATE usuarios SET nombre = $1, email = $2 WHERE id = $3 AND tenant_id = $4 RETURNING id, email, nombre, rol',
+        [nombreAdmin.trim(), email.toLowerCase().trim(), req.usuarioId, req.tenantId]
+      )
+      return rows[0]
+    })
+
+    await registrarActividad(req, {
+      modulo: 'seguridad',
+      accion: 'MODIFICAR_NEGOCIO_ADMIN',
+      descripcion: 'Se actualizaron los datos del negocio a "' + nombreNegocio + '" y administrador a "' + nombreAdmin + '" (' + email + ')',
+      detalles: { tenant_id: req.tenantId, usuario_id: req.usuarioId }
+    })
+
+    res.json({
+      ok: true,
+      usuario: {
+        id: result.id,
+        email: result.email,
+        nombre: result.nombre,
+        rol: result.rol,
+        tenantId: req.tenantId,
+        tenantNombre: nombreNegocio.trim()
+      }
+    })
+  } catch (e) {
+    if (e.code === '23505') {
+      return res.status(409).json({ error: 'Ya existe una cuenta con ese email' })
+    }
+    next(e)
+  }
+})
+
 export default router
