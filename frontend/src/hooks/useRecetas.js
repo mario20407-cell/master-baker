@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getRecetas, saveReceta, updateReceta, deleteReceta } from '../lib/api'
 import { calcularCosteoReceta } from '../lib/costeo'
+import { useFiscalConfig } from './useFiscalConfig'
+import { useConfiguracionCosteo } from './useConfiguracionCosteo'
 import toast from 'react-hot-toast'
 
 export function useRecetas() {
   const [recetas, setRecetas] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const { config: configFiscal } = useFiscalConfig()
+  const { costoIndirectoGlobal, margenObjetivo } = useConfiguracionCosteo()
 
   const cargar = useCallback(async () => {
     try {
@@ -81,7 +85,7 @@ export function useRecetas() {
     // Toda la matemática vive en lib/costeo.js (con sus unit tests).
     // Re-mapeamos a los nombres cortos que ya usa Costeo.jsx para no
     // romper la UI existente: cd/ci/ct/cu/pmin/vtotal.
-    const c = calcularCosteoReceta(r, piezasObjetivo)
+    const c = calcularCosteoReceta(r, piezasObjetivo, configFiscal, costoIndirectoGlobal, margenObjetivo)
     return {
       cd: c.costoDirecto,
       ci: c.costoIndirecto,
