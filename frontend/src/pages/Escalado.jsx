@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { useFiscalConfig } from '../hooks/useFiscalConfig'
+import { useConfiguracionCosteo } from '../hooks/useConfiguracionCosteo'
 import { PRODUCTOS } from '../lib/catalogo'
 import { Scale, Plus, Trash2, AlertTriangle, CheckCircle, Shield } from 'lucide-react'
 import { calcularCosteoReceta } from '../lib/costeo'
@@ -11,6 +12,7 @@ const fmt = v => 'C$ ' + (parseFloat(v) || 0).toFixed(2)
 export default function Escalado() {
   const { recetas }              = useRecetas()
   const { config: configFiscal } = useFiscalConfig()
+  const { costoIndirectoGlobal, margenObjetivo } = useConfiguracionCosteo()
 
   const [prodIdx,    setProdIdx]    = useState('')
   const [base,       setBase]       = useState('')
@@ -66,7 +68,7 @@ export default function Escalado() {
         })),
     }
 
-    const res = calcularCosteoReceta(recetaSintetica, t, configFiscal)
+    const res = calcularCosteoReceta(recetaSintetica, t, configFiscal, costoIndirectoGlobal, margenObjetivo)
 
     const pesog     = parseFloat(peso) || 0
     const pesoTotal = (t * pesog) / 1000

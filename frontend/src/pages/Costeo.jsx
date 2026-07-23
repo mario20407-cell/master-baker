@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useRecetas } from '../hooks/useRecetas'
 import { useFiscalConfig } from '../hooks/useFiscalConfig'
+import { useConfiguracionCosteo } from '../hooks/useConfiguracionCosteo'
 import { PRODUCTOS } from '../lib/catalogo'
 import { Calculator, AlertTriangle, CheckCircle, Shield } from 'lucide-react'
 import { calcularCosteoReceta } from '../lib/costeo'
@@ -13,6 +14,7 @@ const fmt = (v) => 'C$ ' + (parseFloat(v) || 0).toFixed(2)
 export default function Costeo() {
   const { recetas }               = useRecetas()
   const { config: configFiscal }  = useFiscalConfig()
+  const { costoIndirectoGlobal, margenObjetivo } = useConfiguracionCosteo()
 
   const [prodIdx,    setProdIdx]    = useState('')
   const [piezas,     setPiezas]     = useState('')
@@ -36,12 +38,12 @@ export default function Costeo() {
             pventa: p.p,
             ingredientes: r.ingredientes || [],
           }
-          const res = calcularCosteoReceta(recetaConPventa, r.piezas, configFiscal)
+          const res = calcularCosteoReceta(recetaConPventa, r.piezas, configFiscal, costoIndirectoGlobal, margenObjetivo)
           setResultado({ ...res, producto: p.n, piezasObj: r.piezas })
         }
       }
     }
-  }, [location.state, recetas, configFiscal])
+  }, [location.state, recetas, configFiscal, costoIndirectoGlobal, margenObjetivo])
 
   const prod   = prodIdx !== '' ? PRODUCTOS[parseInt(prodIdx)] : null
   const receta = prod ? recetas[prod.n] : null
@@ -72,6 +74,8 @@ export default function Costeo() {
       recetaConPventa,
       parseInt(piezas),
       configFiscal,       // null si no configurado → campos fiscales en null
+      costoIndirectoGlobal,
+      margenObjetivo,
     )
 
     setResultado({ ...res, producto: prod.n, piezasObj: parseInt(piezas) })

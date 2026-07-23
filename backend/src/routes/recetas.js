@@ -2,6 +2,13 @@ import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 import { registrarActividad } from '../services/bitacoraService.js'
+import {
+  calcularBaseSalarial,
+  calcularInssPatronalMensual,
+  calcularAguinaldoAcumulado,
+  calcularVacacionesAcumuladas,
+  mesesEntre,
+} from '../services/pasivosLaboralesService.js'
 
 const router = Router()
 
@@ -62,12 +69,12 @@ router.get('/configuracion-costeo/sugerencia-mano-obra', requireRol('admin'), as
 
     // 2. Obtener colaboradores activos
     const { rows: colaboradores } = await query(
-      'SELECT id, tipo_pago, salario_mensual FROM usuarios WHERE tenant_id = $1 AND activo = true',
+      'SELECT id, tipo_pago, salario_mensual, fecha_ingreso FROM usuarios WHERE tenant_id = $1 AND activo = true',
       [req.tenantId]
     )
 
     // Filtrar colaboradores con pago configurado (fijo con salario_mensual > 0 o variable)
-    const colaboradoresValidos = colaboradores.filter(c => 
+    const colaboradoresValidos = colaboradores.filter(c =>
       c.tipo_pago === 'fijo' || c.tipo_pago === 'variable'
     )
 
@@ -75,35 +82,53 @@ router.get('/configuracion-costeo/sugerencia-mano-obra', requireRol('admin'), as
       return res.json({ sugerido: null, motivo: 'sin_datos_nomina' })
     }
 
-    let sumaSalarios = 0
+    const { rows: totalActivos } = await query(
+      'SELECT count(*) FROM usuarios WHERE tenant_id = $1 AND activo = true',
+      [req.tenantId]
+    )
+    const empresaGrande = parseInt(totalActivos[0].count, 10) >= 50
+
+    const hoy = new Date()
+    let sumaCostoLaboralTotal = 0
     let colaboradoresConSueldo = 0
 
     for (const c of colaboradoresValidos) {
-      if (c.tipo_pago === 'fijo') {
-        const salario = parseFloat(c.salario_mensual) || 0
-        if (salario > 0) {
-          sumaSalarios += salario
-          colaboradoresConSueldo++
-        }
-      } else if (c.tipo_pago === 'variable') {
-        // Promedio últimos 6 meses para variables
+      let pagosVariables = []
+      if (c.tipo_pago === 'variable') {
         const { rows: pagos } = await query(
-          'SELECT AVG(monto) as promedio FROM pagos_variables WHERE tenant_id = $1 AND usuario_id = $2 AND mes >= NOW() - INTERVAL \'6 months\'',
-          [req.tenantId, c.id]
+          `SELECT mes, monto FROM pagos_variables
+           WHERE usuario_id = $1 AND tenant_id = $2
+           ORDER BY mes DESC LIMIT 6`,
+          [c.id, req.tenantId]
         )
-        const prom = pagos[0]?.promedio ? parseFloat(pagos[0].promedio) : 0
-        if (prom > 0) {
-          sumaSalarios += prom
-          colaboradoresConSueldo++
+        pagosVariables = pagos
+      }
+
+      const base = calcularBaseSalarial(c, pagosVariables)
+      if (base.sinDatos) continue
+
+      const inss = calcularInssPatronalMensual(base.inssPatronal, empresaGrande)
+      let costoLaboralMensual = base.inssPatronal + inss.total
+
+      if (c.fecha_ingreso) {
+        const mesesAntiguedad = mesesEntre(c.fecha_ingreso, hoy)
+        if (mesesAntiguedad > 0) {
+          const aguinaldo = calcularAguinaldoAcumulado(base.aguinaldo, c.fecha_ingreso, hoy)
+          const vacaciones = calcularVacacionesAcumuladas(base.vacaciones, c.fecha_ingreso, hoy)
+          if (aguinaldo.meses > 0) costoLaboralMensual += aguinaldo.monto / aguinaldo.meses
+          costoLaboralMensual += vacaciones.monto / mesesAntiguedad
         }
       }
+
+      sumaCostoLaboralTotal += costoLaboralMensual
+      colaboradoresConSueldo++
     }
 
     if (colaboradoresConSueldo === 0) {
       return res.json({ sugerido: null, motivo: 'sin_datos_nomina' })
     }
 
-    const sugerido = Math.round((sumaSalarios / produccion_mensual) * 100) / 100
+    const sugerido = Math.round((sumaCostoLaboralTotal / produccion_mensual) * 100) / 100
     res.json({ sugerido })
   } catch (e) { next(e) }
 })
