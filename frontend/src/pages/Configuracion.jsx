@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useFiscalConfig } from '../hooks/useFiscalConfig'
 import { usePasivosLaborales } from '../hooks/usePasivosLaborales'
@@ -231,6 +231,12 @@ export default function Configuracion() {
       toast.success('Valor sugerido copiado al campo manual')
     }
   }
+
+  const manoObraDesactualizada = useMemo(() => {
+    if (manoObraSugerida.sugerido === null) return false
+    const aplicado = parseFloat(costeoForm.costo_indirecto_mano || 0)
+    return Math.abs(aplicado - manoObraSugerida.sugerido) > 0.01
+  }, [costeoForm.costo_indirecto_mano, manoObraSugerida.sugerido])
 
   // Guardar Negocio & Admin
   const handleGuardarNegocio = async (e) => {
@@ -712,7 +718,27 @@ export default function Configuracion() {
 
                 <div className="border-t border-gray-150 pt-4 space-y-3">
                   <h4 className="text-xs font-semibold text-gray-800">Costo de Mano de Obra</h4>
-                  
+
+                  {!loadingSugerencia && manoObraDesactualizada && (
+                    <div className="rounded-xl p-3 bg-amber-50/60 border border-amber-300/60 flex flex-col sm:flex-row justify-between sm:items-center gap-2.5">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle size={14} className="text-amber-600 mt-0.5 shrink-0" />
+                        <p className="text-[11px] text-amber-800">
+                          La nómina cambió desde la última vez que actualizaste este costo.
+                          Aplicado: {formatoCordobas(parseFloat(costeoForm.costo_indirecto_mano || 0))} — Sugerido ahora: {formatoCordobas(manoObraSugerida.sugerido)}.
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleUsarSugerencia}
+                        className="btn-primary text-[10px] py-1.5 px-3 self-start sm:self-auto bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1 border-none shadow-none"
+                        type="button"
+                      >
+                        <Check size={12} />
+                        Actualizar al valor sugerido
+                      </button>
+                    </div>
+                  )}
+
                   {loadingSugerencia ? (
                     <div className="text-xs text-gray-400">Calculando mano de obra sugerida...</div>
                   ) : manoObraSugerida.sugerido !== null ? (
