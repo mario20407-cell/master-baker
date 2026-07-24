@@ -59,10 +59,17 @@ router.get('/configuracion-costeo/sugerencia-mano-obra', requireRol('admin'), as
   try {
     // 1. Obtener la producción mensual de config_fiscal
     const { rows: fiscalRows } = await query(
-      'SELECT produccion_mensual FROM config_fiscal WHERE tenant_id = $1',
+      'SELECT produccion_mensual, configurado FROM config_fiscal WHERE tenant_id = $1',
       [req.tenantId]
     )
-    if (!fiscalRows.length || !fiscalRows[0].produccion_mensual || parseInt(fiscalRows[0].produccion_mensual) <= 0) {
+    // produccion_mensual tiene default 1 en la tabla — sin este chequeo de
+    // "configurado", un tenant que nunca terminó de configurar la sección
+    // fiscal igual pasaría la validación y el costo laboral total se
+    // dividiría entre 1 pieza, dando una sugerencia disparatada.
+    if (!fiscalRows.length || !fiscalRows[0].configurado) {
+      return res.json({ sugerido: null, motivo: 'fiscal_no_configurado' })
+    }
+    if (!fiscalRows[0].produccion_mensual || parseInt(fiscalRows[0].produccion_mensual) <= 0) {
       return res.json({ sugerido: null, motivo: 'sin_produccion_mensual' })
     }
     const produccion_mensual = parseInt(fiscalRows[0].produccion_mensual)
