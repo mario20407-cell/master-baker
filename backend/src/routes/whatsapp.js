@@ -512,8 +512,8 @@ privateRouter.put('/pedidos/:id/listo', requireAuth, async (req, res, next) => {
     if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' })
 
     await query(
-      `UPDATE pedidos_whatsapp SET estado = 'listo', notificado_listo = true WHERE id = $1`,
-      [pedido.id]
+      `UPDATE pedidos_whatsapp SET estado = 'listo', notificado_listo = true WHERE id = $1 AND tenant_id = $2`,
+      [pedido.id, req.tenantId]
     )
 
     const nombre = pedido.nombre ? pedido.nombre.split(' ')[0] : ''
