@@ -9,12 +9,35 @@ export const publicRouter = Router()
 export const privateRouter = Router()
 
 // ── Configuración ─────────────────────────────────────────────────────────────
-const WA_TOKEN    = process.env.WHATSAPP_TOKEN
-const WA_PHONE_ID = process.env.WHATSAPP_PHONE_ID
+// WHATSAPP_VERIFY_TOKEN sigue siendo global: es a nivel de la app de Meta,
+// no por número de teléfono, así que no depende del tenant.
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN
-const WA_API      = `https://graph.facebook.com/v20.0/${WA_PHONE_ID}/messages`
+const WA_API_BASE  = 'https://graph.facebook.com/v20.0'
 
 const MAX_HISTORIAL = 10 // mensajes recientes que se pasan como contexto a la IA
+
+// ── Resuelve a qué tenant pertenece un mensaje entrante, según el
+// phone_number_id que manda Meta en el payload del webhook ────────────────────
+async function resolverTenantWhatsApp(phoneNumberId) {
+  const { rows } = await query(
+    `SELECT tenant_id, access_token FROM tenant_whatsapp_config
+     WHERE phone_number_id = $1 AND activo = true`,
+    [phoneNumberId]
+  )
+  return rows[0] || null
+}
+
+// Credenciales de WhatsApp de un tenant ya autenticado (dashboard), para
+// los endpoints que envían mensajes fuera del webhook.
+async function obtenerCredencialesWhatsApp(tenantId) {
+  const { rows } = await query(
+    `SELECT phone_number_id, access_token FROM tenant_whatsapp_config
+     WHERE tenant_id = $1 AND activo = true`,
+    [tenantId]
+  )
+  if (!rows[0]) return null
+  return { token: rows[0].access_token, phoneId: rows[0].phone_number_id }
+}
 
 // ── Catálogo del día — armado en vivo desde la tabla productos ────────────────
 const EMOJI_CATEGORIA = {
@@ -242,16 +265,16 @@ COMANDOS ESPECIALES que debes detectar:
 }
 
 // ── Función: enviar mensaje a WhatsApp ────────────────────────────────────────
-async function enviarMensaje(telefono, texto) {
-  if (!WA_TOKEN || !WA_PHONE_ID) {
-    console.warn('[WhatsApp] Token o Phone ID no configurados')
+async function enviarMensaje(telefono, texto, { token, phoneId } = {}) {
+  if (!token || !phoneId) {
+    console.warn('[WhatsApp] Token o Phone ID no configurados para este tenant')
     return
   }
 
-  const res = await fetch(WA_API, {
+  const res = await fetch(`${WA_API_BASE}/${phoneId}/messages`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${WA_TOKEN}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -414,21 +437,29 @@ publicRouter.post('/webhook', async (req, res) => {
     const body = req.body
     if (body.object !== 'whatsapp_business_account') return
 
-    // PENDIENTE: req.tenantId aquí siempre resuelve al default (Marquéz),
-    // porque Meta no manda header x-tenant-id ni subdominio — este webhook
-    // no distingue todavía entre números de WhatsApp de distintos tenants.
-    // Ver nota en tenantMiddleware.js. Hoy no es un problema porque solo
-    // existe un tenant real operando.
-    const chequeoPlan = await verificarYRegistrarUso(req.tenantId, 'whatsapp_bot')
-    if (!chequeoPlan.permitido) {
-      console.warn(`[WhatsApp] Tenant ${req.tenantId} sin acceso al bot según su plan — mensajes ignorados`)
-      return
-    }
-
     for (const entry of body.entry || []) {
       for (const change of entry.changes || []) {
         const value = change.value
         if (!value?.messages?.length) continue
+
+        // Cada payload de Meta trae el phone_number_id del número que
+        // recibió el mensaje — así distinguimos a qué tenant pertenece.
+        const phoneNumberId = value.metadata?.phone_number_id
+        const tenantWhatsApp = phoneNumberId ? await resolverTenantWhatsApp(phoneNumberId) : null
+
+        if (!tenantWhatsApp) {
+          console.warn(`[WhatsApp] phone_number_id sin tenant configurado: ${phoneNumberId}`)
+          continue
+        }
+
+        const { tenant_id: tenantId, access_token: token } = tenantWhatsApp
+        const credenciales = { token, phoneId: phoneNumberId }
+
+        const chequeoPlan = await verificarYRegistrarUso(tenantId, 'whatsapp_bot')
+        if (!chequeoPlan.permitido) {
+          console.warn(`[WhatsApp] Tenant ${tenantId} sin acceso al bot según su plan — mensajes ignorados`)
+          continue
+        }
 
         for (const message of value.messages) {
           // Solo procesar mensajes de texto
@@ -440,10 +471,10 @@ publicRouter.post('/webhook', async (req, res) => {
           console.log(`[WhatsApp] Mensaje de ${telefono}: "${texto}"`)
 
           // Procesar con IA (guarda memoria y detecta pedidos en el CRM)
-          const respuesta = await procesarConIA(req.tenantId, telefono, texto)
+          const respuesta = await procesarConIA(tenantId, telefono, texto)
 
           // Enviar respuesta
-          await enviarMensaje(telefono, respuesta)
+          await enviarMensaje(telefono, respuesta, credenciales)
           console.log(`[WhatsApp] Respuesta enviada a ${telefono}`)
         }
       }
@@ -460,7 +491,9 @@ privateRouter.post('/enviar', requireAuth, async (req, res, next) => {
     return res.status(400).json({ error: 'telefono y mensaje son requeridos' })
   }
   try {
-    const data = await enviarMensaje(telefono, mensaje)
+    const credenciales = await obtenerCredencialesWhatsApp(req.tenantId)
+    if (!credenciales) return res.status(400).json({ error: 'Este tenant no tiene WhatsApp configurado' })
+    const data = await enviarMensaje(telefono, mensaje, credenciales)
     res.json({ ok: true, data })
   } catch (e) { next(e) }
 })
@@ -489,7 +522,9 @@ privateRouter.put('/pedidos/:id/listo', requireAuth, async (req, res, next) => {
 
     let avisado = true
     try {
-      await enviarMensaje(pedido.telefono, mensajeAviso)
+      const credenciales = await obtenerCredencialesWhatsApp(req.tenantId)
+      if (!credenciales) throw new Error('Este tenant no tiene WhatsApp configurado')
+      await enviarMensaje(pedido.telefono, mensajeAviso, credenciales)
     } catch (e) {
       avisado = false
       console.error('[WhatsApp] No se pudo notificar al cliente:', e.message)
@@ -583,13 +618,13 @@ privateRouter.get('/clientes/:telefono/mensajes', requireAuth, async (req, res, 
 // ── Endpoint: status del bot ──────────────────────────────────────────────────
 privateRouter.get('/status', requireAuth, async (req, res, next) => {
   try {
-    const { rows } = await query(
-      `SELECT COUNT(*)::int AS clientes FROM clientes_whatsapp WHERE tenant_id = $1`,
-      [req.tenantId]
-    )
+    const [{ rows }, credenciales] = await Promise.all([
+      query(`SELECT COUNT(*)::int AS clientes FROM clientes_whatsapp WHERE tenant_id = $1`, [req.tenantId]),
+      obtenerCredencialesWhatsApp(req.tenantId),
+    ])
     res.json({
-      activo:           !!WA_TOKEN && !!WA_PHONE_ID,
-      phone_id:         WA_PHONE_ID || 'No configurado',
+      activo:           !!credenciales,
+      phone_id:         credenciales?.phoneId || 'No configurado',
       ia_activa:        !!process.env.OPENAI_API_KEY,
       modelo:           'gpt-4o-mini',
       clientes:         rows[0]?.clientes || 0,
