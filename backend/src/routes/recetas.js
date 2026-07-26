@@ -236,7 +236,7 @@ router.post('/', async (req, res, next) => {
         costo_directo || 0, costo_indirecto || 0, margen_aplicado || 0, precio_sugerido || 0
       ])
 
-      await client.query('DELETE FROM ingredientes WHERE receta_id = $1', [r.id])
+      await client.query('DELETE FROM ingredientes WHERE receta_id = $1 AND tenant_id = $2', [r.id, tenantId])
       if (ingredientes.length) {
         // 8 columnas por fila ahora: tenant_id + receta_id + 6 campos del ingrediente
         const vals = ingredientes.map((_, idx) => `($${idx * 8 + 1}, $${idx * 8 + 2}, $${idx * 8 + 3}, $${idx * 8 + 4}, $${idx * 8 + 5}, $${idx * 8 + 6}, $${idx * 8 + 7}, $${idx * 8 + 8})`)
@@ -314,7 +314,7 @@ router.put('/:id', async (req, res, next) => {
 
       if (!rowCount) return false
 
-      await client.query('DELETE FROM ingredientes WHERE receta_id=$1', [req.params.id])
+      await client.query('DELETE FROM ingredientes WHERE receta_id=$1 AND tenant_id=$2', [req.params.id, tenantId])
       if (ingredientes.length) {
         const vals = ingredientes.map((_, i) => `($${i*8+1},$${i*8+2},$${i*8+3},$${i*8+4},$${i*8+5},$${i*8+6},$${i*8+7},$${i*8+8})`)
         await client.query(
@@ -391,7 +391,7 @@ router.post('/import-csv', async (req, res, next) => {
           INSERT INTO recetas (tenant_id, producto, piezas) VALUES ($1, $2, 100)
           ON CONFLICT (tenant_id, producto) DO UPDATE SET actualizado_en=NOW() RETURNING *
         `, [tenantId, producto])
-        await client.query('DELETE FROM ingredientes WHERE receta_id=$1', [r.id])
+        await client.query('DELETE FROM ingredientes WHERE receta_id=$1 AND tenant_id=$2', [r.id, tenantId])
         const vals = ingredientes.map((_, i) => `($${i*8+1},$${i*8+2},$${i*8+3},$${i*8+4},$${i*8+5},$${i*8+6},$${i*8+7},$${i*8+8})`)
         await client.query(
           `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo,costo_cero_intencional) VALUES ${vals}`,
