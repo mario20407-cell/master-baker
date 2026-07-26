@@ -36,3 +36,6 @@ backups/
 
 # Output de escaneos de secretos (nunca subir al repo)
 gitleaks-*.json
+
+# Output de graphify (regenerable con `graphify . --code-only`)
+graphify-out/
