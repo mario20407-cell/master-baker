@@ -24,7 +24,6 @@ import 'dotenv/config'
 import { Pool } from 'pg'
 import bcrypt from 'bcrypt'
 
-import bcrypt from 'bcrypt'
 const CTRL_C    = 3
 const BACKSPACE = 127
 const BACKSPACE_WIN = 8
