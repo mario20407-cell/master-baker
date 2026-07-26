@@ -446,6 +446,17 @@ CREATE TABLE IF NOT EXISTS pedidos_whatsapp (
   creado_en         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ── Configuración de WhatsApp por tenant (multi-tenant) ───────────
+CREATE TABLE IF NOT EXISTS tenant_whatsapp_config (
+  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id        UUID NOT NULL UNIQUE REFERENCES tenants(id),
+  phone_number_id  VARCHAR(60) NOT NULL UNIQUE,
+  access_token     TEXT NOT NULL,
+  activo           BOOLEAN DEFAULT true,
+  creado_en        TIMESTAMPTZ DEFAULT NOW(),
+  actualizado_en   TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ── Índices ───────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_usuarios_tenant              ON usuarios(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_usuarios_email                ON usuarios(email);

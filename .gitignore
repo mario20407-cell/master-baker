@@ -33,3 +33,6 @@ Thumbs.db
 *.dump
 backups/
 .env*
+
+# Output de escaneos de secretos (nunca subir al repo)
+gitleaks-*.json
