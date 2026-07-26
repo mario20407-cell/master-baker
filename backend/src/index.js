@@ -222,24 +222,33 @@ app.use('/api/pasivos-laborales', pasivosLaboralesRoutes)
 app.use('/api/admin-pin', adminPinRoutes)
 
 // Health check
-app.get('/api/health', (_, res) => res.json({
-  status: 'ok', version: '3.0',
-  negocio: 'Marquéz Panadería & Repostería',
-  auth: { login: '/api/auth/login', registro_cerrado: true },
-  ia: {
-    openai:    !!process.env.OPENAI_API_KEY,
-    anthropic: !!process.env.ANTHROPIC_API_KEY,
-    deepseek:  !!process.env.DEEPSEEK_API_KEY,
-    gemini:    !!process.env.GEMINI_API_KEY,
-  },
-  whatsapp: {
-    activo:   !!process.env.WHATSAPP_TOKEN && !!process.env.WHATSAPP_PHONE_ID,
-    phone_id: process.env.WHATSAPP_PHONE_ID || 'No configurado',
-  },
-  admin_pin: 'por tenant (ver /api/admin-pin/estado con sesión de admin)',
-  jwt_configurado:       !!process.env.JWT_SECRET,
-  timestamp: new Date().toISOString(),
-}))
+app.get('/api/health', async (_, res, next) => {
+  try {
+    const { rows } = await query('SELECT COUNT(*)::int AS count FROM tenant_whatsapp_config WHERE activo = true')
+    const tenantsActivos = rows[0]?.count || 0
+
+    res.json({
+      status: 'ok', version: '3.0',
+      negocio: 'Marquéz Panadería & Repostería',
+      auth: { login: '/api/auth/login', registro_cerrado: true },
+      ia: {
+        openai:    !!process.env.OPENAI_API_KEY,
+        anthropic: !!process.env.ANTHROPIC_API_KEY,
+        deepseek:  !!process.env.DEEPSEEK_API_KEY,
+        gemini:    !!process.env.GEMINI_API_KEY,
+      },
+      whatsapp: {
+        activo: tenantsActivos > 0,
+        tenants_activos: tenantsActivos,
+      },
+      admin_pin: 'por tenant (ver /api/admin-pin/estado con sesión de admin)',
+      jwt_configurado:       !!process.env.JWT_SECRET,
+      timestamp: new Date().toISOString(),
+    })
+  } catch (e) {
+    next(e)
+  }
+})
 
 // Errores
 app.use((err, req, res, _next) => {
@@ -258,7 +267,7 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`   - Claude 3.5:       ${process.env.ANTHROPIC_API_KEY ? '✅' : '⏳ pendiente'}`)
     console.log(`   - DeepSeek V3/R1:   ${process.env.DEEPSEEK_API_KEY  ? '✅' : '⏳ pendiente'}`)
     console.log(`   - Gemini 1.5 Flash: ${process.env.GEMINI_API_KEY    ? '✅' : '⏳ pendiente'}`)
-    console.log(`   WhatsApp Bot:       ${process.env.WHATSAPP_TOKEN     ? '✅ activo' : '⏳ pendiente'}`)
+    console.log(`   WhatsApp Bot:       multi-tenant (ver /api/whatsapp/estado o tenant_whatsapp_config)`)
     console.log(`   Webhook URL:        http://localhost:${PORT}/api/whatsapp/webhook\n`)
   })
 }
