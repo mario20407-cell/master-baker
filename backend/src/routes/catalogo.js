@@ -391,8 +391,8 @@ router.put('/masivo/categoria', requireRol('admin'), requireAdminPin, async (req
           throw new Error(`El ajuste resulta en un precio inválido (C$ ${nuevoPrecio}) para ${prod.nombre}`)
         }
         await client.query(
-          'UPDATE productos SET precio=$1, actualizado_en=NOW() WHERE id=$2',
-          [nuevoPrecio, prod.id]
+          'UPDATE productos SET precio=$1, actualizado_en=NOW() WHERE id=$2 AND tenant_id=$3',
+          [nuevoPrecio, prod.id, req.tenantId]
         )
         await registrarAuditoria(client, {
           tenantId: req.tenantId, tipo: 'producto', entidadId: prod.id,
