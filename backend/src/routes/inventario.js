@@ -149,8 +149,8 @@ router.put('/masivo/porcentaje', requireRol('admin'), requireAdminPin, async (re
           throw new Error(`El ajuste resulta en un costo inválido (C$ ${nuevoCosto}) para ${ins.nombre}`)
         }
         await client.query(
-          'UPDATE inventario SET costo_unitario=$1, actualizado_en=NOW() WHERE id=$2',
-          [nuevoCosto, ins.id]
+          'UPDATE inventario SET costo_unitario=$1, actualizado_en=NOW() WHERE id=$2 AND tenant_id=$3',
+          [nuevoCosto, ins.id, req.tenantId]
         )
         await registrarAuditoria(client, {
           tenantId: req.tenantId, entidadId: ins.id, entidadNombre: ins.nombre,
