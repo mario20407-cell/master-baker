@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import { verificarYRegistrarUso } from '../middleware/planMiddleware.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { query } from '../db/client.js'
+import { descifrar } from '../utils/cifrado.js'
 
 export const publicRouter = Router()
 export const privateRouter = Router()
@@ -24,7 +25,8 @@ async function resolverTenantWhatsApp(phoneNumberId) {
      WHERE phone_number_id = $1 AND activo = true`,
     [phoneNumberId]
   )
-  return rows[0] || null
+  if (!rows[0]) return null
+  return { ...rows[0], access_token: descifrar(rows[0].access_token) }
 }
 
 // Credenciales de WhatsApp de un tenant ya autenticado (dashboard), para
@@ -36,7 +38,7 @@ async function obtenerCredencialesWhatsApp(tenantId) {
     [tenantId]
   )
   if (!rows[0]) return null
-  return { token: rows[0].access_token, phoneId: rows[0].phone_number_id }
+  return { token: descifrar(rows[0].access_token), phoneId: rows[0].phone_number_id }
 }
 
 // ── Catálogo del día — armado en vivo desde la tabla productos ────────────────
