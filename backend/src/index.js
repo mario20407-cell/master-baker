@@ -27,6 +27,7 @@ import pasivosLaboralesRoutes from './routes/pasivosLaborales.js'
 import adminPinRoutes   from './routes/adminPin.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 import { query } from './db/client.js'
+import { validarClaveConfigurada } from './utils/cifrado.js'
 
 // Asegurar columnas de auditoría y trial en producción de forma no bloqueante
 query(`
@@ -257,6 +258,26 @@ app.use((err, req, res, _next) => {
 })
 
 if (process.env.NODE_ENV !== 'test') {
+  // Si hay algún tenant con WhatsApp configurado, la clave de cifrado tiene
+  // que estar bien configurada — si no, el bot arranca en silencio y deja
+  // de responder para todos los tenants (ya pasó una vez, con el token
+  // vencido). No abortamos el arranque completo por esto: el resto del
+  // sistema (panel, ventas, inventario, etc.) no depende del bot de
+  // WhatsApp para funcionar, así que tirar todo el servidor abajo por un
+  // problema aislado del bot sería desproporcionado. Se loguea fuerte en
+  // su lugar para que sea imposible no notarlo.
+  const { rows: [{ count: tenantsConWhatsapp }] } = await query(
+    'SELECT COUNT(*)::int AS count FROM tenant_whatsapp_config'
+  )
+  if (tenantsConWhatsapp > 0) {
+    try {
+      validarClaveConfigurada()
+    } catch (e) {
+      console.error('❌ WHATSAPP_TOKEN_ENCRYPTION_KEY falta o es inválida — el bot de WhatsApp no podrá responder a ningún tenant.')
+      console.error(`   Detalle: ${e.message}`)
+    }
+  }
+
   app.listen(PORT, () => {
     console.log(`\n🥐 Maestro Panadero IA — Marquéz v3.0`)
     console.log(`   Servidor:    http://localhost:${PORT}`)
