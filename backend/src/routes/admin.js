@@ -114,12 +114,26 @@ router.post('/reset-password', async (req, res, next) => {
     let objetivo
 
     if (email) {
+      const emailNorm = email.toLowerCase().trim()
+      const condicionSlug = slug ? 'AND t.slug = $2' : ''
+      const paramsEmail = slug ? [emailNorm, slug] : [emailNorm]
+
       const { rows } = await query(
-        'SELECT id, email, activo FROM usuarios WHERE email = $1 ORDER BY creado_en LIMIT 1',
-        [email.toLowerCase().trim()]
+        `SELECT u.id, u.email, u.activo, t.slug AS tenant_slug, t.nombre_negocio AS tenant_nombre
+         FROM usuarios u JOIN tenants t ON t.id = u.tenant_id
+         WHERE u.email = $1 ${condicionSlug}
+         ORDER BY u.creado_en`,
+        paramsEmail
       )
+      if (rows.length === 0) return res.status(404).json({ error: 'No existe un usuario con ese email' })
+      if (rows.length > 1) {
+        return res.status(409).json({
+          error: 'Ese email existe en más de un negocio. Volvé a pedir el reset indicando también el slug.',
+          opciones: rows.map(r => ({ slug: r.tenant_slug, nombre: r.tenant_nombre })),
+        })
+      }
       objetivo = rows[0]
-      if (!objetivo) return res.status(404).json({ error: 'No existe un usuario con ese email' })
+      negocioNombre = objetivo.tenant_nombre
     } else {
       const { rows: tenants } = await query(
         'SELECT id, nombre_negocio FROM tenants WHERE slug = $1',
