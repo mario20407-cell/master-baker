@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   salario_mensual NUMERIC,
   fecha_ingreso   DATE,
   creado_en       TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE (email)
+  UNIQUE (tenant_id, email)
 );
 
 -- ── Pagos variables (destajo/por producción) de colaboradores tipo_pago='variable' ──

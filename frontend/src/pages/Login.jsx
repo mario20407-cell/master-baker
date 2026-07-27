@@ -11,16 +11,22 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [cargando, setCargando] = useState(false)
   const [showPass, setShowPass] = useState(false)
+  const [opciones, setOpciones] = useState([])
+  const [negocioElegido, setNegocioElegido] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!email || !password) { toast.error('Ingresa tu email y Contraseña'); return }
     setCargando(true)
     try {
-      await login(email.trim(), password)
+      await login(email.trim(), password, negocioElegido || undefined)
       toast.success('Bienvenido')
       navigate('/dashboard', { replace: true })
     } catch (err) {
+      if (err.response?.data?.necesitaNegocio) {
+        setOpciones(err.response.data.opciones || [])
+        return
+      }
       toast.error(err.response?.data?.error || 'Credenciales incorrectas')
     } finally {
       setCargando(false)
@@ -54,7 +60,18 @@ export default function Login() {
                 </button>
               </div>
             </div>
-            <button type="submit" disabled={cargando}
+            {opciones.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">Ese email existe en más de un negocio, elegí con cuál entrar</label>
+                <select value={negocioElegido} onChange={e => setNegocioElegido(e.target.value)} disabled={cargando}>
+                  <option value="">Seleccioná un negocio…</option>
+                  {opciones.map(o => (
+                    <option key={o.slug} value={o.slug}>{o.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <button type="submit" disabled={cargando || (opciones.length > 0 && !negocioElegido)}
               className="btn-primary w-full py-2.5 mt-2 flex items-center justify-center gap-2">
               {cargando ? (
                 <>
