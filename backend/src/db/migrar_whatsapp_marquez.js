@@ -12,6 +12,7 @@
 
 import 'dotenv/config'
 import pg from 'pg'
+import { cifrar } from '../utils/cifrado.js'
 
 const { Client } = pg
 
@@ -39,7 +40,7 @@ async function main() {
        VALUES ($1, $2, $3)
        ON CONFLICT (tenant_id) DO NOTHING
        RETURNING id, tenant_id, phone_number_id`,
-      [TENANT_ID_MARQUEZ, process.env.WHATSAPP_PHONE_ID, process.env.WHATSAPP_TOKEN]
+      [TENANT_ID_MARQUEZ, process.env.WHATSAPP_PHONE_ID, cifrar(process.env.WHATSAPP_TOKEN)]
     )
 
     if (resultado.rowCount === 0) {
