@@ -40,11 +40,6 @@ router.post('/registrar-negocio', async (req, res, next) => {
   }
 
   try {
-    const { rows: emailExists } = await query('SELECT id FROM usuarios WHERE email = $1', [email.toLowerCase().trim()])
-    if (emailExists.length) {
-      return res.status(409).json({ error: 'El correo ya está registrado' })
-    }
-
     let slug = nombreNegocio.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
     if (!slug) slug = 'panaderia'
 
@@ -166,22 +161,45 @@ router.post('/registrar-negocio', async (req, res, next) => {
 })
 
 router.post('/login', async (req, res, next) => {
-  const { email, password } = req.body
+  const { email, password, negocio } = req.body
   if (!email || !password) {
     return res.status(400).json({ error: 'Email y contraseña son requeridos' })
   }
   try {
-    const { rows } = await query(
-      `SELECT u.*, t.nombre_negocio AS tenant_nombre, t.plan AS tenant_plan
+    const condicionNegocio = negocio ? 'AND t.slug = $2' : ''
+    const params = negocio
+      ? [email.toLowerCase().trim(), negocio.toLowerCase().trim()]
+      : [email.toLowerCase().trim()]
+
+    const { rows: candidatos } = await query(
+      `SELECT u.*, t.nombre_negocio AS tenant_nombre, t.plan AS tenant_plan, t.slug AS tenant_slug
        FROM usuarios u
        JOIN tenants t ON t.id = u.tenant_id
-       WHERE u.email = $1 AND u.activo = true`,
-      [email.toLowerCase().trim()]
+       WHERE u.email = $1 AND u.activo = true ${condicionNegocio}`,
+      params
     )
-    const usuario = rows[0]
-    if (!usuario) return res.status(401).json({ error: 'Credenciales incorrectas' })
-    const passwordValida = await bcrypt.compare(password, usuario.password_hash)
-    if (!passwordValida) return res.status(401).json({ error: 'Credenciales incorrectas' })
+
+    // Solo se consideran candidatos válidos los que además tienen la
+    // contraseña correcta — así nunca revelamos en qué negocios existe
+    // un email a alguien que todavía no probó la contraseña.
+    const validos = []
+    for (const c of candidatos) {
+      if (await bcrypt.compare(password, c.password_hash)) validos.push(c)
+    }
+
+    if (validos.length === 0) {
+      return res.status(401).json({ error: 'Credenciales incorrectas' })
+    }
+
+    if (validos.length > 1) {
+      return res.status(409).json({
+        error: 'Ese email y contraseña son válidos en más de un negocio. Elegí con cuál querés ingresar.',
+        necesitaNegocio: true,
+        opciones: validos.map(v => ({ slug: v.tenant_slug, nombre: v.tenant_nombre }))
+      })
+    }
+
+    const usuario = validos[0]
     await query('UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1', [usuario.id])
     const token = generarToken(usuario)
     res.json({
