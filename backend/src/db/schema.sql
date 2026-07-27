@@ -521,3 +521,40 @@ CREATE OR REPLACE TRIGGER trg_config_fiscal_ts
 CREATE OR REPLACE TRIGGER trg_tenants_ts
   BEFORE UPDATE ON tenants
   FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
+
+-- ── RLS defensivo por tenant_id (R2, deuda técnica) ────────────
+-- El rol de conexión definido en DATABASE_URL tiene el atributo BYPASSRLS,
+-- así que estas políticas hoy no cambian nada en la práctica — todas las
+-- queries actuales las siguen bypasseando por completo. Es preparación
+-- para el día que se use un rol restringido (ej. conexión vía Supabase
+-- con anon/authenticated key, o un rol de app dedicado). Para que eso
+-- funcione de verdad, además hace falta que cada request setee
+-- SET LOCAL app.tenant_id = '<uuid>' dentro de una transacción antes de
+-- correr queries — el pool compartido actual (backend/src/db/client.js,
+-- pool.query() directo) no hace esto. Cambiar el rol de conexión sin
+-- implementar eso primero rompería la aplicación entera (0 filas en
+-- todas las queries). Ese cambio de arquitectura queda fuera de alcance
+-- de este commit.
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'usuarios','pagos_variables','sucursales','productos','recetas','ingredientes',
+    'costeos','inventario','inventario_terminado','facturas','factura_items',
+    'config_fiscal','configuracion_costeo','ventas','venta_items','ordenes_produccion',
+    'lotes','lote_distribuciones','caja_produccion','sugerencias_produccion',
+    'auditoria_precios','bitacora_actividades','ai_usage_log','actividad_heartbeats',
+    'uso_ia_mensual','clientes_whatsapp','mensajes_whatsapp','pedidos_whatsapp',
+    'tenant_whatsapp_config'
+  ]
+  LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON %I', t);
+    EXECUTE format(
+      'CREATE POLICY tenant_isolation ON %I USING (tenant_id = current_setting(''app.tenant_id'', true)::uuid) WITH CHECK (tenant_id = current_setting(''app.tenant_id'', true)::uuid)',
+      t
+    );
+  END LOOP;
+END $$;
