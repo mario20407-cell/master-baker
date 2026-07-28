@@ -1,0 +1,30 @@
+name: Backup de la base de datos
+
+# Corre automaticamente todos los lunes a las 06:00 UTC (00:00 hora Nicaragua)
+# y tambien se puede disparar a mano desde la pestana "Actions" en GitHub.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar cliente de Postgres
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Generar dump comprimido de la base
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          FECHA=$(date +%Y-%m-%d)
+          pg_dump "$BACKUP_DATABASE_URL" --no-owner --no-privileges | gzip > backup-$FECHA.sql.gz
+          echo "Backup generado: backup-$FECHA.sql.gz ($(du -h backup-$FECHA.sql.gz | cut -f1))"
+
+      - name: Subir backup como artifact de GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: master-baker-backup-${{ github.run_id }}
+          path: backup-*.sql.gz
+          retention-days: 90
