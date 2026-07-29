@@ -413,23 +413,29 @@ publicRouter.post('/webhook', async (req, res) => {
   const signatureHeader = req.headers['x-hub-signature-256']
   const appSecret = process.env.META_APP_SECRET
 
-  if (appSecret) {
-    if (!signatureHeader) {
-      console.error('[WhatsApp Webhook] Firma x-hub-signature-256 ausente')
-      return res.status(401).send('Firma ausente')
-    }
-    const signature = signatureHeader.split('=')[1]
-    const expectedSignature = crypto
-      .createHmac('sha256', appSecret)
-      .update(req.rawBody || '')
-      .digest('hex')
+  // Fail-closed: si META_APP_SECRET no está configurado, el webhook rechaza
+  // el request en vez de dejarlo pasar sin validar (antes quedaba abierto
+  // en silencio — cualquiera podía simular ser Meta y mandar mensajes/pedidos
+  // falsos). Corregido en la auditoría del 2026-07-28.
+  if (!appSecret) {
+    console.error('[WhatsApp Webhook] META_APP_SECRET no configurado — rechazando request por seguridad.')
+    return res.status(503).send('Webhook no configurado')
+  }
+  if (!signatureHeader) {
+    console.error('[WhatsApp Webhook] Firma x-hub-signature-256 ausente')
+    return res.status(401).send('Firma ausente')
+  }
+  const signature = signatureHeader.split('=')[1]
+  const expectedSignature = crypto
+    .createHmac('sha256', appSecret)
+    .update(req.rawBody || '')
+    .digest('hex')
 
-    if (signature !== expectedSignature) {
-      console.error('[WhatsApp Webhook] Firma x-hub-signature-256 inválida')
-      return res.status(401).send('Firma inválida')
-    }
-  } else {
-    console.warn('[WhatsApp Webhook] META_APP_SECRET no configurado. Omitiendo validación de firma.')
+  const sigBuf = Buffer.from(signature || '', 'hex')
+  const expBuf = Buffer.from(expectedSignature, 'hex')
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    console.error('[WhatsApp Webhook] Firma x-hub-signature-256 inválida')
+    return res.status(401).send('Firma inválida')
   }
 
   // Responder 200 inmediatamente para que Meta no reintente

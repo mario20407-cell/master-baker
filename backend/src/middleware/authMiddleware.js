@@ -42,7 +42,10 @@ export function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET)
+    // Pinear el algoritmo es defensa en profundidad: sin esto, jwt.verify
+    // acepta cualquier algoritmo que el token declare (HS/RS/etc.) — pinear
+    // a HS256 evita esa clase de ataque de confusión de algoritmo.
+    const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] })
 
     // El JWT es la fuente de verdad — sobreescribimos lo que
     // tenantMiddleware haya asignado por header/subdominio/default.
