@@ -86,9 +86,14 @@ describe('🔴 SIMULACIÓN DE PRUEBAS DE SEGURIDAD (RED TEAMING)', () => {
   })
 
   it('Escenario 4: Acceder a conversaciones de WhatsApp de clientes sin token (Debe denegar 401)', async () => {
+    // La ruta era /api/whatsapp/conversacion/:numero; hoy es
+    // /api/whatsapp/clientes/:telefono/mensajes (ver routes/whatsapp.js,
+    // privateRouter.get('/clientes/:telefono/mensajes', ...)). Este test
+    // seguía apuntando a la ruta vieja — nunca se notó porque el CI no
+    // corría npm test hasta este PR.
     const res = await request(app)
-      .get('/api/whatsapp/conversacion/50588888888')
-    
+      .get('/api/whatsapp/clientes/50588888888/mensajes')
+
     expect(res.status).toBe(401)
   })
 
