@@ -20,12 +20,17 @@ const authLimiter = rateLimit({
 function generarToken(usuario) {
   return jwt.sign(
     {
-      usuarioId: usuario.id,
-      tenantId:  usuario.tenant_id,
-      email:     usuario.email,
-      nombre:    usuario.nombre,
-      rol:       usuario.rol,
-      permisos:  usuario.permisos || [],
+      usuarioId:    usuario.id,
+      tenantId:     usuario.tenant_id,
+      email:        usuario.email,
+      nombre:       usuario.nombre,
+      rol:          usuario.rol,
+      permisos:     usuario.permisos || [],
+      // Revocación de sesiones (ver authMiddleware.js): requireAuth compara
+      // este valor contra usuarios.token_version en cada request. Cambiar
+      // contraseña o revocar sesiones sube ese número en la DB, y todo
+      // token firmado con el número viejo deja de servir al instante.
+      tokenVersion: usuario.token_version || 0,
     },
     process.env.JWT_SECRET,
     { expiresIn: '8h' }
@@ -291,8 +296,11 @@ router.put('/usuarios/:id/password', requireAuth, requireRol('admin'), async (re
   }
   try {
     const hash = await bcrypt.hash(password, 12)
+    // Cambiar la contraseña también sube token_version — invalida de
+    // inmediato cualquier sesión que ese usuario tuviera abierta con la
+    // contraseña vieja (ver requireAuth en authMiddleware.js).
     const { rowCount } = await query(
-      'UPDATE usuarios SET password_hash = $1 WHERE id = $2 AND tenant_id = $3',
+      'UPDATE usuarios SET password_hash = $1, token_version = token_version + 1 WHERE id = $2 AND tenant_id = $3',
       [hash, req.params.id, req.tenantId]
     )
     if (!rowCount) return res.status(404).json({ error: 'Usuario no encontrado' })
@@ -317,7 +325,10 @@ router.put('/password', requireAuth, async (req, res, next) => {
     if (!passwordValida) return res.status(401).json({ error: 'Contraseña actual incorrecta' })
 
     const hash = await bcrypt.hash(passwordNueva, 12)
-    await query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [hash, req.usuarioId])
+    // Sube token_version: la sesión actual sigue viva (su JWT ya tiene el
+    // número nuevo desde el próximo login), pero cualquier otra sesión
+    // abierta con la contraseña vieja queda invalidada de inmediato.
+    await query('UPDATE usuarios SET password_hash = $1, token_version = token_version + 1 WHERE id = $2', [hash, req.usuarioId])
 
     await registrarActividad(req, {
       modulo: 'seguridad',
@@ -349,6 +360,29 @@ router.post('/logout', requireAuth, (req, res) => {
   res.json({ ok: true, mensaje: 'Sesion cerrada' })
 })
 
+// POST /api/auth/usuarios/:id/revocar-sesiones — invalida todas las sesiones
+// activas de un colaborador sin tocar su contraseña (ej: sospecha de token
+// filtrado, dispositivo perdido). Sube token_version — cualquier JWT emitido
+// antes deja de servir en el próximo request, aunque no haya expirado.
+router.post('/usuarios/:id/revocar-sesiones', requireAuth, requireRol('admin'), async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      'UPDATE usuarios SET token_version = token_version + 1 WHERE id = $1 AND tenant_id = $2 RETURNING id, email, nombre',
+      [req.params.id, req.tenantId]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
+
+    await registrarActividad(req, {
+      modulo: 'seguridad',
+      accion: 'REVOCAR_SESIONES',
+      descripcion: `Se revocaron todas las sesiones activas de "${rows[0].nombre}" (${rows[0].email})`,
+      detalles: { usuario_afectado_id: rows[0].id, usuario_afectado_email: rows[0].email }
+    })
+
+    res.json({ ok: true, mensaje: `Sesiones de ${rows[0].nombre} revocadas — deberá iniciar sesión de nuevo` })
+  } catch (e) { next(e) }
+})
+
 // POST /api/auth/reset-password — reset de contraseña con PIN de admin
 router.post('/reset-password', requireAuth, requireRol('admin'), async (req, res, next) => {
   const { email, nueva_password } = req.body
@@ -361,7 +395,8 @@ router.post('/reset-password', requireAuth, requireRol('admin'), async (req, res
   try {
     const hash = await bcrypt.hash(nueva_password, 12)
     const { rows } = await query(
-      `UPDATE usuarios SET password_hash = $1 WHERE email = $2 AND tenant_id = $3 AND activo = true RETURNING id, email, nombre`,
+      `UPDATE usuarios SET password_hash = $1, token_version = token_version + 1
+       WHERE email = $2 AND tenant_id = $3 AND activo = true RETURNING id, email, nombre`,
       [hash, email.toLowerCase().trim(), req.tenantId]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })

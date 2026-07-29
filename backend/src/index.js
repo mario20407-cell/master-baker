@@ -41,6 +41,18 @@ query(`
   console.warn('   Esquema:     (Aviso) No se pudieron verificar columnas:', err.message)
 })
 
+// Columna de revocación de sesiones (ver authMiddleware.js). No bloqueante,
+// mismo patrón que arriba — en el primerísimo instante tras un deploy nuevo
+// requireAuth podría toparse con la columna aún no creada; ese caso se
+// degrada a un 500 controlado, nunca a un 401 falso ni a un crash.
+query(`
+  ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0;
+`).then(() => {
+  console.log('   Esquema:     Columna token_version verificada')
+}).catch(err => {
+  console.warn('   Esquema:     (Aviso) No se pudo verificar token_version:', err.message)
+})
+
 // Tablas para métricas del panel de fundadores: consumo de tokens de IA y
 // actividad de pantalla por tenant. No bloqueante — igual que el patch de arriba.
 query(`

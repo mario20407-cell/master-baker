@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # Backend (npm) — avisa de vulnerabilidades y actualizaciones sin que haya
+  # que correr "npm audit" a mano. Solo abre PRs, no las mergea sola.
+  - package-ecosystem: "npm"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencias"
+
+  # Frontend (npm)
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencias"
+
+  # Acciones de GitHub usadas en los workflows de CI
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
