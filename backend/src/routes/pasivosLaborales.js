@@ -1,7 +1,19 @@
 import { Router } from 'express'
 import { query } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
-import { calcularPasivoColaborador, obtenerColaboradoresConDatosLaborales } from '../services/pasivosLaboralesService.js'
+import { calcularPasivoColaborador, obtenerColaboradoresConDatosLaborales, sincronizarCostoIndirectoMano } from '../services/pasivosLaboralesService.js'
+
+// El costo de mano de obra aplicado al costeo de recetas se calcula a
+// partir de estos mismos datos (ver sincronizarCostoIndirectoMano). Si la
+// sincronización falla, no debe tumbar la operación de nómina que sí se
+// guardó correctamente — se registra el error y se sigue.
+async function sincronizarSinRomper(tenantId) {
+  try {
+    await sincronizarCostoIndirectoMano(query, tenantId)
+  } catch (e) {
+    console.warn('[pasivosLaborales] No se pudo sincronizar costo_indirecto_mano:', e.message)
+  }
+}
 
 const router = Router()
 
@@ -41,6 +53,7 @@ router.put('/perfil/:usuarioId', async (req, res, next) => {
       [tipo_pago || null, salario_mensual ?? null, fecha_ingreso || null, req.params.usuarioId, req.tenantId]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Colaborador no encontrado' })
+    await sincronizarSinRomper(req.tenantId)
     res.json(rows[0])
   } catch (e) { next(e) }
 })
@@ -81,6 +94,7 @@ router.post('/pagos-variables/:usuarioId', async (req, res, next) => {
        RETURNING mes, monto`,
       [req.tenantId, req.params.usuarioId, mesNormalizado, monto]
     )
+    await sincronizarSinRomper(req.tenantId)
     res.json(rows[0])
   } catch (e) { next(e) }
 })

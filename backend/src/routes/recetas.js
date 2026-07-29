@@ -2,14 +2,7 @@ import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 import { registrarActividad } from '../services/bitacoraService.js'
-import {
-  calcularBaseSalarial,
-  calcularInssPatronalMensual,
-  calcularAguinaldoAcumulado,
-  calcularVacacionesAcumuladas,
-  mesesEntre,
-  obtenerColaboradoresConDatosLaborales,
-} from '../services/pasivosLaboralesService.js'
+import { calcularSugerenciaManoObra } from '../services/pasivosLaboralesService.js'
 
 const router = Router()
 
@@ -56,70 +49,14 @@ router.put('/configuracion-costeo/settings', async (req, res, next) => {
 })
 
 // GET /api/recetas/configuracion-costeo/sugerencia-mano-obra
+// Nota: configuracion_costeo.costo_indirecto_mano ya se mantiene sincronizado
+// solo con esta misma fórmula (ver sincronizarCostoIndirectoMano, disparado
+// desde pasivosLaborales.js y fiscal.js) — esta ruta queda para mostrarla en
+// la UI de Configuración, no es el único lugar donde se aplica.
 router.get('/configuracion-costeo/sugerencia-mano-obra', requireRol('admin'), async (req, res, next) => {
   try {
-    // 1. Obtener la producción mensual de config_fiscal
-    const { rows: fiscalRows } = await query(
-      'SELECT produccion_mensual, configurado FROM config_fiscal WHERE tenant_id = $1',
-      [req.tenantId]
-    )
-    // produccion_mensual tiene default 1 en la tabla — sin este chequeo de
-    // "configurado", un tenant que nunca terminó de configurar la sección
-    // fiscal igual pasaría la validación y el costo laboral total se
-    // dividiría entre 1 pieza, dando una sugerencia disparatada.
-    if (!fiscalRows.length || !fiscalRows[0].configurado) {
-      return res.json({ sugerido: null, motivo: 'fiscal_no_configurado' })
-    }
-    if (!fiscalRows[0].produccion_mensual || parseInt(fiscalRows[0].produccion_mensual) <= 0) {
-      return res.json({ sugerido: null, motivo: 'sin_produccion_mensual' })
-    }
-    const produccion_mensual = parseInt(fiscalRows[0].produccion_mensual)
-
-    // 2. Obtener colaboradores activos + su historial de pagos variables
-    // en 2 queries en total (antes: 1 query por colaborador de pago
-    // variable, dentro del loop — ver pasivosLaboralesService.js).
-    const { colaboradores, empresaGrande } = await obtenerColaboradoresConDatosLaborales(query, req.tenantId)
-
-    // Filtrar colaboradores con pago configurado (fijo con salario_mensual > 0 o variable)
-    const colaboradoresValidos = colaboradores.filter(c =>
-      c.tipo_pago === 'fijo' || c.tipo_pago === 'variable'
-    )
-
-    if (colaboradoresValidos.length === 0) {
-      return res.json({ sugerido: null, motivo: 'sin_datos_nomina' })
-    }
-
-    const hoy = new Date()
-    let sumaCostoLaboralTotal = 0
-    let colaboradoresConSueldo = 0
-
-    for (const c of colaboradoresValidos) {
-      const base = calcularBaseSalarial(c, c.pagosVariables)
-      if (base.sinDatos) continue
-
-      const inss = calcularInssPatronalMensual(base.inssPatronal, empresaGrande)
-      let costoLaboralMensual = base.inssPatronal + inss.total
-
-      if (c.fecha_ingreso) {
-        const mesesAntiguedad = mesesEntre(c.fecha_ingreso, hoy)
-        if (mesesAntiguedad > 0) {
-          const aguinaldo = calcularAguinaldoAcumulado(base.aguinaldo, c.fecha_ingreso, hoy)
-          const vacaciones = calcularVacacionesAcumuladas(base.vacaciones, c.fecha_ingreso, hoy)
-          if (aguinaldo.meses > 0) costoLaboralMensual += aguinaldo.monto / aguinaldo.meses
-          costoLaboralMensual += vacaciones.monto / mesesAntiguedad
-        }
-      }
-
-      sumaCostoLaboralTotal += costoLaboralMensual
-      colaboradoresConSueldo++
-    }
-
-    if (colaboradoresConSueldo === 0) {
-      return res.json({ sugerido: null, motivo: 'sin_datos_nomina' })
-    }
-
-    const sugerido = Math.round((sumaCostoLaboralTotal / produccion_mensual) * 100) / 100
-    res.json({ sugerido })
+    const resultado = await calcularSugerenciaManoObra(query, req.tenantId)
+    res.json(resultado)
   } catch (e) { next(e) }
 })
 
