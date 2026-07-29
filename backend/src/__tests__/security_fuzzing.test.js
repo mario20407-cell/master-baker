@@ -3,8 +3,29 @@ import request from 'supertest'
 import jwt from 'jsonwebtoken'
 import app from '../index.js'
 
+// requireAuth ahora consulta la DB (token_version, ver authMiddleware.js) antes
+// de dejar pasar cualquier request autenticado, además de la query "de negocio"
+// de cada ruta. Este helper hace que la simulación de la tabla usuarios siempre
+// devuelva un usuario activo con token_version=0 — coincide con los tokens de
+// este archivo, que nunca declaran tokenVersion (undefined → 0 por defecto en
+// requireAuth) — y deja que cualquier otra query siga devolviendo lo que cada
+// test configure explícitamente.
+function mockQueryConAuth(resolverNegocio) {
+  query.mockImplementation((sql, params) => {
+    if (typeof sql === 'string' && sql.includes('FROM usuarios')) {
+      return Promise.resolve({ rows: [{ token_version: 0, activo: true }] })
+    }
+    return resolverNegocio(sql, params)
+  })
+}
+
 vi.mock('../db/client.js', () => ({
-  query: vi.fn().mockResolvedValue({ rows: [] }),
+  query: vi.fn((sql) => {
+    if (typeof sql === 'string' && sql.includes('FROM usuarios')) {
+      return Promise.resolve({ rows: [{ token_version: 0, activo: true }] })
+    }
+    return Promise.resolve({ rows: [] })
+  }),
   transaction: vi.fn(),
 }))
 
@@ -70,7 +91,7 @@ describe('🔥 PRUEBAS DE SEGURIDAD EXHAUSTIVAS & FUZZING (RED TEAMING AVANZADO)
     // GET /api/lotes (backend/src/routes/lotes.js:12,25) — se apunta ahí.
 
     it('Ataque 2.1: Inyección SQL clásica en filtros de texto (Debe ser tratada como valor literal)', async () => {
-      query.mockResolvedValue({ rows: [] })
+      mockQueryConAuth(() => Promise.resolve({ rows: [] }))
 
       const res = await request(app)
         .get("/api/lotes?producto=' OR '1'='1")
@@ -84,7 +105,7 @@ describe('🔥 PRUEBAS DE SEGURIDAD EXHAUSTIVAS & FUZZING (RED TEAMING AVANZADO)
     })
 
     it('Ataque 2.2: Intentos de escape SQL de mutaciones destructivas (Debe sanitizarse)', async () => {
-      query.mockResolvedValue({ rows: [] })
+      mockQueryConAuth(() => Promise.resolve({ rows: [] }))
 
       const maliciousName = "Dona'; DROP TABLE productos;--"
       const res = await request(app)
@@ -110,7 +131,7 @@ describe('🔥 PRUEBAS DE SEGURIDAD EXHAUSTIVAS & FUZZING (RED TEAMING AVANZADO)
         secureSecret
       )
 
-      query.mockResolvedValue({ rows: [] })
+      mockQueryConAuth(() => Promise.resolve({ rows: [] }))
 
       const res = await request(app)
         .get('/api/ventas?tenant_id=tenant-malicioso-1&tenant_id=tenant-malicioso-2')
@@ -130,7 +151,7 @@ describe('🔥 PRUEBAS DE SEGURIDAD EXHAUSTIVAS & FUZZING (RED TEAMING AVANZADO)
         secureSecret
       )
 
-      query.mockResolvedValue({ rows: [] })
+      mockQueryConAuth(() => Promise.resolve({ rows: [] }))
 
       // Enviar objetos anidados en el querystring
       const res = await request(app)

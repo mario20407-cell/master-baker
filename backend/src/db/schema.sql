@@ -76,6 +76,12 @@ CREATE TABLE IF NOT EXISTS usuarios (
   permisos        VARCHAR(50)[] DEFAULT ARRAY['ver_recetas','registrar_ventas','ver_inventario','ver_produccion','ver_catalogo']::VARCHAR(50)[],
   activo          BOOLEAN DEFAULT true,
   ultimo_login    TIMESTAMPTZ,
+  -- Revocación de sesiones: cada JWT lleva el token_version vigente al
+  -- momento de emitirse. Si se sube este número (cambio de contraseña,
+  -- revocación manual por un admin), todos los tokens emitidos antes
+  -- quedan inválidos de inmediato en requireAuth, sin esperar a que
+  -- expiren naturalmente (ver backend/src/middleware/authMiddleware.js).
+  token_version   INT NOT NULL DEFAULT 0,
   -- Perfil laboral, usado por pasivosLaboralesService.js para calcular
   -- INSS patronal/INATEC/aguinaldo/vacaciones y sugerir el costo de
   -- mano de obra en configuracion_costeo.

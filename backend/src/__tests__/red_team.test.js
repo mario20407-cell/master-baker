@@ -1,30 +1,61 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import request from 'supertest'
 import jwt from 'jsonwebtoken'
 import app from '../index.js'
+import { query } from '../db/client.js'
+
+const testTenantId    = '99999999-9999-9999-9999-999999999999'
+const testAdminId     = '11111111-1111-1111-1111-111111111111'
+const testOperarioId  = '22222222-2222-2222-2222-222222222222'
 
 describe('🔴 SIMULACIÓN DE PRUEBAS DE SEGURIDAD (RED TEAMING)', () => {
   let adminToken
   let operarioToken
   let fakeAdminToken
 
-  beforeAll(() => {
+  beforeAll(async () => {
     process.env.JWT_SECRET = 'test-jwt-secret-secure'
 
+    // requireAuth ahora valida token_version contra la DB (revocación de
+    // sesiones, ver authMiddleware.js) — necesita usuarios reales, no solo
+    // un JWT bien firmado. Se crea el tenant y los dos usuarios de prueba.
+    await query(
+      `INSERT INTO tenants (id, slug, nombre_negocio) VALUES ($1, 'test-red-team', 'Test Red Team')
+       ON CONFLICT (id) DO NOTHING`,
+      [testTenantId]
+    )
+    await query(
+      `INSERT INTO usuarios (id, tenant_id, email, nombre, rol, activo)
+       VALUES ($1, $2, 'admin@marquez.com', 'Admin', 'admin', true)
+       ON CONFLICT (id) DO NOTHING`,
+      [testAdminId, testTenantId]
+    )
+    await query(
+      `INSERT INTO usuarios (id, tenant_id, email, nombre, rol, activo)
+       VALUES ($1, $2, 'op@marquez.com', 'Operario', 'operario', true)
+       ON CONFLICT (id) DO NOTHING`,
+      [testOperarioId, testTenantId]
+    )
+
     adminToken = jwt.sign(
-      { usuarioId: 'u-admin', tenantId: 'test-tenant-id', rol: 'admin', email: 'admin@marquez.com', nombre: 'Admin' },
+      { usuarioId: testAdminId, tenantId: testTenantId, rol: 'admin', email: 'admin@marquez.com', nombre: 'Admin' },
       process.env.JWT_SECRET
     )
 
     operarioToken = jwt.sign(
-      { usuarioId: 'u-operario', tenantId: 'test-tenant-id', rol: 'operario', email: 'op@marquez.com', nombre: 'Operario' },
+      { usuarioId: testOperarioId, tenantId: testTenantId, rol: 'operario', email: 'op@marquez.com', nombre: 'Operario' },
       process.env.JWT_SECRET
     )
 
     fakeAdminToken = jwt.sign(
-      { usuarioId: 'u-fake', tenantId: 'test-tenant-id', rol: 'admin', email: 'hacker@hacker.com', nombre: 'Hacker' },
+      { usuarioId: testAdminId, tenantId: testTenantId, rol: 'admin', email: 'hacker@hacker.com', nombre: 'Hacker' },
       'CLAVE_COMPROMETIDA_DEL_HISTORIAL_DE_GIT_QUE_YA_FUE_ROTADA'
     )
+  })
+
+  afterAll(async () => {
+    await query('DELETE FROM usuarios WHERE tenant_id = $1', [testTenantId])
+    await query('DELETE FROM tenants WHERE id = $1', [testTenantId])
   })
 
   it('Escenario 1: Intentar registrar un administrador sin autenticación (Debe denegar 401)', async () => {
