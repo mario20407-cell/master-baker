@@ -1,11 +1,21 @@
 import { Router } from 'express'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
+import rateLimit from 'express-rate-limit'
 import { query, transaction } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 import { registrarActividad } from '../services/bitacoraService.js'
 
 const router = Router()
+
+// El rate limit global (500/15min por IP) es demasiado permisivo para
+// frenar fuerza bruta sobre una cuenta puntual — este limiter dedicado
+// aplica solo a login y auto-registro.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: { error: 'Demasiados intentos. Esperá 15 minutos.' }
+})
 
 function generarToken(usuario) {
   return jwt.sign(
@@ -23,10 +33,17 @@ function generarToken(usuario) {
 }
 
 // POST /api/auth/registrar-negocio — Auto-registro público con código de invitación
-router.post('/registrar-negocio', async (req, res, next) => {
+router.post('/registrar-negocio', authLimiter, async (req, res, next) => {
   const { nombreNegocio, nombreAdmin, email, password, codigoInvitacion } = req.body
 
-  const codigoValido = (process.env.INVITATION_CODE || 'FUNDADOR2026').trim().toUpperCase()
+  // Fail-closed: si INVITATION_CODE no está configurado, se rechaza el
+  // registro en vez de aceptar un valor por defecto hardcodeado (visible en
+  // el código fuente, cualquiera con acceso al repo lo podía usar).
+  if (!process.env.INVITATION_CODE) {
+    console.error('[auth] INVITATION_CODE no configurado — rechazando auto-registro por seguridad.')
+    return res.status(503).json({ error: 'Registro no disponible en este momento' })
+  }
+  const codigoValido = process.env.INVITATION_CODE.trim().toUpperCase()
   if (!codigoInvitacion || codigoInvitacion.trim().toUpperCase() !== codigoValido) {
     return res.status(403).json({ error: 'Código de invitación inválido' })
   }
@@ -160,7 +177,7 @@ router.post('/registrar-negocio', async (req, res, next) => {
   }
 })
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', authLimiter, async (req, res, next) => {
   const { email, password, negocio } = req.body
   if (!email || !password) {
     return res.status(400).json({ error: 'Email y contraseña son requeridos' })

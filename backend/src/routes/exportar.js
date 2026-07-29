@@ -15,7 +15,11 @@ const csvHeaders = (res, filename) => {
 
 const escapeCsv = (v) => {
   if (v === null || v === undefined) return ''
-  const s = String(v)
+  let s = String(v)
+  // Antepone comilla simple si el valor empieza con =, +, -, @, tab o CR —
+  // previene CSV/formula injection al abrir el export en Excel (un
+  // proveedor o producto cargado por un usuario podría contener una fórmula).
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
   return s.includes(',') || s.includes('"') || s.includes('\n')
     ? `"${s.replace(/"/g, '""')}"`
     : s

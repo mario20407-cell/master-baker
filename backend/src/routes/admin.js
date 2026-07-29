@@ -2,9 +2,20 @@ import { Router } from 'express'
 import express from 'express'
 import crypto from 'crypto'
 import bcrypt from 'bcrypt'
+import rateLimit from 'express-rate-limit'
 import { query } from '../db/client.js'
 
 const router = Router()
+
+// Este router se monta ANTES del rate limiter global (ver index.js), así que
+// necesita el suyo propio — es el endpoint más sensible del sistema
+// (resetea contraseñas de cualquier usuario, cualquier tenant) y hasta ahora
+// no tenía ningún freno de intentos. Corregido en la auditoría del 2026-07-28.
+router.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Demasiados intentos. Esperá 15 minutos.' }
+}))
 
 // Este router se monta antes del CORS restrictivo global (ver index.js),
 // porque el panel de estado vive fuera de los dominios de la app (masterbaker.store /
@@ -29,7 +40,13 @@ router.use((req, res, next) => {
   if (!token) {
     return res.status(503).json({ error: 'ADMIN_TOKEN no configurado en el servidor' })
   }
-  if (req.headers['x-admin-token'] !== token) {
+  // Comparación en tiempo constante — evita filtrar el token por diferencias
+  // de tiempo de respuesta (timing attack) frente a un simple !==.
+  const recibido = req.headers['x-admin-token'] || ''
+  const tokenBuf = Buffer.from(token)
+  const recibidoBuf = Buffer.from(recibido)
+  const coincide = tokenBuf.length === recibidoBuf.length && crypto.timingSafeEqual(tokenBuf, recibidoBuf)
+  if (!coincide) {
     return res.status(401).json({ error: 'Token de administrador inválido' })
   }
   next()
