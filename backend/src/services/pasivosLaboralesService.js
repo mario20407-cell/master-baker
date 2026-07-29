@@ -109,6 +109,54 @@ export function calcularIndemnizacionPotencial(indemnizacionBase, fechaIngreso, 
   return { anios: Number(anios.toFixed(2)), meses, monto }
 }
 
+// Carga colaboradores activos + su historial de pagos variables en el
+// mínimo de queries posible (2, sin importar cuántos colaboradores haya).
+// Antes, recetas.js (sugerencia-mano-obra) y pasivosLaborales.js (dossier)
+// repetían este mismo fetch cada uno por su lado, y cada uno hacía una
+// query de pagos_variables POR colaborador de pago variable dentro de un
+// loop (patrón N+1: con 10 colaboradores variables son 10 queries extra,
+// con 50 son 50). Acá se trae todo de una sola vez y se agrupa en JS.
+export async function obtenerColaboradoresConDatosLaborales(query, tenantId) {
+  const { rows: colaboradores } = await query(
+    `SELECT id, nombre, email, rol, tipo_pago, salario_mensual, fecha_ingreso
+     FROM usuarios
+     WHERE tenant_id = $1 AND activo = true
+     ORDER BY nombre`,
+    [tenantId]
+  )
+
+  // Empresas de 50+ trabajadores pagan una tasa de INSS patronal distinta
+  // (Art. de Ley 539) — ya teníamos todas las filas activas en la query de
+  // arriba, así que contar sobre eso evita un segundo round-trip solo para
+  // un COUNT(*) que ya podemos calcular en memoria.
+  const empresaGrande = colaboradores.length >= 50
+
+  const idsVariables = colaboradores.filter(c => c.tipo_pago === 'variable').map(c => c.id)
+
+  let pagosPorUsuario = {}
+  if (idsVariables.length > 0) {
+    const { rows: pagos } = await query(
+      `SELECT usuario_id, mes, monto FROM pagos_variables
+       WHERE usuario_id = ANY($1) AND tenant_id = $2
+       ORDER BY usuario_id, mes DESC`,
+      [idsVariables, tenantId]
+    )
+    for (const p of pagos) {
+      if (!pagosPorUsuario[p.usuario_id]) pagosPorUsuario[p.usuario_id] = []
+      pagosPorUsuario[p.usuario_id].push({ mes: p.mes, monto: p.monto })
+    }
+  }
+
+  const colaboradoresConPagos = colaboradores.map(c => ({
+    ...c,
+    // Los cálculos de aguinaldo/vacaciones/INSS solo miran los últimos 6
+    // meses (ver calcularBaseSalarial) — se recorta acá, ya ordenado DESC.
+    pagosVariables: c.tipo_pago === 'variable' ? (pagosPorUsuario[c.id] || []).slice(0, 6) : [],
+  }))
+
+  return { colaboradores: colaboradoresConPagos, empresaGrande }
+}
+
 export function calcularInssPatronalMensual(inssPatronalBase, empresaGrande = false) {
   const tasaPatronal = empresaGrande ? TASAS.INSS_PATRONAL_GRANDE : TASAS.INSS_PATRONAL
   const patronal = inssPatronalBase * tasaPatronal

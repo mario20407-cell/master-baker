@@ -146,6 +146,9 @@ async function guardarMensaje(tenantId, clienteId, rol, contenido) {
 }
 
 async function obtenerHistorial(clienteId, limite = MAX_HISTORIAL) {
+  // tenant-guard: ignorar — clienteId viene de clientes_whatsapp, cuya
+  // búsqueda/creación sí filtra por tenant_id (ver el resto del archivo).
+  // Es un id de PK única global, no puede pertenecer a otro tenant.
   const { rows } = await query(
     `SELECT rol, contenido FROM mensajes_whatsapp
      WHERE cliente_id = $1
@@ -158,6 +161,7 @@ async function obtenerHistorial(clienteId, limite = MAX_HISTORIAL) {
 
 // Productos que más pidió este cliente históricamente — base de la sugerencia.
 async function obtenerProductosFavoritos(clienteId, limite = 3) {
+  // tenant-guard: ignorar — mismo caso que obtenerHistorial() arriba.
   const { rows } = await query(
     `SELECT item->>'producto' AS producto, COUNT(*) AS veces
      FROM pedidos_whatsapp, jsonb_array_elements(items) AS item
@@ -614,6 +618,8 @@ privateRouter.get('/clientes/:telefono/mensajes', requireAuth, async (req, res, 
     )
     if (!clienteRows[0]) return res.json({ telefono: req.params.telefono, mensajes: [] })
 
+    // tenant-guard: ignorar — clienteRows[0].id se acaba de resolver dos
+    // líneas arriba con "WHERE tenant_id = $1 AND telefono = $2".
     const { rows } = await query(
       `SELECT rol, contenido, creado_en FROM mensajes_whatsapp
        WHERE cliente_id = $1 ORDER BY creado_en ASC`,

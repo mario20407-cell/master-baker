@@ -222,6 +222,9 @@ router.post('/login', authLimiter, async (req, res, next) => {
     }
 
     const usuario = validos[0]
+    // tenant-guard: ignorar — filtra por id (PK única global), y ese id
+    // vino de "validos", ya resuelto arriba con email+password correctos
+    // para un tenant específico. No puede apuntar a otro tenant.
     await query('UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1', [usuario.id])
     const token = generarToken(usuario)
     res.json({
@@ -318,6 +321,8 @@ router.put('/password', requireAuth, async (req, res, next) => {
     return res.status(400).json({ error: 'La contraseña nueva debe tener al menos 8 caracteres' })
   }
   try {
+    // tenant-guard: ignorar — filtra por id (PK única global) tomado de
+    // req.usuarioId, que viene del JWT ya verificado por requireAuth.
     const { rows } = await query('SELECT password_hash FROM usuarios WHERE id = $1', [req.usuarioId])
     if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
 
@@ -328,6 +333,8 @@ router.put('/password', requireAuth, async (req, res, next) => {
     // Sube token_version: la sesión actual sigue viva (su JWT ya tiene el
     // número nuevo desde el próximo login), pero cualquier otra sesión
     // abierta con la contraseña vieja queda invalidada de inmediato.
+    // tenant-guard: ignorar — filtra por id (PK única global) tomado de
+    // req.usuarioId, ya verificado por requireAuth.
     await query('UPDATE usuarios SET password_hash = $1, token_version = token_version + 1 WHERE id = $2', [hash, req.usuarioId])
 
     await registrarActividad(req, {

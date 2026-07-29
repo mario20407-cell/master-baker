@@ -63,5 +63,8 @@ jobs:
       - name: Correr tests de integración (contra la DB de test, no producción)
         run: npm test
 
+      - name: Guard — queries a tablas por-tenant sin filtrar tenant_id
+        run: npm run guard:tenant-id
+
       - name: npm audit (solo reporta, no bloquea el merge)
         run: npm audit --production || true
