@@ -8,6 +8,7 @@ import {
   calcularAguinaldoAcumulado,
   calcularVacacionesAcumuladas,
   mesesEntre,
+  obtenerColaboradoresConDatosLaborales,
 } from '../services/pasivosLaboralesService.js'
 
 const router = Router()
@@ -74,11 +75,10 @@ router.get('/configuracion-costeo/sugerencia-mano-obra', requireRol('admin'), as
     }
     const produccion_mensual = parseInt(fiscalRows[0].produccion_mensual)
 
-    // 2. Obtener colaboradores activos
-    const { rows: colaboradores } = await query(
-      'SELECT id, tipo_pago, salario_mensual, fecha_ingreso FROM usuarios WHERE tenant_id = $1 AND activo = true',
-      [req.tenantId]
-    )
+    // 2. Obtener colaboradores activos + su historial de pagos variables
+    // en 2 queries en total (antes: 1 query por colaborador de pago
+    // variable, dentro del loop — ver pasivosLaboralesService.js).
+    const { colaboradores, empresaGrande } = await obtenerColaboradoresConDatosLaborales(query, req.tenantId)
 
     // Filtrar colaboradores con pago configurado (fijo con salario_mensual > 0 o variable)
     const colaboradoresValidos = colaboradores.filter(c =>
@@ -89,29 +89,12 @@ router.get('/configuracion-costeo/sugerencia-mano-obra', requireRol('admin'), as
       return res.json({ sugerido: null, motivo: 'sin_datos_nomina' })
     }
 
-    const { rows: totalActivos } = await query(
-      'SELECT count(*) FROM usuarios WHERE tenant_id = $1 AND activo = true',
-      [req.tenantId]
-    )
-    const empresaGrande = parseInt(totalActivos[0].count, 10) >= 50
-
     const hoy = new Date()
     let sumaCostoLaboralTotal = 0
     let colaboradoresConSueldo = 0
 
     for (const c of colaboradoresValidos) {
-      let pagosVariables = []
-      if (c.tipo_pago === 'variable') {
-        const { rows: pagos } = await query(
-          `SELECT mes, monto FROM pagos_variables
-           WHERE usuario_id = $1 AND tenant_id = $2
-           ORDER BY mes DESC LIMIT 6`,
-          [c.id, req.tenantId]
-        )
-        pagosVariables = pagos
-      }
-
-      const base = calcularBaseSalarial(c, pagosVariables)
+      const base = calcularBaseSalarial(c, c.pagosVariables)
       if (base.sinDatos) continue
 
       const inss = calcularInssPatronalMensual(base.inssPatronal, empresaGrande)

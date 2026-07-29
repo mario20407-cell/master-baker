@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { query } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
-import { calcularPasivoColaborador } from '../services/pasivosLaboralesService.js'
+import { calcularPasivoColaborador, obtenerColaboradoresConDatosLaborales } from '../services/pasivosLaboralesService.js'
 
 const router = Router()
 
@@ -89,33 +89,14 @@ router.post('/pagos-variables/:usuarioId', async (req, res, next) => {
 // laboral de todo el negocio: por colaborador y totales agregados.
 router.get('/dossier', async (req, res, next) => {
   try {
-    const { rows: colaboradores } = await query(
-      `SELECT id, nombre, email, rol, tipo_pago, salario_mensual, fecha_ingreso
-       FROM usuarios
-       WHERE tenant_id = $1 AND activo = true
-       ORDER BY nombre`,
-      [req.tenantId]
-    )
-
-    const { rows: totalActivos } = await query(
-      'SELECT count(*) FROM usuarios WHERE tenant_id = $1 AND activo = true',
-      [req.tenantId]
-    )
-    const empresaGrande = parseInt(totalActivos[0].count, 10) >= 50
+    // 2 queries en total sin importar cuántos colaboradores haya (antes:
+    // 1 query de pagos_variables por cada colaborador de pago variable,
+    // dentro del loop — ver pasivosLaboralesService.js).
+    const { colaboradores, empresaGrande } = await obtenerColaboradoresConDatosLaborales(query, req.tenantId)
 
     const detalle = []
     for (const colaborador of colaboradores) {
-      let pagosVariables = []
-      if (colaborador.tipo_pago === 'variable') {
-        const { rows } = await query(
-          `SELECT mes, monto FROM pagos_variables
-           WHERE usuario_id = $1 AND tenant_id = $2
-           ORDER BY mes DESC LIMIT 6`,
-          [colaborador.id, req.tenantId]
-        )
-        pagosVariables = rows
-      }
-      const resultado = calcularPasivoColaborador(colaborador, pagosVariables, empresaGrande)
+      const resultado = calcularPasivoColaborador(colaborador, colaborador.pagosVariables, empresaGrande)
       if (resultado) detalle.push(resultado)
     }
 
