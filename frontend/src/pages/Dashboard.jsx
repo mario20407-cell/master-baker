@@ -2,24 +2,20 @@
 import { useState, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { useCatalogo } from '../hooks/useCatalogo'
+import { useFiscalConfig } from '../hooks/useFiscalConfig'
+import { useConfiguracionCosteo } from '../hooks/useConfiguracionCosteo'
 import { getInventario, getVentaResumen } from '../lib/api'
+import { calcularCosteoReceta } from '../lib/costeo'
 import { TrendingUp, Package, ChefHat, ShoppingCart, AlertTriangle, LayoutDashboard } from 'lucide-react'
 import { Card, CardTitle, KpiCard, KpiGrid, Grid, MarginBar, EmptyState, StatusBadge } from '../components/UI'
 
 function fmt(n) { return 'C$ ' + (parseFloat(n) || 0).toFixed(2) }
 
-function convertir(cantidad, unidad, unidadInv) {
-  const u = unidad || ''; const ui = unidadInv || unidad || ''; let q = cantidad || 0
-  if (u === 'g' && ui === 'kg') q = q / 1000
-  else if (u === 'ml' && (ui === 'L' || ui === 'l')) q = q / 1000
-  else if (u === 'libra' && ui === 'kg') q = q * 0.454
-  else if (u === 'arroba' && ui === 'kg') q = q * 11.5
-  return q
-}
-
 export default function Dashboard() {
   const { recetas } = useRecetas()
   const { productos, cargando } = useCatalogo()
+  const { config: configFiscal } = useFiscalConfig()
+  const { costoIndirectoGlobal, margenObjetivo } = useConfiguracionCosteo()
   const [inventario, setInventario] = useState([])
   const [resumenVentas, setResumenVentas] = useState(null)
 
@@ -31,12 +27,17 @@ export default function Dashboard() {
 
   const totalRecetas = Object.keys(recetas).length
   const sinReceta = productos.length - totalRecetas
-  const recetasConDatos = Object.values(recetas).map(r => {
-    const ct = r.ingredientes?.reduce((s, i) => s + convertir(i.cantidad, i.unidad, i.unidad_inventario) * (i.precio || 0), 0) || 0
-    const cu = r.piezas > 0 ? ct / r.piezas : 0
-    const margen = r.pventa > 0 ? ((r.pventa - cu) / r.pventa) * 100 : null
-    return { ...r, cu, margen, ct }
-  }).filter(r => r.margen !== null)
+  // Usa el mismo motor que Recetas.jsx y Costeo.jsx (lib/costeo.js) en vez
+  // de un cálculo propio — antes este dashboard tenía su propia versión
+  // simplificada que no aplicaba merma ni los costos indirectos (gas/luz/
+  // mano de obra) ni el prorrateo fiscal, así que el margen que mostraba
+  // no coincidía con el resto de la app para la misma receta.
+  const recetasConDatos = Object.values(recetas)
+    .filter(r => (parseFloat(r.pventa) || 0) > 0)
+    .map(r => {
+      const c = calcularCosteoReceta(r, null, configFiscal, costoIndirectoGlobal, margenObjetivo)
+      return { ...r, cu: c.costoUnitario, margen: c.margen, ct: c.costoTotal }
+    })
 
   const alertasMargen = recetasConDatos.filter(r => r.margen < 60)
   const topRentables = [...recetasConDatos].sort((a, b) => b.margen - a.margen).slice(0, 5)
