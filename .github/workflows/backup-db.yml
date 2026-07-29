@@ -23,8 +23,9 @@ jobs:
         env:
           BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
         run: |
+          set -o pipefail
           FECHA=$(date +%Y-%m-%d)
-          pg_dump "$BACKUP_DATABASE_URL" --no-owner --no-privileges | gzip > backup-$FECHA.sql.gz
+          /usr/lib/postgresql/17/bin/pg_dump "$BACKUP_DATABASE_URL" --no-owner --no-privileges | gzip > backup-$FECHA.sql.gz
           echo "Backup generado: backup-$FECHA.sql.gz ($(du -h backup-$FECHA.sql.gz | cut -f1))"
 
       - name: Subir backup como artifact de GitHub
