@@ -155,6 +155,16 @@ export const savePagoVariable = (usuarioId, mes, monto) =>
   api.post(`/pasivos-laborales/pagos-variables/${usuarioId}`, { mes, monto })
 export const getDossierPasivosLaborales = () => api.get('/pasivos-laborales/dossier')
 
+// ── Planilla (nómina periódica: semanal, quincenal o mensual) ──────────────
+export const getVistaPreviaPlanilla = (frecuencia, periodo_inicio) =>
+  api.get('/pasivos-laborales/planilla/vista-previa', { params: { frecuencia, periodo_inicio } })
+export const generarPlanilla = (frecuencia, periodo_inicio) =>
+  api.post('/pasivos-laborales/planilla/generar', { frecuencia, periodo_inicio })
+export const getHistorialPlanillas = () => api.get('/pasivos-laborales/planilla/historial')
+export const getPlanilla = (id) => api.get(`/pasivos-laborales/planilla/${id}`)
+export const exportarPlanilla = (id, formato) =>
+  api.get(`/pasivos-laborales/planilla/${id}/exportar`, { params: { formato }, responseType: 'blob' })
+
 // ── Sucursales / Inventario Terminado ─────────────────────────────────────────
 export const getSucursales = () => api.get('/sucursales')
 export const getInventarioTerminado = (params) => api.get('/inventario-terminado', { params })
