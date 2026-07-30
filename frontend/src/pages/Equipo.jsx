@@ -826,6 +826,12 @@ export default function Equipo() {
                         )}
                       </div>
 
+                      {(p.aplicaInss === false || p.aplica_inss === false) && (
+                        <p className="text-[11px] text-gray-400 mb-2">
+                          Negocio marcado como que no cotiza al INSS — bruto = neto, sin retenciones ni cargas patronales.
+                        </p>
+                      )}
+
                       {(p.detalle || []).length === 0 ? (
                         <p className="text-xs text-gray-400">Ningún colaborador tiene datos suficientes (salario o pago variable) para este período.</p>
                       ) : (
@@ -935,6 +941,16 @@ export default function Equipo() {
             <div className="card text-center py-10 text-sm text-gray-400">No hay colaboradores registrados todavía.</div>
           ) : (
             <>
+              {dossier.aplicaInss === false && (
+                <div className="card bg-gray-50 dark:bg-navy-900/40 border border-gray-200 dark:border-navy-800 flex gap-3 items-start">
+                  <Info size={15} className="text-gray-400 mt-0.5 shrink-0" />
+                  <p className="text-xs text-gray-600 dark:text-gray-300">
+                    Este negocio está marcado como que no cotiza al INSS (Configuración → Costeo e Indirectos) — el
+                    INSS Patronal/mes de abajo sale en C$0 a propósito, no es un dato faltante.
+                  </p>
+                </div>
+              )}
+
               {/* Resumen */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="card">
@@ -955,7 +971,9 @@ export default function Equipo() {
                 <div className="card">
                   <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">INSS Patronal / mes</p>
                   <p className="text-xl font-bold text-gray-800 dark:text-gray-100">{formatoCordobas(dossier.totales.inssPatronalMensual)}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">21.5% + 2% INATEC{dossier.empresaGrande ? ' (22.5% patronal, 50+ empleados)' : ''}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">
+                    {dossier.aplicaInss === false ? 'No aplica (negocio no cotiza INSS)' : `21.5% + 2% INATEC${dossier.empresaGrande ? ' (22.5% patronal, 50+ empleados)' : ''}`}
+                  </p>
                 </div>
               </div>
 

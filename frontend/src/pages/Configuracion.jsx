@@ -168,7 +168,8 @@ export default function Configuracion() {
     costo_indirecto_gas: '',
     costo_indirecto_luz: '',
     costo_indirecto_mano: '',
-    margen_objetivo: '57'
+    margen_objetivo: '57',
+    aplica_inss: true
   })
   const [loadingCosteo, setLoadingCosteo] = useState(false)
   const [guardandoCosteo, setGuardandoCosteo] = useState(false)
@@ -184,7 +185,8 @@ export default function Configuracion() {
         costo_indirecto_gas: data.costo_indirecto_gas ?? '',
         costo_indirecto_luz: data.costo_indirecto_luz ?? '',
         costo_indirecto_mano: data.costo_indirecto_mano ?? '',
-        margen_objetivo: data.margen_objetivo ?? '57'
+        margen_objetivo: data.margen_objetivo ?? '57',
+        aplica_inss: data.aplica_inss !== false
       })
     } catch (e) {
       toast.error('No se pudo cargar la configuración de costeo')
@@ -705,6 +707,25 @@ export default function Configuracion() {
                     placeholder="57"
                     className="text-xs"
                   />
+                </div>
+
+                <div className="border-t border-gray-150 pt-4">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={costeoForm.aplica_inss}
+                      onChange={e => setCosteoForm(p => ({ ...p, aplica_inss: e.target.checked }))}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      <span className="text-xs font-semibold text-gray-800 block">Este negocio cotiza al INSS/INATEC</span>
+                      <span className="text-[10px] text-gray-400 block mt-0.5">
+                        Desmarcá esto si el negocio no está afiliado al INSS — la Planilla y el dossier de Pasivo Laboral
+                        van a dejar de calcular retenciones y cargas patronales que en realidad no se pagan (el salario
+                        bruto se paga completo, sin deducción).
+                      </span>
+                    </span>
+                  </label>
                 </div>
 
                 <div className="border-t border-gray-150 pt-4 space-y-3">
