@@ -169,7 +169,8 @@ export default function Configuracion() {
     costo_indirecto_luz: '',
     costo_indirecto_mano: '',
     margen_objetivo: '57',
-    aplica_inss: true
+    aplica_inss: true,
+    frecuencia_pago: 'quincenal'
   })
   const [loadingCosteo, setLoadingCosteo] = useState(false)
   const [guardandoCosteo, setGuardandoCosteo] = useState(false)
@@ -186,7 +187,8 @@ export default function Configuracion() {
         costo_indirecto_luz: data.costo_indirecto_luz ?? '',
         costo_indirecto_mano: data.costo_indirecto_mano ?? '',
         margen_objetivo: data.margen_objetivo ?? '57',
-        aplica_inss: data.aplica_inss !== false
+        aplica_inss: data.aplica_inss !== false,
+        frecuencia_pago: data.frecuencia_pago || 'quincenal'
       })
     } catch (e) {
       toast.error('No se pudo cargar la configuración de costeo')
@@ -726,6 +728,23 @@ export default function Configuracion() {
                       </span>
                     </span>
                   </label>
+                </div>
+
+                <div className="border-t border-gray-100 pt-4">
+                  <label className="form-label text-xs">Frecuencia de pago del negocio</label>
+                  <select
+                    value={costeoForm.frecuencia_pago}
+                    onChange={e => setCosteoForm(p => ({ ...p, frecuencia_pago: e.target.value }))}
+                    className="text-xs"
+                  >
+                    <option value="semanal">Semanal</option>
+                    <option value="quincenal">Quincenal</option>
+                    <option value="mensual">Mensual</option>
+                  </select>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Con qué frecuencia se le paga a todo el equipo. Precarga el selector al generar una Planilla
+                    (Mi Equipo → Nómina → Planilla) — se puede cambiar puntualmente ahí si hace falta.
+                  </p>
                 </div>
 
                 <div className="border-t border-gray-100 pt-4 space-y-3">

@@ -1,10 +1,10 @@
 import { usePasivosLaborales } from '../hooks/usePasivosLaborales'
 import { usePlanilla } from '../hooks/usePlanilla'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   getUsuarios, saveUsuario, updateUsuario, resetUsuarioPassword, deleteUsuario, getBitacora,
   getPerfilesLaborales, updatePerfilLaboral, getPagosVariables, savePagoVariable, getDossierPasivosLaborales,
-  exportarPlanilla
+  exportarPlanilla, getConfiguracionCosteoSettings
 } from '../lib/api'
 import {
   Users, UserPlus, Key, Trash2, Shield, Eye, EyeOff, Check, X,
@@ -102,6 +102,23 @@ export default function Equipo() {
     periodo_inicio: new Date().toISOString().slice(0, 10),
   })
   const [descargando, setDescargando] = useState(null)
+  const frecuenciaPagoCargadaRef = useRef(false)
+
+  // Precarga el selector de frecuencia con la config del negocio (Configuración →
+  // Costeo e Indirectos → "Frecuencia de pago del negocio") en vez de dejarlo
+  // siempre en 'quincenal' a secas. Solo una vez — si el usuario ya cambió el
+  // selector a mano, no lo pisamos.
+  useEffect(() => {
+    if (subTabNomina !== 'planilla' || frecuenciaPagoCargadaRef.current) return
+    frecuenciaPagoCargadaRef.current = true
+    getConfiguracionCosteoSettings()
+      .then(({ data }) => {
+        if (data?.frecuencia_pago) {
+          setPlanillaForm(p => ({ ...p, frecuencia: data.frecuencia_pago }))
+        }
+      })
+      .catch(() => { /* silencioso — el selector se queda en 'quincenal' por defecto */ })
+  }, [subTabNomina])
 
   const handleVerVistaPrevia = async () => {
     try { await cargarVistaPrevia(planillaForm.frecuencia, planillaForm.periodo_inicio) } catch { /* toast ya mostrado en el hook */ }
