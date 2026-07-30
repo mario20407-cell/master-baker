@@ -186,7 +186,7 @@ export default function Inventario() {
         </div>
       )}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
           {editandoInsumoId ? 'Editar Insumo de Inventario' : 'Registrar Nuevo Insumo'}
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
@@ -233,7 +233,7 @@ export default function Inventario() {
 
       <div className="card">
         <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
-          <h3 className="text-sm font-medium text-gray-600 flex items-center gap-2"><Package size={14} /> Estado del inventario ({insumos.length} insumos)</h3>
+          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center gap-2"><Package size={14} /> Estado del inventario ({insumos.length} insumos)</h3>
           <div className="flex gap-2">
             <button onClick={verAuditoria} className="btn-secondary flex items-center gap-1.5 text-xs whitespace-nowrap">
               <History size={13} /> Historial de cambios
@@ -261,7 +261,7 @@ export default function Inventario() {
         {panelAuditoria && (
           <div className="rounded-xl p-3 mb-3 border border-gray-100">
             <div className="flex justify-between items-center mb-2">
-              <p className="text-xs font-medium text-gray-700">Últimos cambios de costo</p>
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-200">Últimos cambios de costo</p>
               <button onClick={() => setPanelAuditoria(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={14} />
               </button>
@@ -306,8 +306,8 @@ export default function Inventario() {
                   return (
                     <tr key={inv.id || inv.nombre}>
                       <td>
-                        <div className="font-semibold text-gray-700">{inv.nombre}</div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1 w-24">
+                        <div className="font-semibold text-gray-700 dark:text-gray-200">{inv.nombre}</div>
+                        <div className="h-1.5 bg-gray-100 dark:bg-navy-800 rounded-full overflow-hidden mt-1 w-24">
                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: dias != null ? barColor(dias) : '#C29C53' }} />
                         </div>
                       </td>
