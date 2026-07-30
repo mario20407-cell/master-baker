@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Outlet, NavLink, useLocation, Link } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import axios from 'axios'
 import {
   LayoutDashboard, BookOpen, ChefHat, Calculator, Scale,
   Package, Receipt, ShoppingCart, Bot, Download, Menu, X, Shield, HelpCircle,
   Sun, Moon, ChevronDown, TrendingUp, Users, Layers, Store, FileText, LogOut, KeyRound,
-  MessageCircle
+  MessageCircle, Bell
 } from 'lucide-react'
+import { useWhatsappNotifications } from '../hooks/useWhatsappNotifications'
 
 const NAV_GROUPS = [
   {
@@ -52,6 +53,7 @@ export default function Layout() {
   const { usuario, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
@@ -60,6 +62,15 @@ export default function Layout() {
   })
 
   const location = useLocation()
+  const navigate = useNavigate()
+
+  // Notificaciones de pedidos nuevos del bot de WhatsApp — solo para admin,
+  // mismo gating que el ítem de navegación "WhatsApp" (role: 'admin').
+  const { unreadCount, ultimosNuevos, limpiarNoLeidos } = useWhatsappNotifications(usuario?.rol === 'admin')
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/whatsapp-crm')) limpiarNoLeidos()
+  }, [location.pathname, limpiarNoLeidos])
   const currentPage = ALL_ITEMS.find(n => location.pathname.startsWith(n.to))?.label || 'Master Baker'
 
   const filteredNavGroups = NAV_GROUPS.map(group => {
@@ -175,6 +186,57 @@ export default function Layout() {
           <span className="hidden sm:inline-flex text-[10px] px-2.5 py-1 rounded-md font-medium" style={{ background: '#EAF3DE', color: '#27500A' }}>
             Margen objetivo: ≥57%
           </span>
+
+          {/* Notificaciones — pedidos nuevos de WhatsApp (solo admin) */}
+          {usuario?.rol === 'admin' && (
+            <div className="relative">
+              <button
+                onClick={() => setNotifOpen(o => !o)}
+                className="relative p-1.5 rounded-lg border border-gray-200 dark:border-navy-800 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-800 transition-colors cursor-pointer"
+                title="Notificaciones de WhatsApp"
+              >
+                <Bell size={15} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[#C0392B] text-white text-[9px] font-bold flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {notifOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
+                  <div className="absolute right-0 mt-1 w-72 bg-white dark:bg-navy-900 border border-gray-100 dark:border-navy-800 rounded-xl shadow-xl py-1.5 z-50">
+                    <div className="px-4 py-2 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-navy-800">
+                      Pedidos nuevos por WhatsApp
+                    </div>
+                    {ultimosNuevos.length === 0 ? (
+                      <div className="px-4 py-4 text-xs text-gray-400 dark:text-gray-500 text-center">
+                        Sin pedidos nuevos por ahora
+                      </div>
+                    ) : (
+                      ultimosNuevos.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => { setNotifOpen(false); limpiarNoLeidos(); navigate('/whatsapp-crm') }}
+                          className="w-full text-left flex flex-col gap-0.5 px-4 py-2 text-xs hover:bg-gray-50 dark:hover:bg-navy-800 transition-colors"
+                        >
+                          <span className="font-semibold text-[#1B2A4A] dark:text-gray-200">{p.nombre || p.telefono}</span>
+                          <span className="text-gray-400 dark:text-gray-500 text-[10px]">C$ {Number(p.total || 0).toLocaleString('es-NI', { minimumFractionDigits: 2 })}</span>
+                        </button>
+                      ))
+                    )}
+                    <button
+                      onClick={() => { setNotifOpen(false); limpiarNoLeidos(); navigate('/whatsapp-crm') }}
+                      className="w-full text-center px-4 py-2 text-[10px] font-semibold text-brand-600 dark:text-brand-400 border-t border-gray-100 dark:border-navy-800 hover:bg-gray-50 dark:hover:bg-navy-800 transition-colors"
+                    >
+                      Ver todos los pedidos
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Theme switcher */}
           <button
