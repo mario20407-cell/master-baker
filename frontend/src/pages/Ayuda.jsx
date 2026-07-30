@@ -1,10 +1,11 @@
 /**
  * Ayuda.jsx — Manual de usuario integrado.
- * v2.8
+ * v2.9
  *
  * Estructura:
  *   - Selector de rol (Dueño / Empleado) — cambia qué tan técnico es el texto.
- *   - Contenido por módulo: Ventas, Dashboard, Config. Fiscal (los 3 en uso real hoy).
+ *   - Contenido por módulo: Ventas, Dashboard, Nómina, WhatsApp, Config. Fiscal
+ *     (los 5 en uso real hoy).
  *   - Buscador simple que filtra por texto dentro de las preguntas.
  *   - Exportar/Imprimir usa window.print() con CSS dedicado — sin dependencias nuevas.
  *
@@ -14,7 +15,7 @@
 import { useState, useMemo } from 'react'
 import {
   HelpCircle, ShoppingCart, LayoutDashboard, Shield, Search,
-  Printer, ChevronDown, User, Users, BookOpen,
+  Printer, ChevronDown, User, Users, BookOpen, Wallet, MessageCircle,
 } from 'lucide-react'
 
 // ── Contenido del manual ──────────────────────────────────────────────────────
@@ -82,6 +83,62 @@ const MANUAL = [
       {
         q: '¿Para qué sirve esta pantalla?',
         a: 'El Dashboard es un resumen general del negocio — cuántos productos hay, cuántas recetas están cargadas y si hay alguna alerta importante. Como empleado normalmente no necesitas tocar nada aquí, solo es informativo.',
+      },
+    ],
+  },
+  {
+    id: 'nomina',
+    icono: Wallet,
+    color: '#3B6D11',
+    titulo: 'Nómina',
+    duenio: [
+      {
+        q: '¿Cuál es la diferencia entre "Pasivo Laboral" y "Planilla"?',
+        a: '"Pasivo Laboral" es una estimación de lo que el negocio va acumulando en compromisos con cada colaborador (INSS patronal, aguinaldo, vacaciones, indemnización potencial) — es informativo, todavía no es un pago real. "Planilla" es el pago real de un período específico (semana, quincena o mes): calcula el salario bruto, la retención del 7% de INSS laboral, el neto a pagar, y la carga patronal (INSS + INATEC) de ese período. Encuentras ambas dentro de Mi Equipo → pestaña Nómina, con sus propias sub-pestañas "Pasivo Laboral" y "Planilla".',
+      },
+      {
+        q: '¿Cómo genero una planilla?',
+        a: 'En Mi Equipo → Nómina → Planilla, elegí la frecuencia de pago (semanal, quincenal o mensual — la mayoría de negocios de panadería pagan semanal o quincenal, no mensual) y la fecha de inicio del período. Tocá "Ver vista previa" para revisar los montos antes de guardar nada. Si todo está correcto, tocá "Generar y guardar" — eso crea el registro oficial de esa planilla y queda en el historial, disponible para descargar en Excel o PDF.',
+      },
+      {
+        q: '¿Qué pasa con las planillas viejas si cambio la frecuencia de pago?',
+        a: 'No hay problema — cada planilla guarda su propia frecuencia y período al momento de generarla, así que las planillas anteriores no cambian. Solo afecta las que generes de ahí en adelante.',
+      },
+      {
+        q: 'Mi negocio no cotiza al INSS/INATEC (soy informal), ¿qué hago?',
+        a: 'En Configuración → Costeo e Indirectos hay un check "Este negocio cotiza al INSS/INATEC". Si lo desmarcás, tanto el Pasivo Laboral como la Planilla dejan de calcular la retención del 7% y la carga patronal (INSS + INATEC), y el salario bruto pasa completo como neto a pagar. Cada planilla generada guarda con qué configuración se calculó, así que si más adelante formalizás el negocio y activás el switch, las planillas viejas no se reinterpretan solas.',
+      },
+    ],
+    empleado: [
+      {
+        q: '¿Necesito entrar a este módulo?',
+        a: 'No — Nómina es información salarial y de impuestos que gestiona el dueño o administrador. Como empleado de mostrador no tenés acceso a esta sección.',
+      },
+    ],
+  },
+  {
+    id: 'whatsapp',
+    icono: MessageCircle,
+    color: '#1A7A4A',
+    titulo: 'WhatsApp',
+    duenio: [
+      {
+        q: '¿Qué es el CRM de WhatsApp?',
+        a: 'Es el panel donde ves los pedidos y mensajes que llegan a través del bot de WhatsApp del negocio. Entrás por WhatsApp en el menú Operación — la pestaña "Pedidos" lista los pedidos hechos por clientes vía el bot, y "Clientes" muestra el historial de consumo de cada uno.',
+      },
+      {
+        q: '¿Cómo aviso a un cliente que su pedido está listo?',
+        a: 'En la pestaña Pedidos, tocá "Marcar como listo" en el pedido correspondiente — el sistema le manda un mensaje automático por WhatsApp avisándole que puede pasar a recogerlo.',
+      },
+      {
+        q: '¿Qué es la campanita de notificaciones que aparece arriba de la pantalla?',
+        a: 'Es un aviso dentro del panel — no es una notificación del navegador ni del celular, solo funciona mientras tenés Master Baker abierto. Te avisa cuando llega un pedido nuevo por el bot con un mensaje emergente y un número en la campanita. Tocala para ver los últimos pedidos nuevos o ir directo a WhatsApp — el número se limpia solo al entrar a esa sección.',
+      },
+    ],
+    empleado: [
+      {
+        q: '¿Puedo ver los pedidos del bot de WhatsApp?',
+        a: 'Por ahora este módulo es solo para dueño/administrador. Si un cliente pregunta por su pedido de WhatsApp, avisale al encargado.',
       },
     ],
   },
@@ -238,7 +295,7 @@ export default function Ayuda() {
       <div className="mt-5 p-3 rounded-xl flex items-start gap-2 text-xs print:hidden"
         style={{ background: '#FBF6EC', border: '0.5px solid #C29C53', color: '#7A5E2C' }}>
         <BookOpen size={13} className="flex-shrink-0 mt-0.5" />
-        <span>Este manual cubre los módulos en uso activo (Ventas, Dashboard, Config. Fiscal). Se irán agregando más secciones a medida que se incorporen Recetas, Costeo, Inventario y el resto del sistema.</span>
+        <span>Este manual cubre los módulos en uso activo (Ventas, Dashboard, Nómina, WhatsApp, Config. Fiscal). Se irán agregando más secciones a medida que se incorporen Recetas, Costeo, Inventario y el resto del sistema.</span>
       </div>
 
     </div>
