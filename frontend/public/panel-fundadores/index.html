@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Fundadores">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js" integrity="sha384-T26yK1Z06f7K7Zp+4+J3zQe4Z/11FkF/XmE7s5Zz7h0X7/6w4/2P12D1F7v/9n1h" crossorigin="anonymous"></script>
 <style>
 * { box-sizing: border-box; }
 body {
@@ -176,6 +176,112 @@ background: #0F1626; border: 1px solid #263049; border-radius: 10px; padding: 14
 .modal .cred-box code { background: #182338; border: 1px solid #2E3A56; border-radius: 4px; padding: 3px 7px; font-size: 13px; color: #E9C077; }
 .modal .actions { display: flex; gap: 8px; justify-content: flex-end; }
 .modal .warn { color: #FF9E80; font-size: 12px; margin-top: 12px; }
+
+/* --- Estilos para la sección de Errores Sentry --- */
+.errors-section {
+  margin-top: 24px;
+  background: linear-gradient(145deg, #182338, #131C2C);
+  border: 1px solid #263049;
+  border-radius: 14px;
+  padding: 20px;
+}
+.errors-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.errors-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #C7CCDA;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.errors-badge-count {
+  background: #E2593A;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  display: none;
+}
+.errors-controls {
+  display: flex;
+  gap: 8px;
+}
+.errors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.error-item {
+  background: #0F1626;
+  border: 1px solid #232C3F;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.2s;
+}
+.error-item.unread {
+  border-left: 3px solid #E2593A;
+}
+.error-item-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #6B7387;
+}
+.error-item-tenant {
+  background: rgba(194, 156, 83, 0.15);
+  color: #E9C077;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.error-item-message {
+  font-size: 13px;
+  color: #EDEFF4;
+  font-weight: 600;
+  word-break: break-word;
+}
+.error-item-stack-trigger {
+  align-self: flex-start;
+  font-size: 11px;
+  color: #8B92A6;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.error-item-stack {
+  display: none;
+  background: #182338;
+  border: 1px solid #2E3A56;
+  border-radius: 6px;
+  padding: 10px;
+  font-family: monospace;
+  font-size: 11px;
+  color: #C7CCDA;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-x: auto;
+  margin-top: 4px;
+}
 </style>
 </head>
 <body>
@@ -200,6 +306,24 @@ background: #0F1626; border: 1px solid #263049; border-radius: 10px; padding: 14
 <div id="summary"></div>
 <div id="dashboard"></div>
 <div id="content"></div>
+
+<!-- Sección de Monitoreo de Errores Sentry -->
+<div id="errorsSection" class="errors-section" style="display:none">
+  <div class="errors-header">
+    <h3 class="errors-title">
+      <span>Diagnóstico de Errores</span>
+      <span id="errorsBadgeCount" class="errors-badge-count">0</span>
+    </h3>
+    <div class="errors-controls">
+      <button id="syntheticErrorBtn" class="reset-btn" style="border-color: #E2593A; color: #FF9E80;">Gatillar Error de Prueba</button>
+      <button id="markReadBtn" class="reset-btn">Marcar Leídos</button>
+    </div>
+  </div>
+  <div id="errorsList" class="errors-list">
+    <div class="muted" style="text-align:center; padding: 20px;">Cargando registro de errores...</div>
+  </div>
+</div>
+
 <div id="modalRoot"></div>
 
 </div>
@@ -469,48 +593,191 @@ document.getElementById('copyBtn').textContent = 'Copiado';
 }
 
 async function load() {
-const token = getToken();
-if (!token) { showTokenForm(); return; }
+  const token = getToken();
+  if (!token) { showTokenForm(); return; }
 
-tokenForm.style.display = 'none';
-toolbar.style.display = 'flex';
-content.innerHTML = '<div class="loading">Cargando…</div>';
+  tokenForm.style.display = 'none';
+  toolbar.style.display = 'flex';
+  content.innerHTML = '<div class="loading">Cargando…</div>';
+  document.getElementById('errorsSection').style.display = 'block';
 
-try {
-const res = await fetch(API_URL, { headers: { 'x-admin-token': token } });
-if (res.status === 401) {
-localStorage.removeItem(STORAGE_KEY);
-showTokenForm();
-content.innerHTML = '';
-return;
+  try {
+    const res = await fetch(API_URL, { headers: { 'x-admin-token': token } });
+    if (res.status === 401) {
+      localStorage.removeItem(STORAGE_KEY);
+      showTokenForm();
+      content.innerHTML = '';
+      document.getElementById('errorsSection').style.display = 'none';
+      return;
+    }
+    if (res.status === 503) {
+      content.innerHTML = '<div class="error">El servidor todavía no tiene ADMIN_TOKEN configurado.</div>';
+      return;
+    }
+    if (!res.ok) { content.innerHTML = `<div class="error">Error del servidor (${res.status}).</div>`; return; }
+    const data = await res.json();
+    render(data);
+    updatedAt.textContent = 'Actualizado ' + new Date().toLocaleString('es', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+    
+    // Cargar también los errores de Sentry
+    await loadErrors();
+  } catch (e) {
+    content.innerHTML = '<div class="error">No se pudo conectar. Revisá tu conexión y probá de nuevo.</div>';
+  }
 }
-if (res.status === 503) {
-content.innerHTML = '<div class="error">El servidor todavía no tiene ADMIN_TOKEN configurado.</div>';
-return;
+
+// Cargar y mostrar lista de errores del sistema
+async function loadErrors() {
+  const token = getToken();
+  const errorsListEl = document.getElementById('errorsList');
+  const errorsBadgeCountEl = document.getElementById('errorsBadgeCount');
+  
+  if (!token) return;
+
+  try {
+    // 1. Cargar el badge count
+    const badgeRes = await fetch(API_URL.replace('/estado-fundadores', '/errores/badge'), {
+      headers: { 'x-admin-token': token }
+    });
+    if (badgeRes.ok) {
+      const badgeData = await badgeRes.json();
+      const unreadCount = badgeData.unread || 0;
+      if (unreadCount > 0) {
+        errorsBadgeCountEl.textContent = unreadCount;
+        errorsBadgeCountEl.style.display = 'inline-block';
+        document.title = `(${unreadCount}) Master Baker — Panel Fundadores`;
+      } else {
+        errorsBadgeCountEl.style.display = 'none';
+        document.title = `Master Baker — Panel Fundadores`;
+      }
+    }
+
+    // 2. Cargar el listado de errores
+    const errorsRes = await fetch(API_URL.replace('/estado-fundadores', '/errores'), {
+      headers: { 'x-admin-token': token }
+    });
+    if (!errorsRes.ok) {
+      errorsListEl.innerHTML = `<div class="error" style="padding: 20px;">Error al cargar diagnósticos (${errorsRes.status})</div>`;
+      return;
+    }
+    const errors = await errorsRes.json();
+    if (!errors || errors.length === 0) {
+      errorsListEl.innerHTML = `<div class="muted" style="text-align:center; padding: 20px;">No se registran errores en el sistema. ¡Todo limpio!</div>`;
+      return;
+    }
+
+    errorsListEl.innerHTML = errors.map(err => {
+      const isUnread = !err.leido;
+      const tName = err.negocio ? escapeHtml(err.negocio) : 'Global / Sin Tenant';
+      const createdStr = new Date(err.creado_en).toLocaleString('es', { 
+        hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: 'short' 
+      });
+
+      return `
+        <div class="error-item ${isUnread ? 'unread' : ''}" data-id="${err.id}">
+          <div class="error-item-meta">
+            <span class="error-item-tenant">${tName}</span>
+            <span>${createdStr} (${timeAgo(err.creado_en)})</span>
+          </div>
+          <div class="error-item-message">${escapeHtml(err.mensaje)}</div>
+          ${err.sentry_issue_id ? `<div class="muted" style="font-size: 11px;">Sentry Issue ID: ${escapeHtml(err.sentry_issue_id)}</div>` : ''}
+          ${err.stack ? `
+            <button class="error-item-stack-trigger" onclick="toggleStack(${err.id})">Ver Stack Trace</button>
+            <div id="stack-${err.id}" class="error-item-stack">${escapeHtml(err.stack)}</div>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
+
+  } catch (e) {
+    console.error('Error cargando diagnósticos:', e);
+    errorsListEl.innerHTML = `<div class="error" style="padding: 20px;">Error de conexión al cargar diagnósticos.</div>`;
+  }
 }
-if (!res.ok) { content.innerHTML = `<div class="error">Error del servidor (${res.status}).</div>`; return; }
-const data = await res.json();
-render(data);
-updatedAt.textContent = 'Actualizado ' + new Date().toLocaleString('es', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
-} catch (e) {
-content.innerHTML = '<div class="error">No se pudo conectar. Revisá tu conexión y probá de nuevo.</div>';
-}
-}
+
+// Función global para expandir/colapsar stack trace
+window.toggleStack = function(id) {
+  const el = document.getElementById(`stack-${id}`);
+  if (el) {
+    const isVisible = el.style.display === 'block';
+    el.style.display = isVisible ? 'none' : 'block';
+    event.target.textContent = isVisible ? 'Ver Stack Trace' : 'Ocultar Stack Trace';
+  }
+};
+
+// Polling de errores cada 45 segundos (seguro frente a rate limiters)
+let errorsInterval = setInterval(async () => {
+  const token = getToken();
+  if (token && document.getElementById('errorsSection').style.display !== 'none') {
+    await loadErrors();
+  }
+}, 45000);
+
+// Botón: Marcar como leídos
+document.getElementById('markReadBtn').addEventListener('click', async () => {
+  const token = getToken();
+  if (!token) return;
+  try {
+    const res = await fetch(API_URL.replace('/estado-fundadores', '/errores/marcar-leidos'), {
+      method: 'POST',
+      headers: { 'x-admin-token': token }
+    });
+    if (res.ok) {
+      await loadErrors();
+    } else {
+      alert('No se pudieron marcar como leídos.');
+    }
+  } catch (e) {
+    alert('Error de conexión.');
+  }
+});
+
+// Botón: Gatillar Error de Prueba (Error Sintético)
+document.getElementById('syntheticErrorBtn').addEventListener('click', async () => {
+  const token = getToken();
+  if (!token) return;
+  if (!confirm('¿Seguro que deseas simular un error en el backend para validar el pipeline? Sentry capturará el error y enviará un webhook.')) return;
+  
+  try {
+    const btn = document.getElementById('syntheticErrorBtn');
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+    const res = await fetch(API_URL.replace('/estado-fundadores', '/error-sintetico'), {
+      method: 'POST',
+      headers: { 'x-admin-token': token }
+    });
+    
+    // Como tira error (500), nos retornará error. Pero podemos avisar al usuario:
+    setTimeout(async () => {
+      btn.disabled = false;
+      btn.textContent = 'Gatillar Error de Prueba';
+      alert('Petición enviada. Si el pipeline funciona, en unos instantes Sentry gatillará el webhook y el error aparecerá aquí tras el próximo polling o actualización manual.');
+      await loadErrors();
+    }, 1500);
+  } catch (e) {
+    alert('Petición enviada. Revisa los logs o el listado de errores en unos instantes.');
+    document.getElementById('syntheticErrorBtn').disabled = false;
+    document.getElementById('syntheticErrorBtn').textContent = 'Gatillar Error de Prueba';
+  }
+});
 
 tokenSave.addEventListener('click', () => {
-const v = tokenInput.value.trim();
-if (!v) return;
-localStorage.setItem(STORAGE_KEY, v);
-load();
+  const v = tokenInput.value.trim();
+  if (!v) return;
+  localStorage.setItem(STORAGE_KEY, v);
+  load();
 });
 tokenInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tokenSave.click(); });
 refreshBtn.addEventListener('click', load);
-changeToken.addEventListener('click', showTokenForm);
+changeToken.addEventListener('click', () => {
+  showTokenForm();
+  document.getElementById('errorsSection').style.display = 'none';
+});
 
 if ('serviceWorker' in navigator) {
-window.addEventListener('load', () => {
-navigator.serviceWorker.register('/panel-fundadores/sw.js', { scope: '/panel-fundadores/' }).catch(() => {});
-});
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/panel-fundadores/sw.js', { scope: '/panel-fundadores/' }).catch(() => {});
+  });
 }
 
 load();
@@ -518,3 +785,4 @@ load();
 
 </body>
 </html>
+

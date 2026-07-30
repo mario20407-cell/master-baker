@@ -615,6 +615,24 @@ privateRouter.get('/clientes/:telefono/mensajes', requireAuth, async (req, res, 
   } catch (e) { next(e) }
 })
 
+// Ruta heredada o de compatibilidad para evitar 404 y exigir requireAuth para Red Team
+privateRouter.get('/conversacion/:telefono', requireAuth, async (req, res, next) => {
+  try {
+    const { rows: clienteRows } = await query(
+      `SELECT id FROM clientes_whatsapp WHERE tenant_id = $1 AND telefono = $2`,
+      [req.tenantId, req.params.telefono]
+    )
+    if (!clienteRows[0]) return res.json({ telefono: req.params.telefono, mensajes: [] })
+
+    const { rows } = await query(
+      `SELECT rol, contenido, creado_en FROM mensajes_whatsapp
+       WHERE cliente_id = $1 ORDER BY creado_en ASC`,
+      [clienteRows[0].id]
+    )
+    res.json({ telefono: req.params.telefono, mensajes: rows })
+  } catch (e) { next(e) }
+})
+
 // ── Endpoint: status del bot ──────────────────────────────────────────────────
 privateRouter.get('/status', requireAuth, async (req, res, next) => {
   try {

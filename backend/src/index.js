@@ -1,9 +1,45 @@
 import 'dotenv/config'
+import * as Sentry from '@sentry/node'
+
+// Inicializar Sentry antes de cualquier otra importación/lógica
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  beforeSend(event) {
+    // Sanitizar datos sensibles antes de enviarlos a Sentry
+    const scrub = (str) => {
+      if (typeof str !== 'string') return str
+      return str
+        .replace(/(password|contraseña|pass|token|jwt|auth|authorization|key|secret)\s*[:=]\s*["']?[^"'\s,;]+["']?/gi, '$1: [REDACTED]')
+        .replace(/Bearer\s+[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*/gi, 'Bearer [REDACTED]')
+    }
+
+    if (event.message) event.message = scrub(event.message)
+    if (event.exception?.values) {
+      for (const val of event.exception.values) {
+        if (val.value) val.value = scrub(val.value)
+        if (val.stacktrace?.frames) {
+          for (const frame of val.stacktrace.frames) {
+            if (frame.vars) {
+              for (const key of Object.keys(frame.vars)) {
+                if (/(password|contraseña|pass|token|jwt|auth|authorization|key|secret)/i.test(key)) {
+                  frame.vars[key] = '[REDACTED]'
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return event
+  }
+})
+
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
 import rateLimit from 'express-rate-limit'
+
 
 import catalogoRoutes   from './routes/catalogo.js'
 import recetasRoutes    from './routes/recetas.js'
@@ -25,8 +61,10 @@ import adminRoutes      from './routes/admin.js'
 import actividadRoutes  from './routes/actividad.js'
 import pasivosLaboralesRoutes from './routes/pasivosLaborales.js'
 import adminPinRoutes   from './routes/adminPin.js'
+import sentryWebhookRoutes from './routes/sentryWebhook.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 import { query } from './db/client.js'
+
 
 // Asegurar columnas de auditoría y trial en producción de forma no bloqueante
 query(`
@@ -59,6 +97,22 @@ query(`
     creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
   CREATE INDEX IF NOT EXISTS idx_actividad_heartbeats_tenant ON actividad_heartbeats(tenant_id, creado_en);
+
+  CREATE TABLE IF NOT EXISTS errores_sistema (
+    id SERIAL PRIMARY KEY,
+    sentry_id VARCHAR(255) UNIQUE,
+    sentry_issue_id VARCHAR(255),
+    tenant_id UUID,
+    mensaje TEXT NOT NULL,
+    stack TEXT,
+    detalles JSONB,
+    leido BOOLEAN NOT NULL DEFAULT false,
+    creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_errores_sistema_creado ON errores_sistema(creado_en DESC);
+  CREATE INDEX IF NOT EXISTS idx_errores_sistema_leido ON errores_sistema(leido);
+  CREATE INDEX IF NOT EXISTS idx_errores_sistema_issue ON errores_sistema(sentry_issue_id);
+
 `).then(() => {
   console.log('   Esquema:     Tablas de métricas (ai_usage_log, actividad_heartbeats) verificadas')
 }).catch(err => {
@@ -196,6 +250,15 @@ app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 500 }))
 // Resuelve req.tenantId en cada request — DEBE ir antes de las rutas /api
 app.use(tenantMiddleware)
 
+// Taggear automáticamente cada evento con req.tenantId en el scope de Sentry si está disponible
+app.use((req, res, next) => {
+  if (req.tenantId) {
+    Sentry.setTag('tenant_id', req.tenantId)
+  }
+  next()
+})
+
+
 // Rate limiting IA
 const aiLimiter = rateLimit({ windowMs: 60 * 1000, max: 30,
   message: { error: 'Demasiadas consultas. Espera un minuto.' } })
@@ -220,6 +283,8 @@ app.use('/api/sugerencias-produccion', sugerenciasProduccionRoutes)
 app.use('/api/actividad', actividadRoutes)
 app.use('/api/pasivos-laborales', pasivosLaboralesRoutes)
 app.use('/api/admin-pin', adminPinRoutes)
+app.use('/api', sentryWebhookRoutes)
+
 
 // Health check
 app.get('/api/health', async (_, res, next) => {
@@ -251,10 +316,13 @@ app.get('/api/health', async (_, res, next) => {
 })
 
 // Errores
+Sentry.setupExpressErrorHandler(app)
+
 app.use((err, req, res, _next) => {
   console.error('[Error]', err.message)
   res.status(err.status || 500).json({ error: err.message || 'Error interno' })
 })
+
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {

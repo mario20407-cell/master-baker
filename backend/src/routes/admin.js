@@ -2,7 +2,17 @@ import { Router } from 'express'
 import express from 'express'
 import crypto from 'crypto'
 import bcrypt from 'bcrypt'
+import rateLimit from 'express-rate-limit'
 import { query } from '../db/client.js'
+
+// Rate limiter específico para endpoints de errores (badge y listado)
+// para evitar que el polling frecuente choque con limitadores globales.
+const erroresLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100, // Permite hasta 100 consultas por 15 minutos
+  message: { error: 'Demasiadas consultas de diagnóstico desde el panel.' }
+})
+
 
 const router = Router()
 
@@ -156,4 +166,51 @@ router.post('/reset-password', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// GET /api/admin/errores
+// Obtiene el listado de los errores más recientes con el nombre de su tenant
+router.get('/errores', erroresLimiter, async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT e.id, e.sentry_id, e.sentry_issue_id, e.tenant_id, e.mensaje, e.stack, e.leido, e.creado_en,
+              t.nombre_negocio AS negocio
+       FROM errores_sistema e
+       LEFT JOIN tenants t ON t.id = e.tenant_id
+       ORDER BY e.creado_en DESC
+       LIMIT 50`
+    )
+    res.json(rows)
+  } catch (e) { next(e) }
+})
+
+// GET /api/admin/errores/badge
+// Cuenta rápida de errores no leídos para el badge del panel de fundadores
+router.get('/errores/badge', erroresLimiter, async (req, res, next) => {
+  try {
+    const { rows } = await query('SELECT COUNT(*)::int AS unread FROM errores_sistema WHERE leido = false')
+    res.json({ unread: rows[0]?.unread || 0 })
+  } catch (e) { next(e) }
+})
+
+// POST /api/admin/errores/marcar-leidos
+// Marca todos los errores actuales como leídos
+router.post('/errores/marcar-leidos', async (req, res, next) => {
+  try {
+    await query('UPDATE errores_sistema SET leido = true WHERE leido = false')
+    res.json({ success: true })
+  } catch (e) { next(e) }
+})
+
+// POST /api/admin/error-sintetico
+// Dispara un error de prueba para comprobar el pipeline de Sentry, webhook y base de datos
+router.post('/error-sintetico', async (req, res, next) => {
+  try {
+    // Agregamos contexto al error
+    const errorSimulado = new Error('[Prueba Pipeline] Error sintético disparado manualmente desde el Panel de Fundadores')
+    throw errorSimulado
+  } catch (e) {
+    next(e)
+  }
+})
+
 export default router
+
