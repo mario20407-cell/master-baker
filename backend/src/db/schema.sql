@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS planillas (
   generado_en          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   generado_por         UUID REFERENCES usuarios(id),
   empresa_grande       BOOLEAN NOT NULL DEFAULT false,
+  aplica_inss          BOOLEAN NOT NULL DEFAULT true, -- snapshot del switch del tenant al momento de generar
   total_bruto          NUMERIC NOT NULL DEFAULT 0,
   total_inss_laboral   NUMERIC NOT NULL DEFAULT 0,
   total_neto           NUMERIC NOT NULL DEFAULT 0,
@@ -308,6 +309,10 @@ CREATE TABLE IF NOT EXISTS configuracion_costeo (
   costo_indirecto_luz   NUMERIC(10,4) NOT NULL DEFAULT 0,
   costo_indirecto_mano  NUMERIC(10,4) NOT NULL DEFAULT 0,
   margen_objetivo       NUMERIC(5,2) NOT NULL DEFAULT 57.00,
+  -- false para negocios que no cotizan al INSS/INATEC (comunes en el
+  -- sector informal) — desactiva deducciones e INSS patronal en el
+  -- dossier de pasivos, la sugerencia de mano de obra y la planilla.
+  aplica_inss           BOOLEAN NOT NULL DEFAULT true,
   actualizado_en        TIMESTAMPTZ DEFAULT NOW()
 );
 
