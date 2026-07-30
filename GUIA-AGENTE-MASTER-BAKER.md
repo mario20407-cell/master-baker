@@ -30,7 +30,7 @@ El login es por email + password; el JWT lleva `tenantId` y todas las rutas prot
 
 - Costeo de recetas (ingredientes, merma, margen, precio sugerido), inventario, órdenes de producción, lotes.
 - Facturación, ventas, panel de reportes.
-- Módulo de nómina/pasivos laborales (INSS, aguinaldo, vacaciones, indemnización) con sugerencia automática de costo de mano de obra.
+- Módulo de Nómina (pestaña "Nómina" en Equipo, antes "Pasivos Laborales" — solo cambió el texto, código interno sigue igual): sub-pestaña "Pasivo Laboral" con el dossier de provisiones acumuladas (INSS, aguinaldo, vacaciones, indemnización potencial) y sugerencia automática de costo de mano de obra; sub-pestaña nueva "Planilla" para calcular y guardar el pago real de un período (semanal/quincenal/mensual), con exportación a Excel/PDF e historial — **pendiente correr `backend/src/db/migration_planilla.sql` en producción** (tablas `planillas`/`planilla_detalle`, no se corre sola).
 - Bot de WhatsApp multi-tenant: cada negocio tiene su propio número (tabla `tenant_whatsapp_config`), catálogo en vivo desde la base, toma pedidos, agenda, notifica cuando un pedido está listo. IA (GPT-4 mini) atiende la conversación.
 - CRM básico de WhatsApp: clientes y pedidos quedan guardados y visibles en el panel.
 - Registro de negocio con código de invitación (`/registro`, socios fundadores), con datos demo (producto + receta de ejemplo) para que el nuevo negocio vea el flujo funcionando.
