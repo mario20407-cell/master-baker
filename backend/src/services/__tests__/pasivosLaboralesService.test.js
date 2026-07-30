@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
   obtenerColaboradoresConDatosLaborales, calcularSugerenciaManoObra, sincronizarCostoIndirectoMano,
-  calcularFinPeriodo, calcularPlanilla, generarPlanilla,
+  calcularFinPeriodo, calcularPlanilla, generarPlanilla, calcularInssPatronalMensual, obtenerAplicaInss,
+  calcularPasivoColaborador,
 } from '../pasivosLaboralesService.js'
 
 // Antes, recetas.js (sugerencia-mano-obra) y pasivosLaborales.js (dossier)
@@ -91,6 +92,7 @@ describe('calcularSugerenciaManoObra / sincronizarCostoIndirectoMano', () => {
         const ids = params[0]
         return { rows: pagos.filter(p => ids.includes(p.usuario_id)) }
       }
+      if (sql.includes('SELECT aplica_inss FROM configuracion_costeo')) return { rows: [] }
       if (sql.includes('INSERT INTO configuracion_costeo')) return { rows: [] }
       throw new Error('query inesperada: ' + sql)
     })
@@ -164,13 +166,14 @@ describe('calcularPlanilla', () => {
   const usuarioVariable = { id: 'b', nombre: 'Beto', tipo_pago: 'variable', salario_mensual: null, fecha_ingreso: '2021-01-01' }
   const usuarioSinDatos = { id: 'c', nombre: 'Carla', tipo_pago: 'fijo', salario_mensual: 0, fecha_ingreso: '2022-01-01' }
 
-  function crearQueryFalso({ usuarios = [usuarioFijo], pagos = [] } = {}) {
+  function crearQueryFalso({ usuarios = [usuarioFijo], pagos = [], aplicaInss = true } = {}) {
     return vi.fn(async (sql, params) => {
       if (sql.includes('FROM usuarios')) return { rows: usuarios }
       if (sql.includes('FROM pagos_variables')) {
         const ids = params[0]
         return { rows: pagos.filter(p => ids.includes(p.usuario_id)) }
       }
+      if (sql.includes('FROM configuracion_costeo')) return { rows: [{ aplica_inss: aplicaInss }] }
       throw new Error('query inesperada: ' + sql)
     })
   }
@@ -214,6 +217,64 @@ describe('calcularPlanilla', () => {
     expect(r.totales.bruto).toBeCloseTo(r.detalle.reduce((s, d) => s + d.salario_bruto, 0), 2)
     expect(r.totales.neto).toBeCloseTo(r.detalle.reduce((s, d) => s + d.neto_a_pagar, 0), 2)
   })
+
+  it('con aplicaInss=false: bruto = neto, sin INSS laboral ni cargas patronales', async () => {
+    const r = await calcularPlanilla(crearQueryFalso({ aplicaInss: false }), 'tenant-x', 'mensual', '2026-07-01')
+    expect(r.aplicaInss).toBe(false)
+    expect(r.detalle[0].inss_laboral).toBe(0)
+    expect(r.detalle[0].neto_a_pagar).toBe(r.detalle[0].salario_bruto)
+    expect(r.detalle[0].inss_patronal).toBe(0)
+    expect(r.detalle[0].inatec).toBe(0)
+  })
+
+  it('sin fila en configuracion_costeo, aplicaInss por defecto es true', async () => {
+    const queryFalso = vi.fn(async (sql) => {
+      if (sql.includes('FROM usuarios')) return { rows: [usuarioFijo] }
+      if (sql.includes('FROM configuracion_costeo')) return { rows: [] }
+      throw new Error('query inesperada: ' + sql)
+    })
+    const r = await calcularPlanilla(queryFalso, 'tenant-x', 'mensual', '2026-07-01')
+    expect(r.aplicaInss).toBe(true)
+    expect(r.detalle[0].inss_laboral).toBeGreaterThan(0)
+  })
+})
+
+describe('calcularInssPatronalMensual', () => {
+  it('con aplicaInss=false devuelve todo en 0', () => {
+    expect(calcularInssPatronalMensual(10000, false, false)).toEqual({ patronal: 0, inatec: 0, total: 0, tasaPatronal: 0 })
+  })
+
+  it('con aplicaInss=true (default) calcula normal', () => {
+    const r = calcularInssPatronalMensual(10000, false)
+    expect(r.patronal).toBeCloseTo(2150, 2)
+    expect(r.inatec).toBeCloseTo(200, 2)
+  })
+})
+
+describe('calcularPasivoColaborador con aplicaInss', () => {
+  const colaborador = { id: 'a', nombre: 'Ana', tipo_pago: 'fijo', salario_mensual: 9000, fecha_ingreso: '2020-01-01' }
+
+  it('aplicaInss=false deja inssPatronalMensual en 0', () => {
+    const r = calcularPasivoColaborador(colaborador, [], false, false)
+    expect(r.inssPatronalMensual.total).toBe(0)
+  })
+
+  it('aplicaInss=true (default) calcula el INSS patronal normal', () => {
+    const r = calcularPasivoColaborador(colaborador, [], false, true)
+    expect(r.inssPatronalMensual.total).toBeGreaterThan(0)
+  })
+})
+
+describe('obtenerAplicaInss', () => {
+  it('devuelve true si el tenant no tiene fila en configuracion_costeo', async () => {
+    const queryFalso = vi.fn(async () => ({ rows: [] }))
+    expect(await obtenerAplicaInss(queryFalso, 'tenant-x')).toBe(true)
+  })
+
+  it('devuelve el valor guardado si existe la fila', async () => {
+    const queryFalso = vi.fn(async () => ({ rows: [{ aplica_inss: false }] }))
+    expect(await obtenerAplicaInss(queryFalso, 'tenant-x')).toBe(false)
+  })
 })
 
 describe('generarPlanilla', () => {
@@ -225,6 +286,7 @@ describe('generarPlanilla', () => {
       llamadas.push({ sql, params })
       if (sql.includes('FROM usuarios')) return { rows: [usuarioFijo] }
       if (sql.includes('FROM pagos_variables')) return { rows: [] }
+      if (sql.includes('FROM configuracion_costeo')) return { rows: [] }
       if (sql.includes('INSERT INTO planillas')) return { rows: [{ id: 'planilla-1' }] }
       if (sql.includes('DELETE FROM planilla_detalle')) return { rows: [] }
       if (sql.includes('INSERT INTO planilla_detalle')) return { rows: [] }

@@ -5,7 +5,7 @@ import { query } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 import {
   calcularPasivoColaborador, obtenerColaboradoresConDatosLaborales, sincronizarCostoIndirectoMano,
-  calcularPlanilla, generarPlanilla, obtenerHistorialPlanillas, obtenerPlanilla,
+  calcularPlanilla, generarPlanilla, obtenerHistorialPlanillas, obtenerPlanilla, obtenerAplicaInss,
 } from '../services/pasivosLaboralesService.js'
 
 const FRECUENCIAS_VALIDAS = ['semanal', 'quincenal', 'mensual']
@@ -115,10 +115,11 @@ router.get('/dossier', async (req, res, next) => {
     // 1 query de pagos_variables por cada colaborador de pago variable,
     // dentro del loop — ver pasivosLaboralesService.js).
     const { colaboradores, empresaGrande } = await obtenerColaboradoresConDatosLaborales(query, req.tenantId)
+    const aplicaInss = await obtenerAplicaInss(query, req.tenantId)
 
     const detalle = []
     for (const colaborador of colaboradores) {
-      const resultado = calcularPasivoColaborador(colaborador, colaborador.pagosVariables, empresaGrande)
+      const resultado = calcularPasivoColaborador(colaborador, colaborador.pagosVariables, empresaGrande, aplicaInss)
       if (resultado) detalle.push(resultado)
     }
 
@@ -134,6 +135,7 @@ router.get('/dossier', async (req, res, next) => {
       colaboradoresConDatos: detalle.length,
       colaboradoresTotal: colaboradores.length,
       empresaGrande,
+      aplicaInss,
       totales,
       detalle,
     })
