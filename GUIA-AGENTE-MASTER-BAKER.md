@@ -59,6 +59,10 @@ Auditoría de QA senior el 25/jul + trabajo de los días siguientes + revisión 
 - `npm audit` (frontend): nueva vulnerabilidad **alta** en `react-router-dom@7.18.2` (única versión disponible ahora mismo) — "RSC Mode CSRF Bypass" (GHSA-qwww-vcr4-c8h2), rango afectado 7.12.0–8.2.0, sin versión parcheada publicada todavía. La app usa `BrowserRouter` (modo SPA clásico), no el modo RSC/framework que el aviso describe — probablemente no explotable tal como está desplegada, pero hay que vigilar que salga un parche y no bajar a una versión vieja (reintroduciría las 2 CVEs que se arreglaron en el PR de hoy temprano).
 - `npm audit` (backend): sin cambios — `uuid`/`exceljs` (moderado), riesgo aceptado, requeriría downgrade con breaking change.
 
+**Verificado hoy — deploy de PR #84 en producción:** merge a `main` (`b0bf38e`) confirmado en vivo: Vercel (`masterbaker.store`) y Railway `ample-vibrancy/master-baker` (el único con dominio de producción real, `master-baker-production.up.railway.app`, y status success) ambos verdes. De paso se detectaron 2 servicios Railway huérfanos que fallan en cada deploy pero **no tocan el dominio de producción** — quedan en backlog, sin urgencia:
+- `artistic-emotion/master-baker` — credenciales de DB rotas (`ECIRCUITBREAKER`, loop de crash-restart), sin dominio custom asignado. Evaluar apagar/borrar.
+- `ample-vibrancy/angelic-caring` (staging) — falta la tabla `tenant_whatsapp_config` (migración no corrida ahí). Correr la migración si algún día se usa ese staging.
+
 **Pendiente, no iniciado:**
 - Definir modelo de cobro/billing a los socios fundadores — Marketing propuso estructura (Seed/Pro + overage), desarrollo confirmó que `uso_ia_mensual` es la tabla correcta para contarlo, falta implementar la lógica de cobro por exceso en `planMiddleware.js`.
 - PR D (housekeeping menor: índices compuestos en `costeos`/`facturas`, batching de INSERTs en `compras.js`) — bajo impacto, sin urgencia.
