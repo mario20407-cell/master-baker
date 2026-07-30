@@ -313,6 +313,11 @@ CREATE TABLE IF NOT EXISTS configuracion_costeo (
   -- sector informal) — desactiva deducciones e INSS patronal en el
   -- dossier de pasivos, la sugerencia de mano de obra y la planilla.
   aplica_inss           BOOLEAN NOT NULL DEFAULT true,
+  -- frecuencia con la que se le paga a TODO el equipo (no es por
+  -- colaborador) — precarga el selector de Planilla, se puede cambiar
+  -- puntualmente al generar una planilla si hace falta.
+  frecuencia_pago       VARCHAR(10) NOT NULL DEFAULT 'quincenal'
+                          CHECK (frecuencia_pago IN ('semanal', 'quincenal', 'mensual')),
   actualizado_en        TIMESTAMPTZ DEFAULT NOW()
 );
 
