@@ -360,7 +360,7 @@ export default function Equipo() {
                   <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                     <Shield size={16} className="text-[#C29C53]" /> Permisos: {editPermisosUser.nombre}
                   </h3>
-                  <button onClick={() => setEditPermisosUser(null)} className="text-gray-450 hover:text-red-500">
+                  <button onClick={() => setEditPermisosUser(null)} className="text-gray-400 hover:text-red-500">
                     <X size={16} />
                   </button>
                 </div>
@@ -374,7 +374,7 @@ export default function Equipo() {
                     {/* Agrupados por módulo */}
                     {Array.from(new Set(PERMISOS_DISPONIBLES.map(p => p.modulo))).map(mod => (
                       <div key={mod} className="pt-2 first:pt-0">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-400 dark:text-gray-550 block mb-1">
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-400 dark:text-gray-500 block mb-1">
                           {mod}
                         </span>
                         <div className="space-y-1.5">
@@ -419,7 +419,7 @@ export default function Equipo() {
                   <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                     <Key size={15} className="text-[#C29C53]" /> Restablecer Contraseña
                   </h3>
-                  <button onClick={() => setResetUserId(null)} className="text-gray-450 hover:text-red-500">
+                  <button onClick={() => setResetUserId(null)} className="text-gray-400 hover:text-red-500">
                     <X size={15} />
                   </button>
                 </div>
@@ -504,7 +504,7 @@ export default function Equipo() {
                       <button
                         type="button"
                         onClick={() => setShowPass(!showPass)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-650"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
                         {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
@@ -559,7 +559,7 @@ export default function Equipo() {
                   <tbody>
                     {colaboradores.map(user => (
                       <tr key={user.id} className={editPermisosUser?.id === user.id ? 'bg-[#C29C53]/5' : ''}>
-                        <td className="font-medium text-gray-800 dark:text-gray-250">{user.nombre}</td>
+                        <td className="font-medium text-gray-800 dark:text-gray-200">{user.nombre}</td>
                         <td className="text-gray-500 dark:text-gray-400 text-xs">{user.email}</td>
                         <td>
                           <span className={`badge-gray inline-flex items-center gap-1 text-[10px] ${user.rol === 'admin' ? 'border border-[#C29C53]/35 text-[#8B6914] dark:text-[#C29C53] bg-[#8B6914]/5' : ''}`}>
@@ -578,7 +578,7 @@ export default function Equipo() {
                             {user.rol === 'operario' && (
                               <button
                                 onClick={() => handleAbrirPermisos(user)}
-                                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-450 hover:text-[#C29C53] transition-colors"
+                                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-400 hover:text-[#C29C53] transition-colors"
                                 title="Configurar Permisos del Operario"
                               >
                                 <Shield size={14} />
@@ -590,14 +590,14 @@ export default function Equipo() {
                                 setNuevoPassword('')
                                 setEditPermisosUser(null)
                               }}
-                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-450 hover:text-[#C29C53] transition-colors"
+                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-400 hover:text-[#C29C53] transition-colors"
                               title="Restablecer Contraseña"
                             >
                               <Key size={14} />
                             </button>
                             <button
                               onClick={() => handleEliminar(user.id, user.nombre)}
-                              className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-950/20 text-gray-440 hover:text-red-500 transition-colors"
+                              className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-950/20 text-gray-400 hover:text-red-500 transition-colors"
                               title="Eliminar del Equipo"
                             >
                               <Trash2 size={14} />
@@ -638,18 +638,18 @@ export default function Equipo() {
           ) : bitacora.length === 0 ? (
             <div className="text-center py-10 text-sm text-gray-400">No se registran actividades recientes en la plataforma.</div>
           ) : (
-            <div className="relative border-l border-gray-250 dark:border-navy-800 ml-4 space-y-6 py-2">
+            <div className="relative border-l border-gray-200 dark:border-navy-800 ml-4 space-y-6 py-2">
               {bitacora.map((log) => {
                 const isCollapsed = collapsedLogs[log.id] ?? true
                 const dateObj = new Date(log.creado_en)
 
                 // Mapear color e icono según el módulo
                 let badgeColor = 'bg-gray-100 text-gray-800 border-gray-200'
-                if (log.modulo === 'ventas') badgeColor = 'bg-green-50 text-green-755 border-green-200 dark:bg-green-950/15 dark:text-green-400 dark:border-green-900/40'
+                if (log.modulo === 'ventas') badgeColor = 'bg-green-50 text-green-800 border-green-200 dark:bg-green-950/15 dark:text-green-400 dark:border-green-900/40'
                 if (log.modulo === 'inventario') badgeColor = 'bg-orange-50 text-orange-755 border-orange-200 dark:bg-orange-950/15 dark:text-orange-400 dark:border-orange-900/40'
                 if (log.modulo === 'recetas') badgeColor = 'bg-purple-50 text-purple-755 border-purple-200 dark:bg-purple-950/15 dark:text-purple-400 dark:border-purple-900/40'
-                if (log.modulo === 'catalogo') badgeColor = 'bg-blue-50 text-blue-755 border-blue-200 dark:bg-blue-950/15 dark:text-blue-400 dark:border-blue-900/40'
-                if (log.modulo === 'compras') badgeColor = 'bg-amber-50 text-amber-755 border-amber-200 dark:bg-amber-950/15 dark:text-amber-400 dark:border-amber-900/40'
+                if (log.modulo === 'catalogo') badgeColor = 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/15 dark:text-blue-400 dark:border-blue-900/40'
+                if (log.modulo === 'compras') badgeColor = 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/15 dark:text-amber-400 dark:border-amber-900/40'
 
                 return (
                   <div key={log.id} className="relative pl-6">
@@ -689,7 +689,7 @@ export default function Equipo() {
                         {log.detalles && Object.keys(log.detalles).length > 0 && (
                           <button
                             onClick={() => toggleCollapseLog(log.id)}
-                            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-450 hover:text-gray-700 dark:hover:text-gray-200"
+                            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                             title="Ver detalles JSON"
                           >
                             {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
@@ -700,7 +700,7 @@ export default function Equipo() {
 
                     {/* Detalles JSON desplegables */}
                     {!isCollapsed && log.detalles && (
-                      <div className="mt-2 p-3 bg-gray-50 dark:bg-navy-900 border border-gray-150 dark:border-navy-800 rounded-md text-[10px] font-mono text-gray-600 dark:text-gray-300 overflow-x-auto leading-relaxed">
+                      <div className="mt-2 p-3 bg-gray-50 dark:bg-navy-900 border border-gray-100 dark:border-navy-800 rounded-md text-[10px] font-mono text-gray-600 dark:text-gray-300 overflow-x-auto leading-relaxed">
                         <div className="flex items-center gap-1.5 text-gray-400 mb-1 border-b border-gray-200 dark:border-navy-800 pb-1">
                           <Info size={10} /> Detalle Técnico de la Operación:
                         </div>
@@ -800,7 +800,7 @@ export default function Equipo() {
                   const p = planillaActual || vistaPrevia
                   const esGuardada = !!planillaActual
                   return (
-                    <div className="mt-5 border-t border-gray-150 dark:border-navy-800 pt-4">
+                    <div className="mt-5 border-t border-gray-100 dark:border-navy-800 pt-4">
                       <div className="flex justify-between items-center mb-3">
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           {p.periodoInicio || p.periodo_inicio} a {p.periodoFin || p.periodo_fin} · {p.frecuencia}
@@ -851,7 +851,7 @@ export default function Equipo() {
                             <tbody>
                               {p.detalle.map((d, i) => (
                                 <tr key={d.usuario_id || i}>
-                                  <td className="font-medium text-gray-800 dark:text-gray-250">{d.nombre}</td>
+                                  <td className="font-medium text-gray-800 dark:text-gray-200">{d.nombre}</td>
                                   <td><span className="badge-gray text-[10px]">{d.tipo_pago === 'variable' ? 'Variable' : 'Fijo'}</span></td>
                                   <td className="text-right text-xs">{formatoCordobas(d.salario_bruto)}</td>
                                   <td className="text-right text-xs">{formatoCordobas(d.inss_laboral)}</td>
@@ -892,11 +892,11 @@ export default function Equipo() {
                 ) : historial.length === 0 ? (
                   <p className="text-xs text-gray-400 text-center py-6">Todavía no generaste ninguna planilla.</p>
                 ) : (
-                  <div className="divide-y divide-gray-150 dark:divide-navy-800/80">
+                  <div className="divide-y divide-gray-100 dark:divide-navy-800/80">
                     {historial.map(h => (
                       <div key={h.id} className="flex justify-between items-center py-2.5">
                         <div>
-                          <div className="text-xs font-medium text-gray-800 dark:text-gray-250">
+                          <div className="text-xs font-medium text-gray-800 dark:text-gray-200">
                             {h.periodo_inicio} a {h.periodo_fin}
                             <span className="badge-gray text-[10px] ml-2">{h.frecuencia}</span>
                           </div>
@@ -907,7 +907,7 @@ export default function Equipo() {
                           <button
                             onClick={() => handleDescargarPlanilla(h.id, 'excel')}
                             disabled={descargando === `${h.id}-excel`}
-                            className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-450 hover:text-[#C29C53] transition-colors"
+                            className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-400 hover:text-[#C29C53] transition-colors"
                             title="Descargar Excel"
                           >
                             <Download size={13} />
@@ -1012,7 +1012,7 @@ export default function Equipo() {
                     <tbody>
                       {dossier.detalle.map(c => (
                         <tr key={c.usuario_id}>
-                          <td className="font-medium text-gray-800 dark:text-gray-250">{c.nombre}</td>
+                          <td className="font-medium text-gray-800 dark:text-gray-200">{c.nombre}</td>
                           <td>
                             <span className="badge-gray text-[10px]">
                               {c.tipo_pago === 'variable' ? 'Variable / destajo' : 'Fijo'}
@@ -1039,7 +1039,7 @@ export default function Equipo() {
                           <td className="text-right">
                             <button
                               onClick={() => handleAbrirPerfilLaboral(c)}
-                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-450 hover:text-[#C29C53] transition-colors"
+                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-400 hover:text-[#C29C53] transition-colors"
                               title="Editar Perfil Laboral"
                             >
                               <Pencil size={14} />
@@ -1049,14 +1049,14 @@ export default function Equipo() {
                       ))}
                       {perfilesSinFecha.map(p => (
                         <tr key={p.id} className="opacity-70">
-                          <td className="font-medium text-gray-800 dark:text-gray-250">{p.nombre}</td>
+                          <td className="font-medium text-gray-800 dark:text-gray-200">{p.nombre}</td>
                           <td colSpan={5} className="text-xs text-amber-600 dark:text-amber-500">
                             Falta fecha de ingreso — completá el perfil laboral para calcular su pasivo.
                           </td>
                           <td className="text-right">
                             <button
                               onClick={() => handleAbrirPerfilLaboral(p)}
-                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-450 hover:text-[#C29C53] transition-colors"
+                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-400 hover:text-[#C29C53] transition-colors"
                               title="Completar Perfil Laboral"
                             >
                               <Pencil size={14} />
@@ -1088,7 +1088,7 @@ export default function Equipo() {
                   <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                     <Wallet size={16} className="text-[#C29C53]" /> Perfil Laboral: {editPerfilUser.nombre}
                   </h3>
-                  <button onClick={() => setEditPerfilUser(null)} className="text-gray-450 hover:text-red-500">
+                  <button onClick={() => setEditPerfilUser(null)} className="text-gray-400 hover:text-red-500">
                     <X size={16} />
                   </button>
                 </div>
@@ -1130,7 +1130,7 @@ export default function Equipo() {
                       />
                     </div>
                   ) : (
-                    <div className="space-y-3 border-t border-gray-150 dark:border-navy-800 pt-3">
+                    <div className="space-y-3 border-t border-gray-100 dark:border-navy-800 pt-3">
                       <p className="text-[11px] text-gray-500 dark:text-gray-400">
                         Anotá lo que realmente se le pagó cada mes. El aguinaldo usa el mes más alto de los últimos 6;
                         vacaciones e indemnización usan el promedio; el INSS patronal usa el mes más reciente.

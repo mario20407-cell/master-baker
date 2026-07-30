@@ -42,7 +42,7 @@ export default function Login() {
           <p className="text-sm mt-1 italic font-bold" style={{ color: '#8B6914' }}>"Danos el pan nuestro de cada día"</p>
         </div>
         <div className="bg-white dark:bg-navy-900 rounded-2xl shadow-sm border border-gray-100 dark:border-navy-800 p-8 mt-2 transition-colors duration-200">
-          <h2 className="text-base font-medium text-gray-700 dark:text-gray-250 mb-6">Iniciar sesión</h2>
+          <h2 className="text-base font-medium text-gray-700 dark:text-gray-200 mb-6">Iniciar sesión</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="form-group">
               <label className="form-label">Correo electrónico</label>
@@ -80,10 +80,10 @@ export default function Login() {
                 </>
               ) : 'Entrar'}
             </button>
-            <button type="button" onClick={() => toast("Por ahora no hay reseteo automático. Pedile a un administrador que te restablezca la contraseña desde 'Mi Equipo', o contactanos directamente.")} className="w-full text-center text-xs text-gray-400 hover:text-gray-655 mt-2">Olvidé mi contraseña</button>
-            <div className="mt-4 pt-4 border-t border-gray-105 dark:border-navy-800 text-center text-xs text-gray-500 dark:text-gray-450">
+            <button type="button" onClick={() => toast("Por ahora no hay reseteo automático. Pedile a un administrador que te restablezca la contraseña desde 'Mi Equipo', o contactanos directamente.")} className="w-full text-center text-xs text-gray-400 hover:text-gray-700 mt-2">Olvidé mi contraseña</button>
+            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-navy-800 text-center text-xs text-gray-500 dark:text-gray-400">
               ¿Eres socio fundador?{' '}
-              <Link to="/registro" className="text-amber-655 hover:underline font-semibold">
+              <Link to="/registro" className="text-amber-700 hover:underline font-semibold">
                 Registra tu negocio
               </Link>
             </div>

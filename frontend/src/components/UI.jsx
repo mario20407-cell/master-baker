@@ -1,12 +1,12 @@
 import React from 'react'
 
 const kpiColorClasses = {
-  navy:  'border-t-[#1B2A4A] dark:border-t-navy-400 text-[#1B2A4A] dark:text-navy-300',
+  navy:  'border-t-[#1B2A4A] dark:border-t-navy-400 text-[#1B2A4A] dark:text-navy-200',
   green: 'border-t-[#1A7A4A] text-[#1A7A4A] dark:text-green-400',
   red:   'border-t-[#C0392B] text-[#C0392B] dark:text-red-400',
   gold:  'border-t-[#C29C53] text-[#C29C53] dark:text-brand-400',
   amber: 'border-t-[#D68910] text-[#D68910] dark:text-amber-400',
-  blue:  'border-t-[#2980B9] text-[#2980B9] dark:text-blue-450',
+  blue:  'border-t-[#2980B9] text-[#2980B9] dark:text-blue-400',
   gray:  'border-t-[#888B8D] text-[#888B8D] dark:text-gray-400',
 }
 
@@ -30,7 +30,7 @@ export function KpiCard({ label, value, sub, color = 'navy' }) {
   const borderAndTextColor = kpiColorClasses[color] || 'border-t-brand-400 text-brand-400'
   return (
     <div className={`bg-white dark:bg-navy-900 border border-gray-100 dark:border-navy-800 rounded-lg border-t-4 ${borderAndTextColor} p-3.5 shadow-card transition-colors duration-200`}>
-      <div className="text-gray-400 dark:text-navy-300 text-[10px] uppercase font-bold tracking-wider mb-1">{label}</div>
+      <div className="text-gray-400 dark:text-navy-200 text-[10px] uppercase font-bold tracking-wider mb-1">{label}</div>
       <div className="text-2xl font-bold tracking-tight leading-none">{value}</div>
       {sub && <div className="text-gray-400 dark:text-gray-500 text-[10px] mt-1.5 leading-none">{sub}</div>}
     </div>
@@ -59,7 +59,7 @@ export function EmptyState({ icon: Icon, title, sub, action }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
       {Icon && <Icon size={32} className="text-gray-300 dark:text-navy-600 mb-2" />}
-      <div className="text-sm font-semibold text-[#1B2A4A] dark:text-gray-250 mb-1">{title}</div>
+      <div className="text-sm font-semibold text-[#1B2A4A] dark:text-gray-200 mb-1">{title}</div>
       {sub && <div className="text-xs text-gray-400 dark:text-gray-500 mb-3">{sub}</div>}
       {action}
     </div>

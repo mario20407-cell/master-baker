@@ -146,7 +146,7 @@ export default function Layout() {
               <div key={idx} className="relative group px-2 py-1">
                 <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 rounded-lg hover:bg-gray-50 dark:hover:bg-navy-800 transition-all cursor-pointer">
                   {group.title}
-                  <ChevronDown size={12} className="text-gray-400 group-hover:text-brand-500 transition-transform duration-200 group-hover:rotate-180" />
+                  <ChevronDown size={12} className="text-gray-400 group-hover:text-brand-400 transition-transform duration-200 group-hover:rotate-180" />
                 </button>
 
                 {/* Cascade Dropdown Card */}
@@ -255,7 +255,7 @@ export default function Layout() {
                 onClick={() => setUserMenuOpen(o => !o)}
               >
                 {usuario.nombre || usuario.email}
-                <ChevronDown size={12} className="text-gray-400 group-hover:text-brand-500 transition-transform duration-200 group-hover:rotate-180" />
+                <ChevronDown size={12} className="text-gray-400 group-hover:text-brand-400 transition-transform duration-200 group-hover:rotate-180" />
               </button>
 
               <div className={`absolute right-0 mt-1 w-44 bg-white dark:bg-navy-900 border border-gray-100 dark:border-navy-800 rounded-xl shadow-xl py-1.5 z-50 transition-all duration-200 transform
@@ -344,7 +344,7 @@ export default function Layout() {
                   Cerrar sesión
                 </button>
               )}
-              <div className="text-[10px] text-gray-455 dark:text-navy-500">
+              <div className="text-[10px] text-gray-500 dark:text-navy-400">
                 v2.7.2
               </div>
             </div>
@@ -355,7 +355,7 @@ export default function Layout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile Page Indicator */}
-        <div className="lg:hidden bg-white dark:bg-navy-900 border-b border-gray-100 dark:border-navy-850 px-6 py-2.5 text-xs font-semibold text-gray-800 dark:text-gray-200 flex-shrink-0 transition-colors duration-200">
+        <div className="lg:hidden bg-white dark:bg-navy-900 border-b border-gray-100 dark:border-navy-800 px-6 py-2.5 text-xs font-semibold text-gray-800 dark:text-gray-200 flex-shrink-0 transition-colors duration-200">
           📍 {currentPage}
         </div>
 
