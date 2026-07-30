@@ -45,7 +45,10 @@ export default function Equipo() {
   const [loading, setLoading] = useState(true)
 
   // Registrar nuevo colaborador form
-  const [form, setForm] = useState({ nombre: '', email: '', password: '', rol: 'operario' })
+  const [form, setForm] = useState({
+    nombre: '', email: '', password: '', rol: 'operario',
+    tipo_pago: 'fijo', salario_mensual: '', fecha_ingreso: new Date().toISOString().slice(0, 10),
+  })
   const [showPass, setShowPass] = useState(false)
   const [creando, setCreando] = useState(false)
 
@@ -175,9 +178,30 @@ export default function Equipo() {
 
     setCreando(true)
     try {
-      await saveUsuario(form)
+      const { data } = await saveUsuario(form)
       toast.success('Colaborador registrado exitosamente')
-      setForm({ nombre: '', email: '', password: '', rol: 'operario' })
+
+      // Guardamos el perfil laboral (salario/fecha de ingreso) en el mismo
+      // paso para que la mano de obra se costee bien desde el primer
+      // momento, sin depender de que alguien vuelva luego a "Nómina" a
+      // completarlo. No es atómico con la creación del usuario a propósito
+      // (reutiliza el endpoint ya existente y admin-only de perfil
+      // laboral) — si falla, el colaborador ya quedó creado igual, así
+      // que avisamos aparte en vez de tumbar el alta completa.
+      try {
+        await updatePerfilLaboral(data.usuario.id, {
+          tipo_pago: form.tipo_pago,
+          salario_mensual: form.tipo_pago === 'fijo' && form.salario_mensual ? Number(form.salario_mensual) : null,
+          fecha_ingreso: form.fecha_ingreso || null,
+        })
+      } catch (perfilErr) {
+        toast.error('Colaborador creado, pero no se pudo guardar el salario — completalo en Nómina → Pasivo Laboral')
+      }
+
+      setForm({
+        nombre: '', email: '', password: '', rol: 'operario',
+        tipo_pago: 'fijo', salario_mensual: '', fecha_ingreso: new Date().toISOString().slice(0, 10),
+      })
       cargarEquipo()
     } catch (err) {
       toast.error(err.response?.data?.error || 'Error al registrar colaborador')
@@ -520,6 +544,52 @@ export default function Equipo() {
                       <option value="operario">Operario (Panadero / Cajero)</option>
                       <option value="admin">Administrador (Acceso total)</option>
                     </select>
+                  </div>
+
+                  {/* Salario a devengar — opcional, pero se pide de una vez para
+                      que la mano de obra se costee bien desde el primer momento
+                      en vez de depender de un segundo paso en Nómina. */}
+                  <div className="border-t border-gray-100 dark:border-navy-800 pt-3 space-y-3">
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                      Opcional — podés completarlo también después en Nómina → Pasivo Laboral.
+                    </p>
+
+                    <div className="form-group">
+                      <label className="form-label text-xs flex items-center gap-1"><Calendar size={12} /> Fecha de Ingreso</label>
+                      <input
+                        type="date"
+                        value={form.fecha_ingreso}
+                        onChange={e => setForm(p => ({ ...p, fecha_ingreso: e.target.value }))}
+                        className="text-xs py-1.5"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label text-xs">Tipo de Pago</label>
+                      <select
+                        value={form.tipo_pago}
+                        onChange={e => setForm(p => ({ ...p, tipo_pago: e.target.value }))}
+                        className="text-xs py-1.5"
+                      >
+                        <option value="fijo">Salario fijo mensual</option>
+                        <option value="variable">Variable / destajo (ej. por quintal)</option>
+                      </select>
+                    </div>
+
+                    {form.tipo_pago === 'fijo' && (
+                      <div className="form-group">
+                        <label className="form-label text-xs">Salario a Devengar (C$/mes)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={form.salario_mensual}
+                          onChange={e => setForm(p => ({ ...p, salario_mensual: e.target.value }))}
+                          placeholder="Ej. 8500"
+                          className="text-xs py-1.5"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <button
