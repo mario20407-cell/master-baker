@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { obtenerColaboradoresConDatosLaborales } from '../pasivosLaboralesService.js'
+import { obtenerColaboradoresConDatosLaborales, calcularSugerenciaManoObra, sincronizarCostoIndirectoMano } from '../pasivosLaboralesService.js'
 
 // Antes, recetas.js (sugerencia-mano-obra) y pasivosLaborales.js (dossier)
 // hacían 1 query de pagos_variables POR colaborador de pago variable,
@@ -69,5 +69,68 @@ describe('obtenerColaboradoresConDatosLaborales', () => {
     const queryFalso = vi.fn(async (sql) => ({ rows: usuarios50 }))
     const { empresaGrande } = await obtenerColaboradoresConDatosLaborales(queryFalso, 'tenant-x')
     expect(empresaGrande).toBe(true)
+  })
+})
+
+// calcularSugerenciaManoObra y sincronizarCostoIndirectoMano — la parte
+// nueva: automatizar el número de mano de obra que se jala al costeo de
+// recetas, en vez de depender de que alguien apriete "usar sugerencia" a
+// mano en Configuración cada vez que cambia la nómina.
+describe('calcularSugerenciaManoObra / sincronizarCostoIndirectoMano', () => {
+  const fiscalConfigurado = { produccion_mensual: 100, configurado: true }
+  const usuarioFijo = { id: 'a', nombre: 'A', tipo_pago: 'fijo', salario_mensual: 1000, fecha_ingreso: '2020-01-01' }
+
+  function crearQueryFalso({ fiscal = fiscalConfigurado, usuarios = [usuarioFijo], pagos = [] } = {}) {
+    return vi.fn(async (sql, params) => {
+      if (sql.includes('FROM config_fiscal')) return { rows: fiscal ? [fiscal] : [] }
+      if (sql.includes('FROM usuarios')) return { rows: usuarios }
+      if (sql.includes('FROM pagos_variables')) {
+        const ids = params[0]
+        return { rows: pagos.filter(p => ids.includes(p.usuario_id)) }
+      }
+      if (sql.includes('INSERT INTO configuracion_costeo')) return { rows: [] }
+      throw new Error('query inesperada: ' + sql)
+    })
+  }
+
+  it('devuelve motivo fiscal_no_configurado si config_fiscal no existe o configurado=false', async () => {
+    const queryFalso = crearQueryFalso({ fiscal: null })
+    const resultado = await calcularSugerenciaManoObra(queryFalso, 'tenant-x')
+    expect(resultado).toEqual({ sugerido: null, motivo: 'fiscal_no_configurado' })
+  })
+
+  it('devuelve motivo sin_produccion_mensual si produccion_mensual es 0', async () => {
+    const queryFalso = crearQueryFalso({ fiscal: { produccion_mensual: 0, configurado: true } })
+    const resultado = await calcularSugerenciaManoObra(queryFalso, 'tenant-x')
+    expect(resultado).toEqual({ sugerido: null, motivo: 'sin_produccion_mensual' })
+  })
+
+  it('devuelve motivo sin_datos_nomina si no hay colaboradores con pago configurado', async () => {
+    const queryFalso = crearQueryFalso({ usuarios: [] })
+    const resultado = await calcularSugerenciaManoObra(queryFalso, 'tenant-x')
+    expect(resultado).toEqual({ sugerido: null, motivo: 'sin_datos_nomina' })
+  })
+
+  it('calcula un sugerido positivo cuando hay fiscal configurado y nómina con datos', async () => {
+    const queryFalso = crearQueryFalso()
+    const resultado = await calcularSugerenciaManoObra(queryFalso, 'tenant-x')
+    expect(resultado.motivo).toBeNull()
+    expect(resultado.sugerido).toBeGreaterThan(0)
+  })
+
+  it('sincronizarCostoIndirectoMano NO escribe en configuracion_costeo si no hay sugerencia', async () => {
+    const queryFalso = crearQueryFalso({ fiscal: null })
+    const resultado = await sincronizarCostoIndirectoMano(queryFalso, 'tenant-x')
+    expect(resultado).toBeNull()
+    expect(queryFalso).not.toHaveBeenCalledWith(expect.stringContaining('INSERT INTO configuracion_costeo'), expect.anything())
+  })
+
+  it('sincronizarCostoIndirectoMano escribe el valor sugerido en configuracion_costeo cuando sí hay datos', async () => {
+    const queryFalso = crearQueryFalso()
+    const resultado = await sincronizarCostoIndirectoMano(queryFalso, 'tenant-x')
+    expect(resultado).toBeGreaterThan(0)
+    const llamadaInsert = queryFalso.mock.calls.find(([sql]) => sql.includes('INSERT INTO configuracion_costeo'))
+    expect(llamadaInsert).toBeTruthy()
+    expect(llamadaInsert[1]).toEqual(['tenant-x', resultado])
   })
 })

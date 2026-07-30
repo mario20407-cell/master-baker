@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useFiscalConfig } from '../hooks/useFiscalConfig'
 import { usePasivosLaborales } from '../hooks/usePasivosLaborales'
@@ -22,7 +22,6 @@ import {
   TrendingUp,
   Info,
   Save,
-  AlertTriangle,
   CheckCircle,
   HelpCircle,
   Pencil,
@@ -225,18 +224,10 @@ export default function Configuracion() {
     }
   }
 
-  const handleUsarSugerencia = () => {
-    if (manoObraSugerida.sugerido !== null) {
-      setCosteoForm(prev => ({ ...prev, costo_indirecto_mano: manoObraSugerida.sugerido }))
-      toast.success('Valor sugerido copiado al campo manual')
-    }
-  }
-
-  const manoObraDesactualizada = useMemo(() => {
-    if (manoObraSugerida.sugerido === null) return false
-    const aplicado = parseFloat(costeoForm.costo_indirecto_mano || 0)
-    return Math.abs(aplicado - manoObraSugerida.sugerido) > 0.01
-  }, [costeoForm.costo_indirecto_mano, manoObraSugerida.sugerido])
+  // El backend sincroniza costo_indirecto_mano solo cada vez que cambia un
+  // dato de nómina o la producción mensual (ver sincronizarCostoIndirectoMano
+  // en pasivosLaboralesService.js) — ya no hace falta un botón manual de
+  // "usar sugerencia" para que el costeo de recetas quede al día.
 
   // Guardar Negocio & Admin
   const handleGuardarNegocio = async (e) => {
@@ -719,47 +710,17 @@ export default function Configuracion() {
                 <div className="border-t border-gray-150 pt-4 space-y-3">
                   <h4 className="text-xs font-semibold text-gray-800">Costo de Mano de Obra</h4>
 
-                  {!loadingSugerencia && manoObraDesactualizada && (
-                    <div className="rounded-xl p-3 bg-amber-50/60 border border-amber-300/60 flex flex-col sm:flex-row justify-between sm:items-center gap-2.5">
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle size={14} className="text-amber-600 mt-0.5 shrink-0" />
-                        <p className="text-[11px] text-amber-800">
-                          La nómina cambió desde la última vez que actualizaste este costo.
-                          Aplicado: {formatoCordobas(parseFloat(costeoForm.costo_indirecto_mano || 0))} — Sugerido ahora: {formatoCordobas(manoObraSugerida.sugerido)}.
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleUsarSugerencia}
-                        className="btn-primary text-[10px] py-1.5 px-3 self-start sm:self-auto bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1 border-none shadow-none"
-                        type="button"
-                      >
-                        <Check size={12} />
-                        Actualizar al valor sugerido
-                      </button>
-                    </div>
-                  )}
-
                   {loadingSugerencia ? (
                     <div className="text-xs text-gray-400">Calculando mano de obra sugerida...</div>
                   ) : manoObraSugerida.sugerido !== null ? (
-                    <div className="rounded-xl p-3 bg-green-50/50 border border-green-200/50 flex flex-col sm:flex-row justify-between sm:items-center gap-2.5">
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-green-700 tracking-wider">Mano de Obra Sugerida</span>
-                        <p className="text-base font-bold text-green-800">{formatoCordobas(manoObraSugerida.sugerido)} <span className="text-[10px] font-normal text-green-600">por pieza</span></p>
-                        <p className="text-[9px] text-green-600">Calculado dinámicamente con nómina activa y producción mensual ({configFiscal?.produccion_mensual || 0} piezas).</p>
-                      </div>
-                      <button
-                        onClick={handleUsarSugerencia}
-                        className="btn-primary text-[10px] py-1.5 px-3 self-start sm:self-auto bg-green-700 hover:bg-green-800 text-white flex items-center gap-1 border-none shadow-none"
-                        type="button"
-                      >
-                        <Check size={12} />
-                        Usar este valor
-                      </button>
+                    <div className="rounded-xl p-3 bg-green-50/50 border border-green-200/50">
+                      <span className="text-[10px] uppercase font-bold text-green-700 tracking-wider">Mano de Obra — sincronización automática</span>
+                      <p className="text-base font-bold text-green-800">{formatoCordobas(manoObraSugerida.sugerido)} <span className="text-[10px] font-normal text-green-600">por pieza</span></p>
+                      <p className="text-[9px] text-green-600">Calculado con nómina activa y producción mensual ({configFiscal?.produccion_mensual || 0} piezas). Este valor se aplica solo al costeo de recetas cada vez que actualizás un colaborador, un pago variable, o la producción mensual — no hace falta guardarlo a mano.</p>
                     </div>
                   ) : (
                     <div className="rounded-xl p-3 bg-gray-50 border border-gray-200 text-xs text-gray-500">
-                      ⚠️ Todavía no hay suficientes datos de nómina o producción mensual para sugerir un costo.
+                      ⚠️ Todavía no hay suficientes datos de nómina o producción mensual para sugerir un costo. Mientras tanto, podés fijar un valor manual abajo.
                     </div>
                   )}
 
@@ -773,7 +734,11 @@ export default function Configuracion() {
                       placeholder="0.00"
                       className="text-xs"
                     />
-                    <p className="text-[10px] text-gray-400 mt-1">Este es el valor final de mano de obra que se aplicará en el módulo de Costeo de recetas.</p>
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      {manoObraSugerida.sugerido !== null
+                        ? 'Se mantiene sincronizado automáticamente con la nómina. Si lo cambiás aquí a mano, la próxima actualización de nómina o producción mensual lo va a volver a calcular.'
+                        : 'Sin datos de nómina todavía, este valor no se actualiza solo — ajustalo a mano según corresponda.'}
+                    </p>
                   </div>
                 </div>
 

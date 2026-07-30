@@ -157,6 +157,91 @@ export async function obtenerColaboradoresConDatosLaborales(query, tenantId) {
   return { colaboradores: colaboradoresConPagos, empresaGrande }
 }
 
+// Sugerencia de costo de mano de obra por pieza, a partir de nómina real +
+// producción mensual configurada. La usan tanto la ruta GET de sugerencia
+// (recetas.js, para mostrarla en Configuración) como sincronizarCostoIndirectoMano
+// más abajo (para aplicarla sola cada vez que cambia un dato de nómina).
+export async function calcularSugerenciaManoObra(query, tenantId) {
+  const { rows: fiscalRows } = await query(
+    'SELECT produccion_mensual, configurado FROM config_fiscal WHERE tenant_id = $1',
+    [tenantId]
+  )
+  // produccion_mensual tiene default 1 en la tabla — sin este chequeo de
+  // "configurado", un tenant que nunca terminó de configurar la sección
+  // fiscal igual pasaría la validación y el costo laboral total se
+  // dividiría entre 1 pieza, dando una sugerencia disparatada.
+  if (!fiscalRows.length || !fiscalRows[0].configurado) {
+    return { sugerido: null, motivo: 'fiscal_no_configurado' }
+  }
+  if (!fiscalRows[0].produccion_mensual || parseInt(fiscalRows[0].produccion_mensual) <= 0) {
+    return { sugerido: null, motivo: 'sin_produccion_mensual' }
+  }
+  const produccion_mensual = parseInt(fiscalRows[0].produccion_mensual)
+
+  const { colaboradores, empresaGrande } = await obtenerColaboradoresConDatosLaborales(query, tenantId)
+  const colaboradoresValidos = colaboradores.filter(c => c.tipo_pago === 'fijo' || c.tipo_pago === 'variable')
+  if (colaboradoresValidos.length === 0) {
+    return { sugerido: null, motivo: 'sin_datos_nomina' }
+  }
+
+  const hoy = new Date()
+  let sumaCostoLaboralTotal = 0
+  let colaboradoresConSueldo = 0
+
+  for (const c of colaboradoresValidos) {
+    const base = calcularBaseSalarial(c, c.pagosVariables)
+    if (base.sinDatos) continue
+
+    const inss = calcularInssPatronalMensual(base.inssPatronal, empresaGrande)
+    let costoLaboralMensual = base.inssPatronal + inss.total
+
+    if (c.fecha_ingreso) {
+      const mesesAntiguedad = mesesEntre(c.fecha_ingreso, hoy)
+      if (mesesAntiguedad > 0) {
+        const aguinaldo = calcularAguinaldoAcumulado(base.aguinaldo, c.fecha_ingreso, hoy)
+        const vacaciones = calcularVacacionesAcumuladas(base.vacaciones, c.fecha_ingreso, hoy)
+        if (aguinaldo.meses > 0) costoLaboralMensual += aguinaldo.monto / aguinaldo.meses
+        costoLaboralMensual += vacaciones.monto / mesesAntiguedad
+      }
+    }
+
+    sumaCostoLaboralTotal += costoLaboralMensual
+    colaboradoresConSueldo++
+  }
+
+  if (colaboradoresConSueldo === 0) {
+    return { sugerido: null, motivo: 'sin_datos_nomina' }
+  }
+
+  const sugerido = Math.round((sumaCostoLaboralTotal / produccion_mensual) * 100) / 100
+  return { sugerido, motivo: null }
+}
+
+// Aplica la sugerencia de mano de obra directamente a configuracion_costeo,
+// sin depender de que alguien apriete "usar sugerencia" a mano en la UI.
+// Se llama después de cualquier escritura que pueda cambiar el resultado de
+// calcularSugerenciaManoObra: perfil laboral (salario/tipo de pago/fecha de
+// ingreso), pago variable, o producción mensual (config_fiscal).
+//
+// Si no hay sugerencia disponible (fiscal sin configurar o sin datos de
+// nómina todavía) no toca configuracion_costeo — así un tenant que no usa
+// el módulo de nómina, o que puso el valor a mano antes de tener datos,
+// no ve su número pisado sin motivo.
+export async function sincronizarCostoIndirectoMano(query, tenantId) {
+  const { sugerido } = await calcularSugerenciaManoObra(query, tenantId)
+  if (sugerido === null) return null
+
+  await query(`
+    INSERT INTO configuracion_costeo (tenant_id, costo_indirecto_mano, actualizado_en)
+    VALUES ($1, $2, NOW())
+    ON CONFLICT (tenant_id) DO UPDATE SET
+      costo_indirecto_mano = EXCLUDED.costo_indirecto_mano,
+      actualizado_en = NOW()
+  `, [tenantId, sugerido])
+
+  return sugerido
+}
+
 export function calcularInssPatronalMensual(inssPatronalBase, empresaGrande = false) {
   const tasaPatronal = empresaGrande ? TASAS.INSS_PATRONAL_GRANDE : TASAS.INSS_PATRONAL
   const patronal = inssPatronalBase * tasaPatronal

@@ -365,6 +365,25 @@ describe('calcularCosteoReceta', () => {
     expect(res.piezasReales).toBe(15)
   })
 
+  // Regresión: los objetos "shape API" (recetas.js backend, useRecetas.js,
+  // Costeo.jsx) traen merma_pct, no merma — antes de este fix, pasarle uno
+  // de esos objetos directo a calcularCosteoReceta perdía la merma en
+  // silencio (se trataba como 0%), dando un costoUnitario más bajo que el
+  // que se guardó al crear la receta desde el formulario (que sí usa
+  // "merma"). Ver hallazgo del 2026-07-29 durante el recorrido de Chrome.
+  it('acepta merma_pct (shape API) con el mismo resultado que merma (shape formulario)', () => {
+    const recetaShapeApi = { ...recetaMasaDulce, merma_pct: recetaMasaDulce.merma, merma: undefined }
+    const resApi = calcularCosteoReceta(recetaShapeApi)
+    const resFormulario = calcularCosteoReceta(recetaMasaDulce)
+    expect(resApi.piezasReales).toBe(resFormulario.piezasReales)
+    expect(resApi.costoUnitario).toBeCloseTo(resFormulario.costoUnitario, 4)
+  })
+
+  it('merma_pct tiene prioridad sobre merma si ambos están presentes (evita ambigüedad)', () => {
+    const res = calcularCosteoReceta({ ...recetaMasaDulce, merma: 0, merma_pct: 15 })
+    expect(res.piezasReales).toBe(15) // 18 * (1-0.15) redondeado, no 18 (merma=0)
+  })
+
   it('calcula el costo total correctamente (suma de los 4 ingredientes = 8.55)', () => {
     const res = calcularCosteoReceta(recetaMasaDulce)
     expect(res.costoTotal).toBeCloseTo(8.55, 4)
