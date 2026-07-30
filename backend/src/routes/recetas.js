@@ -25,16 +25,17 @@ router.get('/configuracion-costeo/settings', async (req, res, next) => {
 
 // PUT /api/recetas/configuracion-costeo/settings
 router.put('/configuracion-costeo/settings', async (req, res, next) => {
-  const { costo_indirecto_gas, costo_indirecto_luz, costo_indirecto_mano, margen_objetivo } = req.body
+  const { costo_indirecto_gas, costo_indirecto_luz, costo_indirecto_mano, margen_objetivo, aplica_inss } = req.body
   try {
     const { rows } = await query(`
-      INSERT INTO configuracion_costeo (tenant_id, costo_indirecto_gas, costo_indirecto_luz, costo_indirecto_mano, margen_objetivo, actualizado_en)
-      VALUES ($1, $2, $3, $4, $5, NOW())
+      INSERT INTO configuracion_costeo (tenant_id, costo_indirecto_gas, costo_indirecto_luz, costo_indirecto_mano, margen_objetivo, aplica_inss, actualizado_en)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW())
       ON CONFLICT (tenant_id) DO UPDATE SET
         costo_indirecto_gas = EXCLUDED.costo_indirecto_gas,
         costo_indirecto_luz = EXCLUDED.costo_indirecto_luz,
         costo_indirecto_mano = EXCLUDED.costo_indirecto_mano,
         margen_objetivo = EXCLUDED.margen_objetivo,
+        aplica_inss = EXCLUDED.aplica_inss,
         actualizado_en = NOW()
       RETURNING *
     `, [
@@ -42,7 +43,8 @@ router.put('/configuracion-costeo/settings', async (req, res, next) => {
       parseFloat(costo_indirecto_gas) || 0,
       parseFloat(costo_indirecto_luz) || 0,
       parseFloat(costo_indirecto_mano) || 0,
-      parseFloat(margen_objetivo) || 0
+      parseFloat(margen_objetivo) || 0,
+      aplica_inss !== false,
     ])
     res.json(rows[0])
   } catch (e) { next(e) }
