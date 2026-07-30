@@ -73,7 +73,7 @@ export default function Dashboard() {
 
       {/* Alerta de margen */}
       {alertasMargen.length > 0 && (
-        <div className="flex gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-850/50 text-sm">
+        <div className="flex gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-800/50 text-sm">
           <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
           <div>
             <div className="font-semibold text-amber-900 dark:text-amber-300">Productos con margen menos de 60%</div>
@@ -104,10 +104,10 @@ export default function Dashboard() {
           <CardTitle icon={Package}>Stock crítico — Reabastecer</CardTitle>
           {stockCritico.length === 0
             ? <EmptyState icon={Package} title='Stock en buen estado' sub='Todos los insumos tienen existencia' />
-            : <div className="divide-y divide-gray-150 dark:divide-navy-800/80">
+            : <div className="divide-y divide-gray-100 dark:divide-navy-800/80">
                 {stockCritico.map(i => (
                   <div key={i.id} className="flex justify-between items-center py-2">
-                    <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-250">{i.nombre}</span>
+                    <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-200">{i.nombre}</span>
                     <StatusBadge status='danger'>{i.existencia || 0} {i.unidad}</StatusBadge>
                   </div>
                 ))}
@@ -123,10 +123,10 @@ export default function Dashboard() {
           {Object.entries(catCount).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([cat, cnt]) => (
             <div key={cat} className="mb-2.5">
               <div className="flex justify-between text-[11px] mb-1">
-                <span className="font-semibold text-[#1B2A4A] dark:text-gray-350">{cat}</span>
+                <span className="font-semibold text-[#1B2A4A] dark:text-gray-300">{cat}</span>
                 <span className="text-gray-400 dark:text-gray-500">{cnt}</span>
               </div>
-              <div className="h-1 bg-gray-150 dark:bg-navy-800 rounded-full overflow-hidden">
+              <div className="h-1 bg-gray-100 dark:bg-navy-800 rounded-full overflow-hidden">
                 <div className="h-full bg-brand-400 rounded-full" style={{ width: `${(cnt / productos.length) * 100}%` }} />
               </div>
             </div>
@@ -134,12 +134,12 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardTitle icon={ChefHat}>Estado de recetas</CardTitle>
-          <div className="divide-y divide-gray-150 dark:divide-navy-800/80">
+          <div className="divide-y divide-gray-100 dark:divide-navy-800/80">
             {productos.slice(0, 8).map(p => {
               const tiene = !!recetas[p.nombre]
               return (
                 <div key={p.nombre} className="flex justify-between items-center py-1.5">
-                  <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-250 truncate max-w-[120px]">{p.nombre}</span>
+                  <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-200 truncate max-w-[120px]">{p.nombre}</span>
                   <StatusBadge status={tiene ? 'success' : 'danger'}>
                     {tiene ? 'Con receta' : 'Sin receta'}
                   </StatusBadge>

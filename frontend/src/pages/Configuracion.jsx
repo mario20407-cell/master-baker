@@ -263,7 +263,7 @@ export default function Configuracion() {
           <Settings size={20} className="text-white" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-150">Ajustes & Configuración</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Ajustes & Configuración</h2>
           <p className="text-xs text-gray-400">Consolidado general de tu panadería y cuenta administrativa.</p>
         </div>
       </div>
@@ -299,7 +299,7 @@ export default function Configuracion() {
         {/* TAB 1: Negocio & Admin */}
         {activeTab === 'negocio' && (
           <div className="card space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-250 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
               <Building size={16} className="text-[#C29C53]" /> Información del Negocio y Administrador
             </h3>
             <form onSubmit={handleGuardarNegocio} className="space-y-4 max-w-md">
@@ -352,7 +352,7 @@ export default function Configuracion() {
         {activeTab === 'fiscal' && (
           <div className="space-y-4">
             {/* Aviso legal */}
-            <div className="rounded-xl p-3 flex gap-2.5 text-xs bg-amber-50/50 dark:bg-amber-955/10 border border-amber-200/50 dark:border-amber-900/30">
+            <div className="rounded-xl p-3 flex gap-2.5 text-xs bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/50 dark:border-amber-900/30">
               <Info size={14} className="flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-500" />
               <span className="text-amber-800 dark:text-amber-400">
                 Esta configuración es orientativa para el cálculo interno de márgenes. Para declaraciones ante la DGI consulta a un contador colegiado (CCPN Nicaragua).
@@ -360,7 +360,7 @@ export default function Configuracion() {
             </div>
 
             <div className="card space-y-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-250 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                 <Shield size={16} className="text-[#C29C53]" /> Régimen Fiscal (DGI Nicaragua)
               </h3>
 
@@ -423,7 +423,7 @@ export default function Configuracion() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 max-w-lg border-t border-gray-150 pt-4">
+              <div className="grid grid-cols-2 gap-3 max-w-lg border-t border-gray-100 pt-4">
                 <div className="form-group">
                   <label className="form-label text-xs">RUC del negocio (opcional)</label>
                   <input
@@ -463,7 +463,7 @@ export default function Configuracion() {
         {activeTab === 'nomina' && (
           <div className="space-y-4">
             <div className="card space-y-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-250 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                 <Wallet size={16} className="text-[#C29C53]" /> Gestión de Nómina y Colaboradores
               </h3>
               
@@ -486,7 +486,7 @@ export default function Configuracion() {
                     <tbody>
                       {dossier.detalle.map(c => (
                         <tr key={c.usuario_id}>
-                          <td className="font-medium text-gray-800 dark:text-gray-250">{c.nombre}</td>
+                          <td className="font-medium text-gray-800 dark:text-gray-200">{c.nombre}</td>
                           <td>
                             <span className="badge-gray text-[10px]">
                               {c.tipo_pago === 'variable' ? 'Variable' : 'Fijo'}
@@ -501,7 +501,7 @@ export default function Configuracion() {
                           <td className="text-right">
                             <button
                               onClick={() => handleAbrirPerfilLaboral(c)}
-                              className="p-1.5 rounded hover:bg-gray-100 text-gray-450 hover:text-[#C29C53] transition-colors"
+                              className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-[#C29C53] transition-colors"
                               title="Editar Perfil"
                             >
                               <Pencil size={14} />
@@ -511,14 +511,14 @@ export default function Configuracion() {
                       ))}
                       {perfilesSinFecha.map(p => (
                         <tr key={p.id} className="opacity-70 bg-amber-50/20">
-                          <td className="font-medium text-gray-800 dark:text-gray-250">{p.nombre}</td>
+                          <td className="font-medium text-gray-800 dark:text-gray-200">{p.nombre}</td>
                           <td colSpan={3} className="text-xs text-amber-600">
                             Falta fecha de ingreso o salario base.
                           </td>
                           <td className="text-right">
                             <button
                               onClick={() => handleAbrirPerfilLaboral(p)}
-                              className="p-1.5 rounded hover:bg-gray-100 text-gray-450 hover:text-[#C29C53] transition-colors"
+                              className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-[#C29C53] transition-colors"
                               title="Completar Perfil"
                             >
                               <Pencil size={14} />
@@ -540,7 +540,7 @@ export default function Configuracion() {
                     <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                       <Wallet size={16} className="text-[#C29C53]" /> Perfil Laboral: {editPerfilUser.nombre}
                     </h3>
-                    <button onClick={() => setEditPerfilUser(null)} className="text-gray-450 hover:text-red-500">
+                    <button onClick={() => setEditPerfilUser(null)} className="text-gray-400 hover:text-red-500">
                       <X size={16} />
                     </button>
                   </div>
@@ -582,7 +582,7 @@ export default function Configuracion() {
                         />
                       </div>
                     ) : (
-                      <div className="space-y-3 border-t border-gray-150 pt-3">
+                      <div className="space-y-3 border-t border-gray-100 pt-3">
                         <p className="text-[11px] text-gray-500">
                           Anota lo que realmente se le pagó cada mes.
                         </p>
@@ -665,7 +665,7 @@ export default function Configuracion() {
         {/* TAB 4: Costeo e Indirectos (Mano de obra sugerida) */}
         {activeTab === 'costeo' && (
           <div className="card space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-250 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
               <Calculator size={16} className="text-[#C29C53]" /> Ajustes de Costeo & Gastos Indirectos
             </h3>
 
@@ -709,7 +709,7 @@ export default function Configuracion() {
                   />
                 </div>
 
-                <div className="border-t border-gray-150 pt-4">
+                <div className="border-t border-gray-100 pt-4">
                   <label className="flex items-start gap-2.5 cursor-pointer">
                     <input
                       type="checkbox"
@@ -728,7 +728,7 @@ export default function Configuracion() {
                   </label>
                 </div>
 
-                <div className="border-t border-gray-150 pt-4 space-y-3">
+                <div className="border-t border-gray-100 pt-4 space-y-3">
                   <h4 className="text-xs font-semibold text-gray-800">Costo de Mano de Obra</h4>
 
                   {loadingSugerencia ? (
