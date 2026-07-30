@@ -1,13 +1,15 @@
 import { usePasivosLaborales } from '../hooks/usePasivosLaborales'
+import { usePlanilla } from '../hooks/usePlanilla'
 import { useState, useEffect } from 'react'
 import {
   getUsuarios, saveUsuario, updateUsuario, resetUsuarioPassword, deleteUsuario, getBitacora,
-  getPerfilesLaborales, updatePerfilLaboral, getPagosVariables, savePagoVariable, getDossierPasivosLaborales
+  getPerfilesLaborales, updatePerfilLaboral, getPagosVariables, savePagoVariable, getDossierPasivosLaborales,
+  exportarPlanilla
 } from '../lib/api'
 import {
   Users, UserPlus, Key, Trash2, Shield, Eye, EyeOff, Check, X,
   Activity, ClipboardList, ShieldAlert, Clock, Info, ChevronDown, ChevronUp,
-  Wallet, Calendar, AlertTriangle, Pencil
+  Wallet, Calendar, AlertTriangle, Pencil, Download, History, Receipt
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -82,6 +84,47 @@ export default function Equipo() {
   const [nuevoPago, setNuevoPago] = useState({ mes: new Date().toISOString().slice(0, 7), monto: '' })
   const [guardandoPago, setGuardandoPago] = useState(false)
 
+  // Sub-pestañas dentro de "Nómina": Planilla (pago periódico real) y
+  // Pasivo Laboral (provisiones acumuladas — el dossier que ya existía).
+  const [subTabNomina, setSubTabNomina] = useState('planilla')
+
+  // Hook de Planilla
+  const {
+    vistaPrevia, loadingVistaPrevia, cargarVistaPrevia,
+    planillaActual, generando, generar: generarPlanillaHook, setPlanillaActual,
+    historial, loadingHistorial, cargarHistorial, cargarPlanilla,
+  } = usePlanilla()
+  const [planillaForm, setPlanillaForm] = useState({
+    frecuencia: 'quincenal',
+    periodo_inicio: new Date().toISOString().slice(0, 10),
+  })
+  const [descargando, setDescargando] = useState(null)
+
+  const handleVerVistaPrevia = async () => {
+    try { await cargarVistaPrevia(planillaForm.frecuencia, planillaForm.periodo_inicio) } catch { /* toast ya mostrado en el hook */ }
+  }
+
+  const handleGenerarPlanilla = async () => {
+    try { await generarPlanillaHook(planillaForm.frecuencia, planillaForm.periodo_inicio) } catch { /* toast ya mostrado en el hook */ }
+  }
+
+  const handleDescargarPlanilla = async (id, formato) => {
+    setDescargando(`${id}-${formato}`)
+    try {
+      const { data } = await exportarPlanilla(id, formato)
+      const url = URL.createObjectURL(data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `planilla.${formato === 'excel' ? 'xlsx' : 'pdf'}`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      toast.error('No se pudo exportar la planilla')
+    } finally {
+      setDescargando(null)
+    }
+  }
+
   const cargarEquipo = async () => {
     setLoading(true)
     try {
@@ -115,6 +158,7 @@ export default function Equipo() {
       cargarBitacora()
     } else if (activeTab === 'pasivos-laborales') {
       cargarDossier()
+      cargarHistorial()
     }
   }, [activeTab])
 
@@ -299,7 +343,7 @@ export default function Equipo() {
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
           }`}
         >
-          <Wallet size={16} /> Pasivos Laborales
+          <Wallet size={16} /> Nómina
         </button>
       </div>
 
@@ -670,8 +714,209 @@ export default function Equipo() {
           )}
         </div>
       ) : (
-        /* PESTAÑA: Pasivos Laborales (INSS, aguinaldo, vacaciones, indemnización) */
+        /* PESTAÑA: Nómina — Planilla (pago periódico real) y Pasivo Laboral (provisiones acumuladas) */
         <div className="space-y-6">
+          {/* Sub-pestañas */}
+          <div className="flex gap-1 bg-gray-100 dark:bg-navy-900 rounded-lg p-1 w-fit">
+            <button
+              onClick={() => setSubTabNomina('planilla')}
+              className={`py-1.5 px-4 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                subTabNomina === 'planilla'
+                  ? 'bg-white dark:bg-navy-800 text-[#C29C53] shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              }`}
+            >
+              <Receipt size={13} /> Planilla
+            </button>
+            <button
+              onClick={() => setSubTabNomina('pasivo')}
+              className={`py-1.5 px-4 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                subTabNomina === 'pasivo'
+                  ? 'bg-white dark:bg-navy-800 text-[#C29C53] shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              }`}
+            >
+              <Wallet size={13} /> Pasivo Laboral
+            </button>
+          </div>
+
+          {subTabNomina === 'planilla' && (
+            <div className="space-y-6">
+              <div className="card bg-[#FBF6EC]/50 dark:bg-navy-900/40 border border-[#C29C53]/30 flex gap-3 items-start">
+                <Info size={16} className="text-[#C29C53] mt-0.5 shrink-0" />
+                <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                  Calculá y guardá la planilla de un período: salario bruto, INSS laboral (7%, se le retiene al
+                  colaborador), neto a pagar, e INSS patronal + INATEC (lo que el negocio le debe al INSS por ese
+                  período). Colaboradores de pago variable usan el pago registrado ese mes, prorrateado igual que el
+                  salario fijo — es una aproximación, no hay desglose semanal real para pago variable. Informativo, no
+                  sustituye asesoría legal/contable profesional.
+                </p>
+              </div>
+
+              {/* Generar planilla */}
+              <div className="card">
+                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2 mb-4">
+                  <Receipt size={16} className="text-[#C29C53]" /> Generar Planilla
+                </h3>
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div className="form-group mb-0">
+                    <label className="form-label text-xs">Frecuencia</label>
+                    <select
+                      value={planillaForm.frecuencia}
+                      onChange={e => setPlanillaForm(p => ({ ...p, frecuencia: e.target.value }))}
+                      className="text-xs py-1.5"
+                    >
+                      <option value="semanal">Semanal</option>
+                      <option value="quincenal">Quincenal</option>
+                      <option value="mensual">Mensual</option>
+                    </select>
+                  </div>
+                  <div className="form-group mb-0">
+                    <label className="form-label text-xs">Inicio del período</label>
+                    <input
+                      type="date"
+                      value={planillaForm.periodo_inicio}
+                      onChange={e => setPlanillaForm(p => ({ ...p, periodo_inicio: e.target.value }))}
+                      className="text-xs py-1.5"
+                    />
+                  </div>
+                  <button
+                    onClick={handleVerVistaPrevia}
+                    disabled={loadingVistaPrevia}
+                    className="btn-secondary py-1.5 px-3 text-xs"
+                  >
+                    {loadingVistaPrevia ? 'Calculando...' : 'Ver vista previa'}
+                  </button>
+                  <button
+                    onClick={handleGenerarPlanilla}
+                    disabled={generando}
+                    className="btn-primary py-1.5 px-3 text-xs flex items-center gap-1"
+                  >
+                    <Check size={12} /> {generando ? 'Generando...' : 'Generar y guardar'}
+                  </button>
+                </div>
+
+                {(vistaPrevia || planillaActual) && (() => {
+                  const p = planillaActual || vistaPrevia
+                  const esGuardada = !!planillaActual
+                  return (
+                    <div className="mt-5 border-t border-gray-150 dark:border-navy-800 pt-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {p.periodoInicio || p.periodo_inicio} a {p.periodoFin || p.periodo_fin} · {p.frecuencia}
+                          {esGuardada ? <span className="ml-2 badge-green text-[10px]">Guardada</span> : <span className="ml-2 badge-gray text-[10px]">Vista previa (sin guardar)</span>}
+                        </div>
+                        {esGuardada && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleDescargarPlanilla(planillaActual.id, 'excel')}
+                              disabled={descargando === `${planillaActual.id}-excel`}
+                              className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1"
+                            >
+                              <Download size={11} /> Excel
+                            </button>
+                            <button
+                              onClick={() => handleDescargarPlanilla(planillaActual.id, 'pdf')}
+                              disabled={descargando === `${planillaActual.id}-pdf`}
+                              className="btn-secondary py-1 px-2.5 text-[11px] flex items-center gap-1"
+                            >
+                              <Download size={11} /> PDF
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {(p.detalle || []).length === 0 ? (
+                        <p className="text-xs text-gray-400">Ningún colaborador tiene datos suficientes (salario o pago variable) para este período.</p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="table-base">
+                            <thead>
+                              <tr>
+                                <th>Colaborador</th>
+                                <th>Pago</th>
+                                <th className="text-right">Bruto</th>
+                                <th className="text-right">INSS Laboral</th>
+                                <th className="text-right">Neto a Pagar</th>
+                                <th className="text-right">INSS Patronal</th>
+                                <th className="text-right">INATEC</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {p.detalle.map((d, i) => (
+                                <tr key={d.usuario_id || i}>
+                                  <td className="font-medium text-gray-800 dark:text-gray-250">{d.nombre}</td>
+                                  <td><span className="badge-gray text-[10px]">{d.tipo_pago === 'variable' ? 'Variable' : 'Fijo'}</span></td>
+                                  <td className="text-right text-xs">{formatoCordobas(d.salario_bruto)}</td>
+                                  <td className="text-right text-xs">{formatoCordobas(d.inss_laboral)}</td>
+                                  <td className="text-right text-xs font-semibold">{formatoCordobas(d.neto_a_pagar)}</td>
+                                  <td className="text-right text-xs">{formatoCordobas(d.inss_patronal)}</td>
+                                  <td className="text-right text-xs">{formatoCordobas(d.inatec)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="font-semibold">
+                                <td colSpan={2}>Total</td>
+                                <td className="text-right text-xs">{formatoCordobas(p.totales?.bruto ?? p.total_bruto)}</td>
+                                <td className="text-right text-xs">{formatoCordobas(p.totales?.inssLaboral ?? p.total_inss_laboral)}</td>
+                                <td className="text-right text-xs">{formatoCordobas(p.totales?.neto ?? p.total_neto)}</td>
+                                <td className="text-right text-xs">{formatoCordobas(p.totales?.inssPatronal ?? p.total_inss_patronal)}</td>
+                                <td className="text-right text-xs">{formatoCordobas(p.totales?.inatec ?? p.total_inatec)}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+
+              {/* Historial */}
+              <div className="card">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                    <History size={16} className="text-[#C29C53]" /> Historial de Planillas
+                  </h3>
+                  <button onClick={cargarHistorial} className="btn-secondary py-1 px-3 text-xs">Actualizar</button>
+                </div>
+                {loadingHistorial ? (
+                  <p className="text-xs text-gray-400 text-center py-6">Cargando historial...</p>
+                ) : historial.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-6">Todavía no generaste ninguna planilla.</p>
+                ) : (
+                  <div className="divide-y divide-gray-150 dark:divide-navy-800/80">
+                    {historial.map(h => (
+                      <div key={h.id} className="flex justify-between items-center py-2.5">
+                        <div>
+                          <div className="text-xs font-medium text-gray-800 dark:text-gray-250">
+                            {h.periodo_inicio} a {h.periodo_fin}
+                            <span className="badge-gray text-[10px] ml-2">{h.frecuencia}</span>
+                          </div>
+                          <div className="text-[10px] text-gray-400 mt-0.5">Neto total: {formatoCordobas(h.total_neto)}</div>
+                        </div>
+                        <div className="flex gap-2 items-center">
+                          <button onClick={() => cargarPlanilla(h.id)} className="btn-secondary py-1 px-2.5 text-[11px]">Ver</button>
+                          <button
+                            onClick={() => handleDescargarPlanilla(h.id, 'excel')}
+                            disabled={descargando === `${h.id}-excel`}
+                            className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-450 hover:text-[#C29C53] transition-colors"
+                            title="Descargar Excel"
+                          >
+                            <Download size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {subTabNomina === 'pasivo' && (
+          <>
           <div className="card bg-[#FBF6EC]/50 dark:bg-navy-900/40 border border-[#C29C53]/30 flex gap-3 items-start">
             <Info size={16} className="text-[#C29C53] mt-0.5 shrink-0" />
             <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -813,6 +1058,8 @@ export default function Equipo() {
                 )}
               </div>
             </>
+          )}
+          </>
           )}
 
           {/* Modal / Panel: Editar Perfil Laboral */}
