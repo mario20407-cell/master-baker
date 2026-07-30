@@ -2,13 +2,7 @@ import { Router } from 'express'
 import { query, transaction } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 import { registrarActividad } from '../services/bitacoraService.js'
-import {
-  calcularBaseSalarial,
-  calcularInssPatronalMensual,
-  calcularAguinaldoAcumulado,
-  calcularVacacionesAcumuladas,
-  mesesEntre,
-} from '../services/pasivosLaboralesService.js'
+import { calcularSugerenciaManoObra } from '../services/pasivosLaboralesService.js'
 
 const router = Router()
 
@@ -30,17 +24,24 @@ router.get('/configuracion-costeo/settings', async (req, res, next) => {
 })
 
 // PUT /api/recetas/configuracion-costeo/settings
+const FRECUENCIAS_PAGO_VALIDAS = ['semanal', 'quincenal', 'mensual']
+
 router.put('/configuracion-costeo/settings', async (req, res, next) => {
-  const { costo_indirecto_gas, costo_indirecto_luz, costo_indirecto_mano, margen_objetivo } = req.body
+  const { costo_indirecto_gas, costo_indirecto_luz, costo_indirecto_mano, margen_objetivo, aplica_inss, frecuencia_pago } = req.body
+  if (frecuencia_pago && !FRECUENCIAS_PAGO_VALIDAS.includes(frecuencia_pago)) {
+    return res.status(400).json({ error: 'frecuencia_pago debe ser "semanal", "quincenal" o "mensual"' })
+  }
   try {
     const { rows } = await query(`
-      INSERT INTO configuracion_costeo (tenant_id, costo_indirecto_gas, costo_indirecto_luz, costo_indirecto_mano, margen_objetivo, actualizado_en)
-      VALUES ($1, $2, $3, $4, $5, NOW())
+      INSERT INTO configuracion_costeo (tenant_id, costo_indirecto_gas, costo_indirecto_luz, costo_indirecto_mano, margen_objetivo, aplica_inss, frecuencia_pago, actualizado_en)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
       ON CONFLICT (tenant_id) DO UPDATE SET
         costo_indirecto_gas = EXCLUDED.costo_indirecto_gas,
         costo_indirecto_luz = EXCLUDED.costo_indirecto_luz,
         costo_indirecto_mano = EXCLUDED.costo_indirecto_mano,
         margen_objetivo = EXCLUDED.margen_objetivo,
+        aplica_inss = EXCLUDED.aplica_inss,
+        frecuencia_pago = EXCLUDED.frecuencia_pago,
         actualizado_en = NOW()
       RETURNING *
     `, [
@@ -48,95 +49,23 @@ router.put('/configuracion-costeo/settings', async (req, res, next) => {
       parseFloat(costo_indirecto_gas) || 0,
       parseFloat(costo_indirecto_luz) || 0,
       parseFloat(costo_indirecto_mano) || 0,
-      parseFloat(margen_objetivo) || 0
+      parseFloat(margen_objetivo) || 0,
+      aplica_inss !== false,
+      frecuencia_pago || 'quincenal',
     ])
     res.json(rows[0])
   } catch (e) { next(e) }
 })
 
 // GET /api/recetas/configuracion-costeo/sugerencia-mano-obra
+// Nota: configuracion_costeo.costo_indirecto_mano ya se mantiene sincronizado
+// solo con esta misma fórmula (ver sincronizarCostoIndirectoMano, disparado
+// desde pasivosLaborales.js y fiscal.js) — esta ruta queda para mostrarla en
+// la UI de Configuración, no es el único lugar donde se aplica.
 router.get('/configuracion-costeo/sugerencia-mano-obra', requireRol('admin'), async (req, res, next) => {
   try {
-    // 1. Obtener la producción mensual de config_fiscal
-    const { rows: fiscalRows } = await query(
-      'SELECT produccion_mensual, configurado FROM config_fiscal WHERE tenant_id = $1',
-      [req.tenantId]
-    )
-    // produccion_mensual tiene default 1 en la tabla — sin este chequeo de
-    // "configurado", un tenant que nunca terminó de configurar la sección
-    // fiscal igual pasaría la validación y el costo laboral total se
-    // dividiría entre 1 pieza, dando una sugerencia disparatada.
-    if (!fiscalRows.length || !fiscalRows[0].configurado) {
-      return res.json({ sugerido: null, motivo: 'fiscal_no_configurado' })
-    }
-    if (!fiscalRows[0].produccion_mensual || parseInt(fiscalRows[0].produccion_mensual) <= 0) {
-      return res.json({ sugerido: null, motivo: 'sin_produccion_mensual' })
-    }
-    const produccion_mensual = parseInt(fiscalRows[0].produccion_mensual)
-
-    // 2. Obtener colaboradores activos
-    const { rows: colaboradores } = await query(
-      'SELECT id, tipo_pago, salario_mensual, fecha_ingreso FROM usuarios WHERE tenant_id = $1 AND activo = true',
-      [req.tenantId]
-    )
-
-    // Filtrar colaboradores con pago configurado (fijo con salario_mensual > 0 o variable)
-    const colaboradoresValidos = colaboradores.filter(c =>
-      c.tipo_pago === 'fijo' || c.tipo_pago === 'variable'
-    )
-
-    if (colaboradoresValidos.length === 0) {
-      return res.json({ sugerido: null, motivo: 'sin_datos_nomina' })
-    }
-
-    const { rows: totalActivos } = await query(
-      'SELECT count(*) FROM usuarios WHERE tenant_id = $1 AND activo = true',
-      [req.tenantId]
-    )
-    const empresaGrande = parseInt(totalActivos[0].count, 10) >= 50
-
-    const hoy = new Date()
-    let sumaCostoLaboralTotal = 0
-    let colaboradoresConSueldo = 0
-
-    for (const c of colaboradoresValidos) {
-      let pagosVariables = []
-      if (c.tipo_pago === 'variable') {
-        const { rows: pagos } = await query(
-          `SELECT mes, monto FROM pagos_variables
-           WHERE usuario_id = $1 AND tenant_id = $2
-           ORDER BY mes DESC LIMIT 6`,
-          [c.id, req.tenantId]
-        )
-        pagosVariables = pagos
-      }
-
-      const base = calcularBaseSalarial(c, pagosVariables)
-      if (base.sinDatos) continue
-
-      const inss = calcularInssPatronalMensual(base.inssPatronal, empresaGrande)
-      let costoLaboralMensual = base.inssPatronal + inss.total
-
-      if (c.fecha_ingreso) {
-        const mesesAntiguedad = mesesEntre(c.fecha_ingreso, hoy)
-        if (mesesAntiguedad > 0) {
-          const aguinaldo = calcularAguinaldoAcumulado(base.aguinaldo, c.fecha_ingreso, hoy)
-          const vacaciones = calcularVacacionesAcumuladas(base.vacaciones, c.fecha_ingreso, hoy)
-          if (aguinaldo.meses > 0) costoLaboralMensual += aguinaldo.monto / aguinaldo.meses
-          costoLaboralMensual += vacaciones.monto / mesesAntiguedad
-        }
-      }
-
-      sumaCostoLaboralTotal += costoLaboralMensual
-      colaboradoresConSueldo++
-    }
-
-    if (colaboradoresConSueldo === 0) {
-      return res.json({ sugerido: null, motivo: 'sin_datos_nomina' })
-    }
-
-    const sugerido = Math.round((sumaCostoLaboralTotal / produccion_mensual) * 100) / 100
-    res.json({ sugerido })
+    const resultado = await calcularSugerenciaManoObra(query, req.tenantId)
+    res.json(resultado)
   } catch (e) { next(e) }
 })
 
@@ -236,7 +165,7 @@ router.post('/', async (req, res, next) => {
         costo_directo || 0, costo_indirecto || 0, margen_aplicado || 0, precio_sugerido || 0
       ])
 
-      await client.query('DELETE FROM ingredientes WHERE receta_id = $1', [r.id])
+      await client.query('DELETE FROM ingredientes WHERE receta_id = $1 AND tenant_id = $2', [r.id, tenantId])
       if (ingredientes.length) {
         // 8 columnas por fila ahora: tenant_id + receta_id + 6 campos del ingrediente
         const vals = ingredientes.map((_, idx) => `($${idx * 8 + 1}, $${idx * 8 + 2}, $${idx * 8 + 3}, $${idx * 8 + 4}, $${idx * 8 + 5}, $${idx * 8 + 6}, $${idx * 8 + 7}, $${idx * 8 + 8})`)
@@ -314,7 +243,7 @@ router.put('/:id', async (req, res, next) => {
 
       if (!rowCount) return false
 
-      await client.query('DELETE FROM ingredientes WHERE receta_id=$1', [req.params.id])
+      await client.query('DELETE FROM ingredientes WHERE receta_id=$1 AND tenant_id=$2', [req.params.id, tenantId])
       if (ingredientes.length) {
         const vals = ingredientes.map((_, i) => `($${i*8+1},$${i*8+2},$${i*8+3},$${i*8+4},$${i*8+5},$${i*8+6},$${i*8+7},$${i*8+8})`)
         await client.query(
@@ -391,7 +320,7 @@ router.post('/import-csv', async (req, res, next) => {
           INSERT INTO recetas (tenant_id, producto, piezas) VALUES ($1, $2, 100)
           ON CONFLICT (tenant_id, producto) DO UPDATE SET actualizado_en=NOW() RETURNING *
         `, [tenantId, producto])
-        await client.query('DELETE FROM ingredientes WHERE receta_id=$1', [r.id])
+        await client.query('DELETE FROM ingredientes WHERE receta_id=$1 AND tenant_id=$2', [r.id, tenantId])
         const vals = ingredientes.map((_, i) => `($${i*8+1},$${i*8+2},$${i*8+3},$${i*8+4},$${i*8+5},$${i*8+6},$${i*8+7},$${i*8+8})`)
         await client.query(
           `INSERT INTO ingredientes (tenant_id,receta_id,nombre,cantidad,unidad,precio,tipo,costo_cero_intencional) VALUES ${vals}`,

@@ -153,7 +153,7 @@ export default function Produccion() {
                     <span className="text-sm text-gray-600 dark:text-gray-400 flex-1">{d.nombre}</span>
                     <input type="number" min="0" value={d.cantidad}
                       onChange={e => setDistribuciones(prev => prev.map((x, xi) => xi === i ? { ...x, cantidad: e.target.value } : x))}
-                      className="w-24 text-sm border border-gray-200 dark:border-navy-700 rounded-lg px-2 py-1.5 text-right"
+                      className="w-24 text-sm border border-gray-200 dark:border-navy-600 rounded-lg px-2 py-1.5 text-right"
                       placeholder="0" />
                   </div>
                 ))}
@@ -208,7 +208,7 @@ export default function Produccion() {
                 <tbody>
                   {verificacion.ingredientes.map(ing => (
                     <tr key={ing.nombre}>
-                      <td className="font-semibold text-gray-700 dark:text-gray-250">{ing.nombre}</td>
+                      <td className="font-semibold text-gray-700 dark:text-gray-200">{ing.nombre}</td>
                       <td className="text-right">{fmtNum(ing.necesario)} {ing.unidad}</td>
                       <td className="text-right">
                         {ing.sin_inventario
@@ -216,7 +216,7 @@ export default function Produccion() {
                           : `${fmtNum(ing.disponible)} ${ing.unidad}`}
                       </td>
                       <td className="text-right">
-                        {ing.suficiente ? '—' : <span className="text-red-650 dark:text-red-400 font-bold">{fmtNum(ing.faltante)} {ing.unidad}</span>}
+                        {ing.suficiente ? '—' : <span className="text-red-600 dark:text-red-400 font-bold">{fmtNum(ing.faltante)} {ing.unidad}</span>}
                       </td>
                       <td>
                         {ing.sin_inventario
@@ -244,7 +244,7 @@ export default function Produccion() {
                     className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-navy-800 transition-colors">
                     <AlertTriangle size={13} /> {confirmando ? 'Procesando...' : 'Producir de todas formas'}
                   </button>
-                  <span className="text-xs text-gray-450 dark:text-gray-500 self-center">El inventario quedará en negativo en los ingredientes faltantes</span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 self-center">El inventario quedará en negativo en los ingredientes faltantes</span>
                 </>
               )}
             </div>
@@ -270,11 +270,11 @@ export default function Produccion() {
               <tbody>
                 {historial.map(o => (
                   <tr key={o.id}>
-                    <td className="text-gray-500 dark:text-gray-450 whitespace-nowrap">{fmtFecha(o.creado_en)}</td>
-                    <td className="font-semibold text-gray-700 dark:text-gray-250">{o.producto}</td>
+                    <td className="text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtFecha(o.creado_en)}</td>
+                    <td className="font-semibold text-gray-700 dark:text-gray-200">{o.producto}</td>
                     <td className="text-right font-bold">{o.piezas}</td>
                     <td><span className="badge-ok">Completada</span></td>
-                    <td className="text-gray-550 dark:text-gray-400">{o.creado_por_nombre || '—'}</td>
+                    <td className="text-gray-500 dark:text-gray-400">{o.creado_por_nombre || '—'}</td>
                     <td className="text-gray-400 dark:text-gray-500">{o.notas || '—'}</td>
                   </tr>
                 ))}

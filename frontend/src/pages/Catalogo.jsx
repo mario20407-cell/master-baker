@@ -394,7 +394,7 @@ export function Catalogo() {
                         {previewImportar.filas.filter(f => f.accion === 'error').map(f => (
                           <tr key={f.fila}>
                             <td className="text-gray-400 dark:text-gray-500">{f.fila}</td>
-                            <td className="text-red-550">{f.motivo}</td>
+                            <td className="text-red-500">{f.motivo}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -417,8 +417,8 @@ export function Catalogo() {
               <p><strong>{resultadoImportar.creados}</strong> productos creados, <strong>{resultadoImportar.actualizados}</strong> actualizados.</p>
               {resultadoImportar.errores.length > 0 && (
                 <div className="mt-2">
-                  <p className="text-red-550 font-medium">Filas con error:</p>
-                  <ul className="list-disc list-inside text-red-550">
+                  <p className="text-red-500 font-medium">Filas con error:</p>
+                  <ul className="list-disc list-inside text-red-500">
                     {resultadoImportar.errores.map(e => <li key={e.fila}>Fila {e.fila}: {e.motivo}</li>)}
                   </ul>
                 </div>
@@ -473,9 +473,9 @@ export function Catalogo() {
                     const esPrecio = a.campo === 'precio' || !a.campo
                     return (
                       <tr key={a.id}>
-                        <td className="text-gray-500 dark:text-gray-450">{new Date(a.creado_en).toLocaleString('es-NI', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                        <td className="text-gray-500 dark:text-gray-400">{new Date(a.creado_en).toLocaleString('es-NI', { dateStyle: 'short', timeStyle: 'short' })}</td>
                         <td className="font-semibold">{a.entidad_nombre}</td>
-                        <td className="text-gray-500 dark:text-gray-450 capitalize">{a.campo || 'precio'}</td>
+                        <td className="text-gray-500 dark:text-gray-400 capitalize">{a.campo || 'precio'}</td>
                         <td className="text-right text-gray-400 dark:text-gray-500">{esPrecio ? fmt(a.valor_anterior) : (a.valor_anterior_texto || '—')}</td>
                         <td className="text-right font-bold text-brand-600 dark:text-brand-400">{esPrecio ? fmt(a.valor_nuevo) : (a.valor_nuevo_texto || '—')}</td>
                         <td><span className="badge-gray">{a.metodo === 'individual' ? 'Individual' : a.metodo === 'masivo_lista' ? 'Masivo' : `${a.porcentaje_aplicado > 0 ? '+' : ''}${a.porcentaje_aplicado}%`}</span></td>
@@ -524,7 +524,7 @@ export function Catalogo() {
                     <div className="flex items-center gap-1">
                       {p.tiene_receta && <span className="badge-ok text-[9px] font-bold">Receta ✓</span>}
                       <button onClick={() => eliminarProducto(p)}
-                        className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-gray-300 hover:text-red-550 transition-colors"
+                        className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-gray-300 hover:text-red-500 transition-colors"
                         title="Eliminar producto">
                         <Trash2 size={12} />
                       </button>
@@ -581,13 +581,13 @@ export function Catalogo() {
                       <button onClick={() => confirmarEdicion(p)} className="p-1 rounded hover:bg-green-50 dark:hover:bg-green-950/30 text-green-600">
                         <Check size={14} />
                       </button>
-                      <button onClick={cancelarEdicion} className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-red-550">
+                      <button onClick={cancelarEdicion} className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/30 text-red-500">
                         <X size={14} />
                       </button>
                     </div>
                   ) : (
                     <button onClick={() => empezarEdicion(p)} className="flex items-center gap-1.5 mb-1 group">
-                      <span className="text-lg font-bold text-brand-650 dark:text-brand-400">{fmt(p.precio)}</span>
+                      <span className="text-lg font-bold text-brand-600 dark:text-brand-400">{fmt(p.precio)}</span>
                       <Pencil size={11} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
                     </button>
                   )}
@@ -601,7 +601,7 @@ export function Catalogo() {
                       aria-checked={p.disponible_hoy}
                       onClick={() => toggleDisponibleHoy(p)}
                       className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${
-                        p.disponible_hoy ? 'bg-green-500' : 'bg-gray-300 dark:bg-navy-700'}`}
+                        p.disponible_hoy ? 'bg-green-500' : 'bg-gray-300 dark:bg-navy-600'}`}
                     >
                       <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
                         p.disponible_hoy ? 'translate-x-4' : 'translate-x-0.5'}`} />

@@ -2,24 +2,20 @@
 import { useState, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
 import { useCatalogo } from '../hooks/useCatalogo'
+import { useFiscalConfig } from '../hooks/useFiscalConfig'
+import { useConfiguracionCosteo } from '../hooks/useConfiguracionCosteo'
 import { getInventario, getVentaResumen } from '../lib/api'
+import { calcularCosteoReceta } from '../lib/costeo'
 import { TrendingUp, Package, ChefHat, ShoppingCart, AlertTriangle, LayoutDashboard } from 'lucide-react'
 import { Card, CardTitle, KpiCard, KpiGrid, Grid, MarginBar, EmptyState, StatusBadge } from '../components/UI'
 
 function fmt(n) { return 'C$ ' + (parseFloat(n) || 0).toFixed(2) }
 
-function convertir(cantidad, unidad, unidadInv) {
-  const u = unidad || ''; const ui = unidadInv || unidad || ''; let q = cantidad || 0
-  if (u === 'g' && ui === 'kg') q = q / 1000
-  else if (u === 'ml' && (ui === 'L' || ui === 'l')) q = q / 1000
-  else if (u === 'libra' && ui === 'kg') q = q * 0.454
-  else if (u === 'arroba' && ui === 'kg') q = q * 11.5
-  return q
-}
-
 export default function Dashboard() {
   const { recetas } = useRecetas()
   const { productos, cargando } = useCatalogo()
+  const { config: configFiscal } = useFiscalConfig()
+  const { costoIndirectoGlobal, margenObjetivo } = useConfiguracionCosteo()
   const [inventario, setInventario] = useState([])
   const [resumenVentas, setResumenVentas] = useState(null)
 
@@ -31,12 +27,17 @@ export default function Dashboard() {
 
   const totalRecetas = Object.keys(recetas).length
   const sinReceta = productos.length - totalRecetas
-  const recetasConDatos = Object.values(recetas).map(r => {
-    const ct = r.ingredientes?.reduce((s, i) => s + convertir(i.cantidad, i.unidad, i.unidad_inventario) * (i.precio || 0), 0) || 0
-    const cu = r.piezas > 0 ? ct / r.piezas : 0
-    const margen = r.pventa > 0 ? ((r.pventa - cu) / r.pventa) * 100 : null
-    return { ...r, cu, margen, ct }
-  }).filter(r => r.margen !== null)
+  // Usa el mismo motor que Recetas.jsx y Costeo.jsx (lib/costeo.js) en vez
+  // de un cálculo propio — antes este dashboard tenía su propia versión
+  // simplificada que no aplicaba merma ni los costos indirectos (gas/luz/
+  // mano de obra) ni el prorrateo fiscal, así que el margen que mostraba
+  // no coincidía con el resto de la app para la misma receta.
+  const recetasConDatos = Object.values(recetas)
+    .filter(r => (parseFloat(r.pventa) || 0) > 0)
+    .map(r => {
+      const c = calcularCosteoReceta(r, null, configFiscal, costoIndirectoGlobal, margenObjetivo)
+      return { ...r, cu: c.costoUnitario, margen: c.margen, ct: c.costoTotal }
+    })
 
   const alertasMargen = recetasConDatos.filter(r => r.margen < 60)
   const topRentables = [...recetasConDatos].sort((a, b) => b.margen - a.margen).slice(0, 5)
@@ -72,7 +73,7 @@ export default function Dashboard() {
 
       {/* Alerta de margen */}
       {alertasMargen.length > 0 && (
-        <div className="flex gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-850/50 text-sm">
+        <div className="flex gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-800/50 text-sm">
           <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
           <div>
             <div className="font-semibold text-amber-900 dark:text-amber-300">Productos con margen menos de 60%</div>
@@ -103,10 +104,10 @@ export default function Dashboard() {
           <CardTitle icon={Package}>Stock crítico — Reabastecer</CardTitle>
           {stockCritico.length === 0
             ? <EmptyState icon={Package} title='Stock en buen estado' sub='Todos los insumos tienen existencia' />
-            : <div className="divide-y divide-gray-150 dark:divide-navy-800/80">
+            : <div className="divide-y divide-gray-100 dark:divide-navy-800/80">
                 {stockCritico.map(i => (
                   <div key={i.id} className="flex justify-between items-center py-2">
-                    <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-250">{i.nombre}</span>
+                    <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-200">{i.nombre}</span>
                     <StatusBadge status='danger'>{i.existencia || 0} {i.unidad}</StatusBadge>
                   </div>
                 ))}
@@ -122,10 +123,10 @@ export default function Dashboard() {
           {Object.entries(catCount).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([cat, cnt]) => (
             <div key={cat} className="mb-2.5">
               <div className="flex justify-between text-[11px] mb-1">
-                <span className="font-semibold text-[#1B2A4A] dark:text-gray-350">{cat}</span>
+                <span className="font-semibold text-[#1B2A4A] dark:text-gray-300">{cat}</span>
                 <span className="text-gray-400 dark:text-gray-500">{cnt}</span>
               </div>
-              <div className="h-1 bg-gray-150 dark:bg-navy-800 rounded-full overflow-hidden">
+              <div className="h-1 bg-gray-100 dark:bg-navy-800 rounded-full overflow-hidden">
                 <div className="h-full bg-brand-400 rounded-full" style={{ width: `${(cnt / productos.length) * 100}%` }} />
               </div>
             </div>
@@ -133,12 +134,12 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardTitle icon={ChefHat}>Estado de recetas</CardTitle>
-          <div className="divide-y divide-gray-150 dark:divide-navy-800/80">
+          <div className="divide-y divide-gray-100 dark:divide-navy-800/80">
             {productos.slice(0, 8).map(p => {
               const tiene = !!recetas[p.nombre]
               return (
                 <div key={p.nombre} className="flex justify-between items-center py-1.5">
-                  <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-250 truncate max-w-[120px]">{p.nombre}</span>
+                  <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-200 truncate max-w-[120px]">{p.nombre}</span>
                   <StatusBadge status={tiene ? 'success' : 'danger'}>
                     {tiene ? 'Con receta' : 'Sin receta'}
                   </StatusBadge>

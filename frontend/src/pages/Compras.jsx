@@ -126,13 +126,13 @@ export function Compras() {
           />
           {procesandoIA ? (
             <div className="flex flex-col items-center justify-center space-y-2 py-3">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500" style={{ borderBottomColor: '#C29C53' }}></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-400" style={{ borderBottomColor: '#C29C53' }}></div>
               <p className="text-xs font-medium text-gray-600">Procesando factura con IA de Gemini...</p>
               <p className="text-[10px] text-gray-400">Extrayendo productos, cantidades y precios automáticamente</p>
             </div>
           ) : (
             <label htmlFor="scan-factura" className="cursor-pointer flex flex-col items-center justify-center space-y-2 py-2">
-              <div className="p-3 bg-white rounded-full shadow-sm text-brand-500 hover:scale-105 transition-transform" style={{ color: '#C29C53' }}>
+              <div className="p-3 bg-white rounded-full shadow-sm text-brand-400 hover:scale-105 transition-transform" style={{ color: '#C29C53' }}>
                 <Camera size={24} />
               </div>
               <div>

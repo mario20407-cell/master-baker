@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useFiscalConfig } from '../hooks/useFiscalConfig'
 import { usePasivosLaborales } from '../hooks/usePasivosLaborales'
@@ -22,7 +22,6 @@ import {
   TrendingUp,
   Info,
   Save,
-  AlertTriangle,
   CheckCircle,
   HelpCircle,
   Pencil,
@@ -169,7 +168,9 @@ export default function Configuracion() {
     costo_indirecto_gas: '',
     costo_indirecto_luz: '',
     costo_indirecto_mano: '',
-    margen_objetivo: '57'
+    margen_objetivo: '57',
+    aplica_inss: true,
+    frecuencia_pago: 'quincenal'
   })
   const [loadingCosteo, setLoadingCosteo] = useState(false)
   const [guardandoCosteo, setGuardandoCosteo] = useState(false)
@@ -185,7 +186,9 @@ export default function Configuracion() {
         costo_indirecto_gas: data.costo_indirecto_gas ?? '',
         costo_indirecto_luz: data.costo_indirecto_luz ?? '',
         costo_indirecto_mano: data.costo_indirecto_mano ?? '',
-        margen_objetivo: data.margen_objetivo ?? '57'
+        margen_objetivo: data.margen_objetivo ?? '57',
+        aplica_inss: data.aplica_inss !== false,
+        frecuencia_pago: data.frecuencia_pago || 'quincenal'
       })
     } catch (e) {
       toast.error('No se pudo cargar la configuración de costeo')
@@ -225,18 +228,10 @@ export default function Configuracion() {
     }
   }
 
-  const handleUsarSugerencia = () => {
-    if (manoObraSugerida.sugerido !== null) {
-      setCosteoForm(prev => ({ ...prev, costo_indirecto_mano: manoObraSugerida.sugerido }))
-      toast.success('Valor sugerido copiado al campo manual')
-    }
-  }
-
-  const manoObraDesactualizada = useMemo(() => {
-    if (manoObraSugerida.sugerido === null) return false
-    const aplicado = parseFloat(costeoForm.costo_indirecto_mano || 0)
-    return Math.abs(aplicado - manoObraSugerida.sugerido) > 0.01
-  }, [costeoForm.costo_indirecto_mano, manoObraSugerida.sugerido])
+  // El backend sincroniza costo_indirecto_mano solo cada vez que cambia un
+  // dato de nómina o la producción mensual (ver sincronizarCostoIndirectoMano
+  // en pasivosLaboralesService.js) — ya no hace falta un botón manual de
+  // "usar sugerencia" para que el costeo de recetas quede al día.
 
   // Guardar Negocio & Admin
   const handleGuardarNegocio = async (e) => {
@@ -270,7 +265,7 @@ export default function Configuracion() {
           <Settings size={20} className="text-white" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-150">Ajustes & Configuración</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Ajustes & Configuración</h2>
           <p className="text-xs text-gray-400">Consolidado general de tu panadería y cuenta administrativa.</p>
         </div>
       </div>
@@ -306,7 +301,7 @@ export default function Configuracion() {
         {/* TAB 1: Negocio & Admin */}
         {activeTab === 'negocio' && (
           <div className="card space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-250 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
               <Building size={16} className="text-[#C29C53]" /> Información del Negocio y Administrador
             </h3>
             <form onSubmit={handleGuardarNegocio} className="space-y-4 max-w-md">
@@ -359,7 +354,7 @@ export default function Configuracion() {
         {activeTab === 'fiscal' && (
           <div className="space-y-4">
             {/* Aviso legal */}
-            <div className="rounded-xl p-3 flex gap-2.5 text-xs bg-amber-50/50 dark:bg-amber-955/10 border border-amber-200/50 dark:border-amber-900/30">
+            <div className="rounded-xl p-3 flex gap-2.5 text-xs bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/50 dark:border-amber-900/30">
               <Info size={14} className="flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-500" />
               <span className="text-amber-800 dark:text-amber-400">
                 Esta configuración es orientativa para el cálculo interno de márgenes. Para declaraciones ante la DGI consulta a un contador colegiado (CCPN Nicaragua).
@@ -367,7 +362,7 @@ export default function Configuracion() {
             </div>
 
             <div className="card space-y-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-250 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                 <Shield size={16} className="text-[#C29C53]" /> Régimen Fiscal (DGI Nicaragua)
               </h3>
 
@@ -430,7 +425,7 @@ export default function Configuracion() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 max-w-lg border-t border-gray-150 pt-4">
+              <div className="grid grid-cols-2 gap-3 max-w-lg border-t border-gray-100 pt-4">
                 <div className="form-group">
                   <label className="form-label text-xs">RUC del negocio (opcional)</label>
                   <input
@@ -470,7 +465,7 @@ export default function Configuracion() {
         {activeTab === 'nomina' && (
           <div className="space-y-4">
             <div className="card space-y-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-250 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                 <Wallet size={16} className="text-[#C29C53]" /> Gestión de Nómina y Colaboradores
               </h3>
               
@@ -493,7 +488,7 @@ export default function Configuracion() {
                     <tbody>
                       {dossier.detalle.map(c => (
                         <tr key={c.usuario_id}>
-                          <td className="font-medium text-gray-800 dark:text-gray-250">{c.nombre}</td>
+                          <td className="font-medium text-gray-800 dark:text-gray-200">{c.nombre}</td>
                           <td>
                             <span className="badge-gray text-[10px]">
                               {c.tipo_pago === 'variable' ? 'Variable' : 'Fijo'}
@@ -508,7 +503,7 @@ export default function Configuracion() {
                           <td className="text-right">
                             <button
                               onClick={() => handleAbrirPerfilLaboral(c)}
-                              className="p-1.5 rounded hover:bg-gray-100 text-gray-450 hover:text-[#C29C53] transition-colors"
+                              className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-[#C29C53] transition-colors"
                               title="Editar Perfil"
                             >
                               <Pencil size={14} />
@@ -518,14 +513,14 @@ export default function Configuracion() {
                       ))}
                       {perfilesSinFecha.map(p => (
                         <tr key={p.id} className="opacity-70 bg-amber-50/20">
-                          <td className="font-medium text-gray-800 dark:text-gray-250">{p.nombre}</td>
+                          <td className="font-medium text-gray-800 dark:text-gray-200">{p.nombre}</td>
                           <td colSpan={3} className="text-xs text-amber-600">
                             Falta fecha de ingreso o salario base.
                           </td>
                           <td className="text-right">
                             <button
                               onClick={() => handleAbrirPerfilLaboral(p)}
-                              className="p-1.5 rounded hover:bg-gray-100 text-gray-450 hover:text-[#C29C53] transition-colors"
+                              className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-[#C29C53] transition-colors"
                               title="Completar Perfil"
                             >
                               <Pencil size={14} />
@@ -547,7 +542,7 @@ export default function Configuracion() {
                     <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                       <Wallet size={16} className="text-[#C29C53]" /> Perfil Laboral: {editPerfilUser.nombre}
                     </h3>
-                    <button onClick={() => setEditPerfilUser(null)} className="text-gray-450 hover:text-red-500">
+                    <button onClick={() => setEditPerfilUser(null)} className="text-gray-400 hover:text-red-500">
                       <X size={16} />
                     </button>
                   </div>
@@ -589,7 +584,7 @@ export default function Configuracion() {
                         />
                       </div>
                     ) : (
-                      <div className="space-y-3 border-t border-gray-150 pt-3">
+                      <div className="space-y-3 border-t border-gray-100 pt-3">
                         <p className="text-[11px] text-gray-500">
                           Anota lo que realmente se le pagó cada mes.
                         </p>
@@ -672,7 +667,7 @@ export default function Configuracion() {
         {/* TAB 4: Costeo e Indirectos (Mano de obra sugerida) */}
         {activeTab === 'costeo' && (
           <div className="card space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-250 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
               <Calculator size={16} className="text-[#C29C53]" /> Ajustes de Costeo & Gastos Indirectos
             </h3>
 
@@ -716,50 +711,56 @@ export default function Configuracion() {
                   />
                 </div>
 
-                <div className="border-t border-gray-150 pt-4 space-y-3">
-                  <h4 className="text-xs font-semibold text-gray-800">Costo de Mano de Obra</h4>
+                <div className="border-t border-gray-100 pt-4">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={costeoForm.aplica_inss}
+                      onChange={e => setCosteoForm(p => ({ ...p, aplica_inss: e.target.checked }))}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      <span className="text-xs font-semibold text-gray-800 block">Este negocio cotiza al INSS/INATEC</span>
+                      <span className="text-[10px] text-gray-400 block mt-0.5">
+                        Desmarcá esto si el negocio no está afiliado al INSS — la Planilla y el dossier de Pasivo Laboral
+                        van a dejar de calcular retenciones y cargas patronales que en realidad no se pagan (el salario
+                        bruto se paga completo, sin deducción).
+                      </span>
+                    </span>
+                  </label>
+                </div>
 
-                  {!loadingSugerencia && manoObraDesactualizada && (
-                    <div className="rounded-xl p-3 bg-amber-50/60 border border-amber-300/60 flex flex-col sm:flex-row justify-between sm:items-center gap-2.5">
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle size={14} className="text-amber-600 mt-0.5 shrink-0" />
-                        <p className="text-[11px] text-amber-800">
-                          La nómina cambió desde la última vez que actualizaste este costo.
-                          Aplicado: {formatoCordobas(parseFloat(costeoForm.costo_indirecto_mano || 0))} — Sugerido ahora: {formatoCordobas(manoObraSugerida.sugerido)}.
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleUsarSugerencia}
-                        className="btn-primary text-[10px] py-1.5 px-3 self-start sm:self-auto bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1 border-none shadow-none"
-                        type="button"
-                      >
-                        <Check size={12} />
-                        Actualizar al valor sugerido
-                      </button>
-                    </div>
-                  )}
+                <div className="border-t border-gray-100 pt-4">
+                  <label className="form-label text-xs">Frecuencia de pago del negocio</label>
+                  <select
+                    value={costeoForm.frecuencia_pago}
+                    onChange={e => setCosteoForm(p => ({ ...p, frecuencia_pago: e.target.value }))}
+                    className="text-xs"
+                  >
+                    <option value="semanal">Semanal</option>
+                    <option value="quincenal">Quincenal</option>
+                    <option value="mensual">Mensual</option>
+                  </select>
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Con qué frecuencia se le paga a todo el equipo. Precarga el selector al generar una Planilla
+                    (Mi Equipo → Nómina → Planilla) — se puede cambiar puntualmente ahí si hace falta.
+                  </p>
+                </div>
+
+                <div className="border-t border-gray-100 pt-4 space-y-3">
+                  <h4 className="text-xs font-semibold text-gray-800">Costo de Mano de Obra</h4>
 
                   {loadingSugerencia ? (
                     <div className="text-xs text-gray-400">Calculando mano de obra sugerida...</div>
                   ) : manoObraSugerida.sugerido !== null ? (
-                    <div className="rounded-xl p-3 bg-green-50/50 border border-green-200/50 flex flex-col sm:flex-row justify-between sm:items-center gap-2.5">
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-green-700 tracking-wider">Mano de Obra Sugerida</span>
-                        <p className="text-base font-bold text-green-800">{formatoCordobas(manoObraSugerida.sugerido)} <span className="text-[10px] font-normal text-green-600">por pieza</span></p>
-                        <p className="text-[9px] text-green-600">Calculado dinámicamente con nómina activa y producción mensual ({configFiscal?.produccion_mensual || 0} piezas).</p>
-                      </div>
-                      <button
-                        onClick={handleUsarSugerencia}
-                        className="btn-primary text-[10px] py-1.5 px-3 self-start sm:self-auto bg-green-700 hover:bg-green-800 text-white flex items-center gap-1 border-none shadow-none"
-                        type="button"
-                      >
-                        <Check size={12} />
-                        Usar este valor
-                      </button>
+                    <div className="rounded-xl p-3 bg-green-50/50 border border-green-200/50">
+                      <span className="text-[10px] uppercase font-bold text-green-700 tracking-wider">Mano de Obra — sincronización automática</span>
+                      <p className="text-base font-bold text-green-800">{formatoCordobas(manoObraSugerida.sugerido)} <span className="text-[10px] font-normal text-green-600">por pieza</span></p>
+                      <p className="text-[9px] text-green-600">Calculado con nómina activa y producción mensual ({configFiscal?.produccion_mensual || 0} piezas). Este valor se aplica solo al costeo de recetas cada vez que actualizás un colaborador, un pago variable, o la producción mensual — no hace falta guardarlo a mano.</p>
                     </div>
                   ) : (
                     <div className="rounded-xl p-3 bg-gray-50 border border-gray-200 text-xs text-gray-500">
-                      ⚠️ Todavía no hay suficientes datos de nómina o producción mensual para sugerir un costo.
+                      ⚠️ Todavía no hay suficientes datos de nómina o producción mensual para sugerir un costo. Mientras tanto, podés fijar un valor manual abajo.
                     </div>
                   )}
 
@@ -773,7 +774,11 @@ export default function Configuracion() {
                       placeholder="0.00"
                       className="text-xs"
                     />
-                    <p className="text-[10px] text-gray-400 mt-1">Este es el valor final de mano de obra que se aplicará en el módulo de Costeo de recetas.</p>
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      {manoObraSugerida.sugerido !== null
+                        ? 'Se mantiene sincronizado automáticamente con la nómina. Si lo cambiás aquí a mano, la próxima actualización de nómina o producción mensual lo va a volver a calcular.'
+                        : 'Sin datos de nómina todavía, este valor no se actualiza solo — ajustalo a mano según corresponda.'}
+                    </p>
                   </div>
                 </div>
 

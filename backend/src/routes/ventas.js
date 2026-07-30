@@ -22,11 +22,25 @@ router.post('/', async (req, res, next) => {
 
   try {
     const venta = await transaction(async (client) => {
+      // fecha y hora se pasan siempre como parámetros ($N::TIPO), nunca
+      // interpolados en el texto SQL — antes `hora` se interpolaba directo
+      // en el string, lo que permitía inyección SQL a cualquier usuario
+      // autenticado (bug crítico corregido en la auditoría del 2026-07-28).
+      const params = [tenantId]
+      const fechaExpr = fecha ? `$${params.push(fecha)}` : 'CURRENT_DATE'
+      const horaExpr  = hora  ? `$${params.push(hora)}::TIME` : 'NOW()::TIME'
+      params.push(cliente, canal, metodo_pago, total, sucursal_id || null)
+      const nCliente = params.length - 4
+      const nCanal   = params.length - 3
+      const nMetodo  = params.length - 2
+      const nTotal   = params.length - 1
+      const nSucursal = params.length
+
       const { rows: [v] } = await client.query(`
         INSERT INTO ventas (tenant_id, fecha, hora, cliente, canal, metodo_pago, total, sucursal_id)
-        VALUES ($1, ${fecha ? '$2' : 'CURRENT_DATE'}, ${hora ? `'${hora}'::TIME` : 'NOW()::TIME'}, $${fecha ? 3 : 2}, $${fecha ? 4 : 3}, $${fecha ? 5 : 4}, $${fecha ? 6 : 5}, $${fecha ? 7 : 6})
+        VALUES ($1, ${fechaExpr}, ${horaExpr}, $${nCliente}, $${nCanal}, $${nMetodo}, $${nTotal}, $${nSucursal})
         RETURNING *
-      `, fecha ? [tenantId, fecha, cliente, canal, metodo_pago, total, sucursal_id || null] : [tenantId, cliente, canal, metodo_pago, total, sucursal_id || null])
+      `, params)
 
       if (items.length > 0) {
         // Cada fila de items lleva también tenant_id — 4 params por item ahora.

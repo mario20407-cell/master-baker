@@ -65,6 +65,16 @@ beforeAll(async () => {
     [testTenantId]
   )
 
+  // requireAuth ahora valida token_version contra la DB (revocación de
+  // sesiones, ver authMiddleware.js) — necesita un usuario real, no solo
+  // un JWT bien firmado.
+  await query(
+    `INSERT INTO usuarios (id, tenant_id, email, nombre, rol, activo)
+     VALUES ($1, $2, 'test-antigravity@marquez.com', 'Test Antigravity Admin', 'admin', true)
+     ON CONFLICT (id) DO NOTHING`,
+    [testUsuarioId, testTenantId]
+  )
+
   // Crear la sucursal de prueba en la base de datos de staging
   const { rows: [sucursal] } = await query(
     `INSERT INTO sucursales (id, tenant_id, nombre, direccion, activo)
@@ -92,6 +102,7 @@ afterAll(async () => {
   await query('DELETE FROM productos WHERE tenant_id = $1', [testTenantId])
   await query('DELETE FROM inventario WHERE tenant_id = $1', [testTenantId])
   await query('DELETE FROM sucursales WHERE tenant_id = $1', [testTenantId])
+  await query('DELETE FROM usuarios WHERE tenant_id = $1', [testTenantId])
   await query('DELETE FROM tenants WHERE id = $1', [testTenantId])
 
   console.log('[Cleanup] Limpieza completada con éxito.')

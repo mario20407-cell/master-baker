@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import { verificarYRegistrarUso } from '../middleware/planMiddleware.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { query } from '../db/client.js'
+import { descifrar } from '../utils/cifrado.js'
 
 export const publicRouter = Router()
 export const privateRouter = Router()
@@ -24,7 +25,8 @@ async function resolverTenantWhatsApp(phoneNumberId) {
      WHERE phone_number_id = $1 AND activo = true`,
     [phoneNumberId]
   )
-  return rows[0] || null
+  if (!rows[0]) return null
+  return { ...rows[0], access_token: descifrar(rows[0].access_token) }
 }
 
 // Credenciales de WhatsApp de un tenant ya autenticado (dashboard), para
@@ -36,7 +38,7 @@ async function obtenerCredencialesWhatsApp(tenantId) {
     [tenantId]
   )
   if (!rows[0]) return null
-  return { token: rows[0].access_token, phoneId: rows[0].phone_number_id }
+  return { token: descifrar(rows[0].access_token), phoneId: rows[0].phone_number_id }
 }
 
 // ── Catálogo del día — armado en vivo desde la tabla productos ────────────────
@@ -144,6 +146,9 @@ async function guardarMensaje(tenantId, clienteId, rol, contenido) {
 }
 
 async function obtenerHistorial(clienteId, limite = MAX_HISTORIAL) {
+  // tenant-guard: ignorar — clienteId viene de clientes_whatsapp, cuya
+  // búsqueda/creación sí filtra por tenant_id (ver el resto del archivo).
+  // Es un id de PK única global, no puede pertenecer a otro tenant.
   const { rows } = await query(
     `SELECT rol, contenido FROM mensajes_whatsapp
      WHERE cliente_id = $1
@@ -156,6 +161,7 @@ async function obtenerHistorial(clienteId, limite = MAX_HISTORIAL) {
 
 // Productos que más pidió este cliente históricamente — base de la sugerencia.
 async function obtenerProductosFavoritos(clienteId, limite = 3) {
+  // tenant-guard: ignorar — mismo caso que obtenerHistorial() arriba.
   const { rows } = await query(
     `SELECT item->>'producto' AS producto, COUNT(*) AS veces
      FROM pedidos_whatsapp, jsonb_array_elements(items) AS item
@@ -411,23 +417,29 @@ publicRouter.post('/webhook', async (req, res) => {
   const signatureHeader = req.headers['x-hub-signature-256']
   const appSecret = process.env.META_APP_SECRET
 
-  if (appSecret) {
-    if (!signatureHeader) {
-      console.error('[WhatsApp Webhook] Firma x-hub-signature-256 ausente')
-      return res.status(401).send('Firma ausente')
-    }
-    const signature = signatureHeader.split('=')[1]
-    const expectedSignature = crypto
-      .createHmac('sha256', appSecret)
-      .update(req.rawBody || '')
-      .digest('hex')
+  // Fail-closed: si META_APP_SECRET no está configurado, el webhook rechaza
+  // el request en vez de dejarlo pasar sin validar (antes quedaba abierto
+  // en silencio — cualquiera podía simular ser Meta y mandar mensajes/pedidos
+  // falsos). Corregido en la auditoría del 2026-07-28.
+  if (!appSecret) {
+    console.error('[WhatsApp Webhook] META_APP_SECRET no configurado — rechazando request por seguridad.')
+    return res.status(503).send('Webhook no configurado')
+  }
+  if (!signatureHeader) {
+    console.error('[WhatsApp Webhook] Firma x-hub-signature-256 ausente')
+    return res.status(401).send('Firma ausente')
+  }
+  const signature = signatureHeader.split('=')[1]
+  const expectedSignature = crypto
+    .createHmac('sha256', appSecret)
+    .update(req.rawBody || '')
+    .digest('hex')
 
-    if (signature !== expectedSignature) {
-      console.error('[WhatsApp Webhook] Firma x-hub-signature-256 inválida')
-      return res.status(401).send('Firma inválida')
-    }
-  } else {
-    console.warn('[WhatsApp Webhook] META_APP_SECRET no configurado. Omitiendo validación de firma.')
+  const sigBuf = Buffer.from(signature || '', 'hex')
+  const expBuf = Buffer.from(expectedSignature, 'hex')
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    console.error('[WhatsApp Webhook] Firma x-hub-signature-256 inválida')
+    return res.status(401).send('Firma inválida')
   }
 
   // Responder 200 inmediatamente para que Meta no reintente
@@ -512,8 +524,8 @@ privateRouter.put('/pedidos/:id/listo', requireAuth, async (req, res, next) => {
     if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' })
 
     await query(
-      `UPDATE pedidos_whatsapp SET estado = 'listo', notificado_listo = true WHERE id = $1`,
-      [pedido.id]
+      `UPDATE pedidos_whatsapp SET estado = 'listo', notificado_listo = true WHERE id = $1 AND tenant_id = $2`,
+      [pedido.id, req.tenantId]
     )
 
     const nombre = pedido.nombre ? pedido.nombre.split(' ')[0] : ''
@@ -606,6 +618,8 @@ privateRouter.get('/clientes/:telefono/mensajes', requireAuth, async (req, res, 
     )
     if (!clienteRows[0]) return res.json({ telefono: req.params.telefono, mensajes: [] })
 
+    // tenant-guard: ignorar — clienteRows[0].id se acaba de resolver dos
+    // líneas arriba con "WHERE tenant_id = $1 AND telefono = $2".
     const { rows } = await query(
       `SELECT rol, contenido, creado_en FROM mensajes_whatsapp
        WHERE cliente_id = $1 ORDER BY creado_en ASC`,

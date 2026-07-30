@@ -64,7 +64,7 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
           <button 
             type="button" 
             onClick={() => setEsPersonalizado(false)}
-            className="text-[9px] text-gray-400 hover:text-gray-600 px-1 py-0.5 border border-gray-250 rounded hover:bg-gray-50 flex-shrink-0"
+            className="text-[9px] text-gray-400 hover:text-gray-600 px-1 py-0.5 border border-gray-200 rounded hover:bg-gray-50 flex-shrink-0"
             title="Usar lista del inventario"
           >
             Lista
@@ -74,7 +74,7 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
         <select
           value={ing.nombre}
           onChange={e => handleSelectChange(e.target.value)}
-          className={ing.tipo === 'indirecto' ? 'bg-blue-55 dark:bg-navy-800' : ''}
+          className={ing.tipo === 'indirecto' ? 'bg-blue-50 dark:bg-navy-800' : ''}
         >
           <option value="">— Seleccionar insumo —</option>
           {ing.nombre && !existeEnInventario && (

@@ -120,7 +120,7 @@ export function calcCostoFiscal(costoUnitario, configFiscal) {
 /**
  * Calcula el costeo completo de una receta, con y sin prorrateo fiscal.
  *
- * receta: { piezas, merma, pventa, ingredientes: [{ cantidad, precio, tipo }] }
+ * receta: { piezas, merma_pct (o merma), pventa, ingredientes: [{ cantidad, precio, tipo }] }
  * piezasObjetivo: número de piezas a producir (null = usar piezas base)
  * configFiscal: objeto de configuración DGI (opcional — null desactiva el fiscal)
  * costoIndirectoGlobal: costo indirecto fijo de configuración (gas/luz/mano de
@@ -150,7 +150,14 @@ export function calcularCosteoReceta(
   const margenObj  = num(margenObjetivo, MARGEN_OBJETIVO)
 
   const factor      = calcFactorEscala(piezasBase, objetivo)
-  const piezasReales = calcPiezasReales(objetivo, receta?.merma)
+  // receta viene con dos formas posibles según quién la construya: los
+  // objetos que llegan de la API (recetas.js backend, schema.sql) usan
+  // merma_pct; el formulario de "Nueva receta" arma un objeto local para
+  // la vista previa en vivo usando merma. Sin este fallback, cualquier
+  // caller que le pase un objeto "shape API" (Costeo.jsx, useRecetas.js)
+  // pierde la merma silenciosamente — se trata como 0% y el costo por
+  // pieza sale más bajo de lo real.
+  const piezasReales = calcPiezasReales(objetivo, receta?.merma_pct ?? receta?.merma)
 
   const { costoDirecto, costoIndirecto, costoTotal } =
     sumarCostosIngredientes(receta?.ingredientes, factor, costoIndirectoGlobal)

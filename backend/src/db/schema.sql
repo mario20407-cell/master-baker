@@ -76,6 +76,12 @@ CREATE TABLE IF NOT EXISTS usuarios (
   permisos        VARCHAR(50)[] DEFAULT ARRAY['ver_recetas','registrar_ventas','ver_inventario','ver_produccion','ver_catalogo']::VARCHAR(50)[],
   activo          BOOLEAN DEFAULT true,
   ultimo_login    TIMESTAMPTZ,
+  -- Revocación de sesiones: cada JWT lleva el token_version vigente al
+  -- momento de emitirse. Si se sube este número (cambio de contraseña,
+  -- revocación manual por un admin), todos los tokens emitidos antes
+  -- quedan inválidos de inmediato en requireAuth, sin esperar a que
+  -- expiren naturalmente (ver backend/src/middleware/authMiddleware.js).
+  token_version   INT NOT NULL DEFAULT 0,
   -- Perfil laboral, usado por pasivosLaboralesService.js para calcular
   -- INSS patronal/INATEC/aguinaldo/vacaciones y sugerir el costo de
   -- mano de obra en configuracion_costeo.
@@ -83,7 +89,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   salario_mensual NUMERIC,
   fecha_ingreso   DATE,
   creado_en       TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE (email)
+  UNIQUE (tenant_id, email)
 );
 
 -- ── Pagos variables (destajo/por producción) de colaboradores tipo_pago='variable' ──
@@ -96,6 +102,46 @@ CREATE TABLE IF NOT EXISTS pagos_variables (
   creado_en  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (usuario_id, mes)
 );
+
+-- ── Planilla (snapshot de nómina por período, distinto del dossier de
+-- pasivos laborales que son provisiones acumuladas). Soporta frecuencia
+-- semanal, quincenal o mensual — la mayoría de colaboradores de
+-- panadería cobran semanal o quincenal, no mensual. ──
+CREATE TABLE IF NOT EXISTS planillas (
+  id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id            UUID NOT NULL REFERENCES tenants(id),
+  frecuencia           VARCHAR(10) NOT NULL DEFAULT 'mensual'
+                         CHECK (frecuencia IN ('semanal', 'quincenal', 'mensual')),
+  periodo_inicio       DATE NOT NULL,
+  periodo_fin          DATE NOT NULL,
+  generado_en          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  generado_por         UUID REFERENCES usuarios(id),
+  empresa_grande       BOOLEAN NOT NULL DEFAULT false,
+  aplica_inss          BOOLEAN NOT NULL DEFAULT true, -- snapshot del switch del tenant al momento de generar
+  total_bruto          NUMERIC NOT NULL DEFAULT 0,
+  total_inss_laboral   NUMERIC NOT NULL DEFAULT 0,
+  total_neto           NUMERIC NOT NULL DEFAULT 0,
+  total_inss_patronal  NUMERIC NOT NULL DEFAULT 0,
+  total_inatec         NUMERIC NOT NULL DEFAULT 0,
+  UNIQUE (tenant_id, periodo_inicio)
+);
+
+CREATE INDEX IF NOT EXISTS idx_planillas_tenant ON planillas(tenant_id);
+
+CREATE TABLE IF NOT EXISTS planilla_detalle (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  planilla_id    UUID NOT NULL REFERENCES planillas(id) ON DELETE CASCADE,
+  usuario_id     UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  nombre         VARCHAR(120) NOT NULL,
+  tipo_pago      VARCHAR(20) NOT NULL,
+  salario_bruto  NUMERIC NOT NULL DEFAULT 0,
+  inss_laboral   NUMERIC NOT NULL DEFAULT 0,
+  neto_a_pagar   NUMERIC NOT NULL DEFAULT 0,
+  inss_patronal  NUMERIC NOT NULL DEFAULT 0,
+  inatec         NUMERIC NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_planilla_detalle_planilla ON planilla_detalle(planilla_id);
 
 -- ── Sucursales ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sucursales (
@@ -263,6 +309,15 @@ CREATE TABLE IF NOT EXISTS configuracion_costeo (
   costo_indirecto_luz   NUMERIC(10,4) NOT NULL DEFAULT 0,
   costo_indirecto_mano  NUMERIC(10,4) NOT NULL DEFAULT 0,
   margen_objetivo       NUMERIC(5,2) NOT NULL DEFAULT 57.00,
+  -- false para negocios que no cotizan al INSS/INATEC (comunes en el
+  -- sector informal) — desactiva deducciones e INSS patronal en el
+  -- dossier de pasivos, la sugerencia de mano de obra y la planilla.
+  aplica_inss           BOOLEAN NOT NULL DEFAULT true,
+  -- frecuencia con la que se le paga a TODO el equipo (no es por
+  -- colaborador) — precarga el selector de Planilla, se puede cambiar
+  -- puntualmente al generar una planilla si hace falta.
+  frecuencia_pago       VARCHAR(10) NOT NULL DEFAULT 'quincenal'
+                          CHECK (frecuencia_pago IN ('semanal', 'quincenal', 'mensual')),
   actualizado_en        TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -521,3 +576,40 @@ CREATE OR REPLACE TRIGGER trg_config_fiscal_ts
 CREATE OR REPLACE TRIGGER trg_tenants_ts
   BEFORE UPDATE ON tenants
   FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
+
+-- ── RLS defensivo por tenant_id (R2, deuda técnica) ────────────
+-- El rol de conexión definido en DATABASE_URL tiene el atributo BYPASSRLS,
+-- así que estas políticas hoy no cambian nada en la práctica — todas las
+-- queries actuales las siguen bypasseando por completo. Es preparación
+-- para el día que se use un rol restringido (ej. conexión vía Supabase
+-- con anon/authenticated key, o un rol de app dedicado). Para que eso
+-- funcione de verdad, además hace falta que cada request setee
+-- SET LOCAL app.tenant_id = '<uuid>' dentro de una transacción antes de
+-- correr queries — el pool compartido actual (backend/src/db/client.js,
+-- pool.query() directo) no hace esto. Cambiar el rol de conexión sin
+-- implementar eso primero rompería la aplicación entera (0 filas en
+-- todas las queries). Ese cambio de arquitectura queda fuera de alcance
+-- de este commit.
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'usuarios','pagos_variables','sucursales','productos','recetas','ingredientes',
+    'costeos','inventario','inventario_terminado','facturas','factura_items',
+    'config_fiscal','configuracion_costeo','ventas','venta_items','ordenes_produccion',
+    'lotes','lote_distribuciones','caja_produccion','sugerencias_produccion',
+    'auditoria_precios','bitacora_actividades','ai_usage_log','actividad_heartbeats',
+    'uso_ia_mensual','clientes_whatsapp','mensajes_whatsapp','pedidos_whatsapp',
+    'tenant_whatsapp_config'
+  ]
+  LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY', t);
+    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON %I', t);
+    EXECUTE format(
+      'CREATE POLICY tenant_isolation ON %I USING (tenant_id = current_setting(''app.tenant_id'', true)::uuid) WITH CHECK (tenant_id = current_setting(''app.tenant_id'', true)::uuid)',
+      t
+    );
+  END LOOP;
+END $$;

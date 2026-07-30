@@ -64,6 +64,7 @@ import adminPinRoutes   from './routes/adminPin.js'
 import sentryWebhookRoutes from './routes/sentryWebhook.js'
 import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 import { query } from './db/client.js'
+import { validarClaveConfigurada } from './utils/cifrado.js'
 
 
 // Asegurar columnas de auditoría y trial en producción de forma no bloqueante
@@ -76,6 +77,18 @@ query(`
   console.log('   Esquema:     Columnas de auditoría y trial_vence_en verificadas')
 }).catch(err => {
   console.warn('   Esquema:     (Aviso) No se pudieron verificar columnas:', err.message)
+})
+
+// Columna de revocación de sesiones (ver authMiddleware.js). No bloqueante,
+// mismo patrón que arriba — en el primerísimo instante tras un deploy nuevo
+// requireAuth podría toparse con la columna aún no creada; ese caso se
+// degrada a un 500 controlado, nunca a un 401 falso ni a un crash.
+query(`
+  ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0;
+`).then(() => {
+  console.log('   Esquema:     Columna token_version verificada')
+}).catch(err => {
+  console.warn('   Esquema:     (Aviso) No se pudo verificar token_version:', err.message)
 })
 
 // Tablas para métricas del panel de fundadores: consumo de tokens de IA y
@@ -227,7 +240,10 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+    // Antes se confiaba en cualquier subdominio *.vercel.app (trivial de
+    // crear por un tercero). Restringido a la allowlist explícita — si se
+    // agrega un nuevo dominio de preview real, hay que sumarlo a la lista.
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true)
     } else {
       callback(new Error('Not allowed by CORS'))
@@ -320,11 +336,46 @@ Sentry.setupExpressErrorHandler(app)
 
 app.use((err, req, res, _next) => {
   console.error('[Error]', err.message)
-  res.status(err.status || 500).json({ error: err.message || 'Error interno' })
+  // Los errores "de negocio" (validaciones, 4xx) ya setean err.status y su
+  // mensaje es seguro para mostrar. Para todo lo demás (500 no manejado —
+  // puede traer detalles crudos del driver de Postgres, nombres de columna,
+  // etc.) se responde un mensaje genérico; el detalle real queda en el log
+  // del servidor, no en la respuesta al cliente.
+  const status = err.status || 500
+  const mensaje = err.status ? (err.message || 'Error') : 'Error interno del servidor'
+  res.status(status).json({ error: mensaje })
 })
 
 
 if (process.env.NODE_ENV !== 'test') {
+  // Si hay algún tenant con WhatsApp configurado, la clave de cifrado tiene
+  // que estar bien configurada — si no, el bot arranca en silencio y deja
+  // de responder para todos los tenants (ya pasó una vez, con el token
+  // vencido). No abortamos el arranque completo por esto: el resto del
+  // sistema (panel, ventas, inventario, etc.) no depende del bot de
+  // WhatsApp para funcionar, así que tirar todo el servidor abajo por un
+  // problema aislado del bot sería desproporcionado. Se loguea fuerte en
+  // su lugar para que sea imposible no notarlo.
+  const { rows: [{ count: tenantsConWhatsapp }] } = await query(
+    'SELECT COUNT(*)::int AS count FROM tenant_whatsapp_config'
+  )
+  if (tenantsConWhatsapp > 0) {
+    try {
+      validarClaveConfigurada()
+    } catch (e) {
+      console.error('❌ WHATSAPP_TOKEN_ENCRYPTION_KEY falta o es inválida — el bot de WhatsApp no podrá responder a ningún tenant.')
+      console.error(`   Detalle: ${e.message}`)
+    }
+
+    // El webhook ahora rechaza requests si falta META_APP_SECRET (fail-closed,
+    // ver routes/whatsapp.js), pero eso significa que el bot deja de recibir
+    // mensajes en silencio si la variable se cae. Se loguea fuerte al arranque
+    // para que sea imposible no notarlo, igual que con la clave de cifrado.
+    if (!process.env.META_APP_SECRET) {
+      console.error('❌ META_APP_SECRET no configurado — el webhook de WhatsApp va a rechazar todos los mensajes entrantes.')
+    }
+  }
+
   app.listen(PORT, () => {
     console.log(`\n🥐 Maestro Panadero IA — Marquéz v3.0`)
     console.log(`   Servidor:    http://localhost:${PORT}`)

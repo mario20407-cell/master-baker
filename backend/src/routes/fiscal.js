@@ -6,6 +6,7 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { query } from '../db/client.js'
+import { sincronizarCostoIndirectoMano } from '../services/pasivosLaboralesService.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -59,6 +60,16 @@ router.put('/', async (req, res, next) => {
         actualizado_en     = NOW()
       RETURNING *
     `, [req.tenantId, regimen, cuota_fija, ir_anual, iva_aplica, produccion_mensual, nombre_negocio, ruc])
+
+    // produccion_mensual es el denominador de la sugerencia de mano de obra
+    // (ver pasivosLaboralesService.js) — si cambió, el costo aplicado a las
+    // recetas debe recalcularse. Si falla, no tumba el guardado fiscal que
+    // ya se hizo con éxito.
+    try {
+      await sincronizarCostoIndirectoMano(query, req.tenantId)
+    } catch (e) {
+      console.warn('[fiscal] No se pudo sincronizar costo_indirecto_mano:', e.message)
+    }
 
     res.json(rows[0])
   } catch (e) { next(e) }

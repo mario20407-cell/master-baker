@@ -1,21 +1,36 @@
 import { Router } from 'express'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
+import rateLimit from 'express-rate-limit'
 import { query, transaction } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 import { registrarActividad } from '../services/bitacoraService.js'
 
 const router = Router()
 
+// El rate limit global (500/15min por IP) es demasiado permisivo para
+// frenar fuerza bruta sobre una cuenta puntual — este limiter dedicado
+// aplica solo a login y auto-registro.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: { error: 'Demasiados intentos. Esperá 15 minutos.' }
+})
+
 function generarToken(usuario) {
   return jwt.sign(
     {
-      usuarioId: usuario.id,
-      tenantId:  usuario.tenant_id,
-      email:     usuario.email,
-      nombre:    usuario.nombre,
-      rol:       usuario.rol,
-      permisos:  usuario.permisos || [],
+      usuarioId:    usuario.id,
+      tenantId:     usuario.tenant_id,
+      email:        usuario.email,
+      nombre:       usuario.nombre,
+      rol:          usuario.rol,
+      permisos:     usuario.permisos || [],
+      // Revocación de sesiones (ver authMiddleware.js): requireAuth compara
+      // este valor contra usuarios.token_version en cada request. Cambiar
+      // contraseña o revocar sesiones sube ese número en la DB, y todo
+      // token firmado con el número viejo deja de servir al instante.
+      tokenVersion: usuario.token_version || 0,
     },
     process.env.JWT_SECRET,
     { expiresIn: '8h' }
@@ -23,10 +38,17 @@ function generarToken(usuario) {
 }
 
 // POST /api/auth/registrar-negocio — Auto-registro público con código de invitación
-router.post('/registrar-negocio', async (req, res, next) => {
+router.post('/registrar-negocio', authLimiter, async (req, res, next) => {
   const { nombreNegocio, nombreAdmin, email, password, codigoInvitacion } = req.body
 
-  const codigoValido = (process.env.INVITATION_CODE || 'FUNDADOR2026').trim().toUpperCase()
+  // Fail-closed: si INVITATION_CODE no está configurado, se rechaza el
+  // registro en vez de aceptar un valor por defecto hardcodeado (visible en
+  // el código fuente, cualquiera con acceso al repo lo podía usar).
+  if (!process.env.INVITATION_CODE) {
+    console.error('[auth] INVITATION_CODE no configurado — rechazando auto-registro por seguridad.')
+    return res.status(503).json({ error: 'Registro no disponible en este momento' })
+  }
+  const codigoValido = process.env.INVITATION_CODE.trim().toUpperCase()
   if (!codigoInvitacion || codigoInvitacion.trim().toUpperCase() !== codigoValido) {
     return res.status(403).json({ error: 'Código de invitación inválido' })
   }
@@ -40,11 +62,6 @@ router.post('/registrar-negocio', async (req, res, next) => {
   }
 
   try {
-    const { rows: emailExists } = await query('SELECT id FROM usuarios WHERE email = $1', [email.toLowerCase().trim()])
-    if (emailExists.length) {
-      return res.status(409).json({ error: 'El correo ya está registrado' })
-    }
-
     let slug = nombreNegocio.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
     if (!slug) slug = 'panaderia'
 
@@ -165,23 +182,49 @@ router.post('/registrar-negocio', async (req, res, next) => {
   }
 })
 
-router.post('/login', async (req, res, next) => {
-  const { email, password } = req.body
+router.post('/login', authLimiter, async (req, res, next) => {
+  const { email, password, negocio } = req.body
   if (!email || !password) {
     return res.status(400).json({ error: 'Email y contraseña son requeridos' })
   }
   try {
-    const { rows } = await query(
-      `SELECT u.*, t.nombre_negocio AS tenant_nombre, t.plan AS tenant_plan
+    const condicionNegocio = negocio ? 'AND t.slug = $2' : ''
+    const params = negocio
+      ? [email.toLowerCase().trim(), negocio.toLowerCase().trim()]
+      : [email.toLowerCase().trim()]
+
+    const { rows: candidatos } = await query(
+      `SELECT u.*, t.nombre_negocio AS tenant_nombre, t.plan AS tenant_plan, t.slug AS tenant_slug
        FROM usuarios u
        JOIN tenants t ON t.id = u.tenant_id
-       WHERE u.email = $1 AND u.activo = true`,
-      [email.toLowerCase().trim()]
+       WHERE u.email = $1 AND u.activo = true ${condicionNegocio}`,
+      params
     )
-    const usuario = rows[0]
-    if (!usuario) return res.status(401).json({ error: 'Credenciales incorrectas' })
-    const passwordValida = await bcrypt.compare(password, usuario.password_hash)
-    if (!passwordValida) return res.status(401).json({ error: 'Credenciales incorrectas' })
+
+    // Solo se consideran candidatos válidos los que además tienen la
+    // contraseña correcta — así nunca revelamos en qué negocios existe
+    // un email a alguien que todavía no probó la contraseña.
+    const validos = []
+    for (const c of candidatos) {
+      if (await bcrypt.compare(password, c.password_hash)) validos.push(c)
+    }
+
+    if (validos.length === 0) {
+      return res.status(401).json({ error: 'Credenciales incorrectas' })
+    }
+
+    if (validos.length > 1) {
+      return res.status(409).json({
+        error: 'Ese email y contraseña son válidos en más de un negocio. Elegí con cuál querés ingresar.',
+        necesitaNegocio: true,
+        opciones: validos.map(v => ({ slug: v.tenant_slug, nombre: v.tenant_nombre }))
+      })
+    }
+
+    const usuario = validos[0]
+    // tenant-guard: ignorar — filtra por id (PK única global), y ese id
+    // vino de "validos", ya resuelto arriba con email+password correctos
+    // para un tenant específico. No puede apuntar a otro tenant.
     await query('UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1', [usuario.id])
     const token = generarToken(usuario)
     res.json({
@@ -256,8 +299,11 @@ router.put('/usuarios/:id/password', requireAuth, requireRol('admin'), async (re
   }
   try {
     const hash = await bcrypt.hash(password, 12)
+    // Cambiar la contraseña también sube token_version — invalida de
+    // inmediato cualquier sesión que ese usuario tuviera abierta con la
+    // contraseña vieja (ver requireAuth en authMiddleware.js).
     const { rowCount } = await query(
-      'UPDATE usuarios SET password_hash = $1 WHERE id = $2 AND tenant_id = $3',
+      'UPDATE usuarios SET password_hash = $1, token_version = token_version + 1 WHERE id = $2 AND tenant_id = $3',
       [hash, req.params.id, req.tenantId]
     )
     if (!rowCount) return res.status(404).json({ error: 'Usuario no encontrado' })
@@ -275,6 +321,8 @@ router.put('/password', requireAuth, async (req, res, next) => {
     return res.status(400).json({ error: 'La contraseña nueva debe tener al menos 8 caracteres' })
   }
   try {
+    // tenant-guard: ignorar — filtra por id (PK única global) tomado de
+    // req.usuarioId, que viene del JWT ya verificado por requireAuth.
     const { rows } = await query('SELECT password_hash FROM usuarios WHERE id = $1', [req.usuarioId])
     if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
 
@@ -282,7 +330,12 @@ router.put('/password', requireAuth, async (req, res, next) => {
     if (!passwordValida) return res.status(401).json({ error: 'Contraseña actual incorrecta' })
 
     const hash = await bcrypt.hash(passwordNueva, 12)
-    await query('UPDATE usuarios SET password_hash = $1 WHERE id = $2', [hash, req.usuarioId])
+    // Sube token_version: la sesión actual sigue viva (su JWT ya tiene el
+    // número nuevo desde el próximo login), pero cualquier otra sesión
+    // abierta con la contraseña vieja queda invalidada de inmediato.
+    // tenant-guard: ignorar — filtra por id (PK única global) tomado de
+    // req.usuarioId, ya verificado por requireAuth.
+    await query('UPDATE usuarios SET password_hash = $1, token_version = token_version + 1 WHERE id = $2', [hash, req.usuarioId])
 
     await registrarActividad(req, {
       modulo: 'seguridad',
@@ -314,6 +367,29 @@ router.post('/logout', requireAuth, (req, res) => {
   res.json({ ok: true, mensaje: 'Sesion cerrada' })
 })
 
+// POST /api/auth/usuarios/:id/revocar-sesiones — invalida todas las sesiones
+// activas de un colaborador sin tocar su contraseña (ej: sospecha de token
+// filtrado, dispositivo perdido). Sube token_version — cualquier JWT emitido
+// antes deja de servir en el próximo request, aunque no haya expirado.
+router.post('/usuarios/:id/revocar-sesiones', requireAuth, requireRol('admin'), async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      'UPDATE usuarios SET token_version = token_version + 1 WHERE id = $1 AND tenant_id = $2 RETURNING id, email, nombre',
+      [req.params.id, req.tenantId]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
+
+    await registrarActividad(req, {
+      modulo: 'seguridad',
+      accion: 'REVOCAR_SESIONES',
+      descripcion: `Se revocaron todas las sesiones activas de "${rows[0].nombre}" (${rows[0].email})`,
+      detalles: { usuario_afectado_id: rows[0].id, usuario_afectado_email: rows[0].email }
+    })
+
+    res.json({ ok: true, mensaje: `Sesiones de ${rows[0].nombre} revocadas — deberá iniciar sesión de nuevo` })
+  } catch (e) { next(e) }
+})
+
 // POST /api/auth/reset-password — reset de contraseña con PIN de admin
 router.post('/reset-password', requireAuth, requireRol('admin'), async (req, res, next) => {
   const { email, nueva_password } = req.body
@@ -326,7 +402,8 @@ router.post('/reset-password', requireAuth, requireRol('admin'), async (req, res
   try {
     const hash = await bcrypt.hash(nueva_password, 12)
     const { rows } = await query(
-      `UPDATE usuarios SET password_hash = $1 WHERE email = $2 AND tenant_id = $3 AND activo = true RETURNING id, email, nombre`,
+      `UPDATE usuarios SET password_hash = $1, token_version = token_version + 1
+       WHERE email = $2 AND tenant_id = $3 AND activo = true RETURNING id, email, nombre`,
       [hash, email.toLowerCase().trim(), req.tenantId]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })

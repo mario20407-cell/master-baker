@@ -20,7 +20,10 @@ const COLUMNAS_ESPERADAS = ['nombre', 'categoria', 'presentacion', 'precio']
 
 async function registrarAuditoria(client, { tenantId, tipo, entidadId, entidadNombre, campo, valorAnterior, valorNuevo, valorAnteriorTexto, valorNuevoTexto, metodo, porcentaje, ip }) {
   try {
-    await query(`
+    // Usa client (la conexión de la transacción), no query() (pool global) —
+    // si no, la auditoría queda commiteada aunque la transacción de negocio
+    // haga ROLLBACK (bug corregido en la auditoría del 2026-07-28).
+    await client.query(`
       INSERT INTO auditoria_precios
         (tenant_id, tipo, entidad_id, entidad_nombre, campo, valor_anterior, valor_nuevo, valor_anterior_texto, valor_nuevo_texto, metodo, porcentaje_aplicado, ip_origen)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
@@ -391,8 +394,8 @@ router.put('/masivo/categoria', requireRol('admin'), requireAdminPin, async (req
           throw new Error(`El ajuste resulta en un precio inválido (C$ ${nuevoPrecio}) para ${prod.nombre}`)
         }
         await client.query(
-          'UPDATE productos SET precio=$1, actualizado_en=NOW() WHERE id=$2',
-          [nuevoPrecio, prod.id]
+          'UPDATE productos SET precio=$1, actualizado_en=NOW() WHERE id=$2 AND tenant_id=$3',
+          [nuevoPrecio, prod.id, req.tenantId]
         )
         await registrarAuditoria(client, {
           tenantId: req.tenantId, tipo: 'producto', entidadId: prod.id,
