@@ -184,6 +184,7 @@ export async function calcularSugerenciaManoObra(query, tenantId) {
     return { sugerido: null, motivo: 'sin_datos_nomina' }
   }
 
+  const aplicaInss = await obtenerAplicaInss(query, tenantId)
   const hoy = new Date()
   let sumaCostoLaboralTotal = 0
   let colaboradoresConSueldo = 0
@@ -192,7 +193,7 @@ export async function calcularSugerenciaManoObra(query, tenantId) {
     const base = calcularBaseSalarial(c, c.pagosVariables)
     if (base.sinDatos) continue
 
-    const inss = calcularInssPatronalMensual(base.inssPatronal, empresaGrande)
+    const inss = calcularInssPatronalMensual(base.inssPatronal, empresaGrande, aplicaInss)
     let costoLaboralMensual = base.inssPatronal + inss.total
 
     if (c.fecha_ingreso) {
@@ -242,11 +243,27 @@ export async function sincronizarCostoIndirectoMano(query, tenantId) {
   return sugerido
 }
 
-export function calcularInssPatronalMensual(inssPatronalBase, empresaGrande = false) {
+// aplicaInss = false para negocios que no cotizan al INSS/INATEC (común en
+// el sector informal nicaragüense) — en ese caso no hay carga patronal real
+// que provisionar, así que todo sale en 0 en vez de un número que el
+// negocio nunca va a pagar.
+export function calcularInssPatronalMensual(inssPatronalBase, empresaGrande = false, aplicaInss = true) {
+  if (!aplicaInss) return { patronal: 0, inatec: 0, total: 0, tasaPatronal: 0 }
   const tasaPatronal = empresaGrande ? TASAS.INSS_PATRONAL_GRANDE : TASAS.INSS_PATRONAL
   const patronal = inssPatronalBase * tasaPatronal
   const inatec = inssPatronalBase * TASAS.INATEC
   return { patronal, inatec, total: patronal + inatec, tasaPatronal }
+}
+
+// Lee el switch por-tenant de configuracion_costeo. Default true (el
+// comportamiento legal esperado) si el tenant todavía no tiene fila en la
+// tabla — mismo default que la columna en schema.sql.
+export async function obtenerAplicaInss(query, tenantId) {
+  const { rows } = await query(
+    'SELECT aplica_inss FROM configuracion_costeo WHERE tenant_id = $1',
+    [tenantId]
+  )
+  return rows.length ? rows[0].aplica_inss !== false : true
 }
 
 // ── Planilla (nómina periódica) ─────────────────────────────────────────────
@@ -296,6 +313,7 @@ export async function calcularPlanilla(query, tenantId, frecuencia, periodoInici
   const mesPeriodo = String(periodoInicio).slice(0, 7) // YYYY-MM
 
   const { colaboradores, empresaGrande } = await obtenerColaboradoresConDatosLaborales(query, tenantId)
+  const aplicaInss = await obtenerAplicaInss(query, tenantId)
 
   const detalle = []
   for (const c of colaboradores) {
@@ -309,9 +327,10 @@ export async function calcularPlanilla(query, tenantId, frecuencia, periodoInici
     if (salarioMensualBase <= 0) continue // sin datos suficientes para incluirlo en este período
 
     const salarioBruto = redondear(salarioMensualBase * factor)
-    const inssLaboral = redondear(salarioBruto * TASAS.INSS_LABORAL)
+    // Sin INSS no hay retención al colaborador — se le paga el bruto completo.
+    const inssLaboral = aplicaInss ? redondear(salarioBruto * TASAS.INSS_LABORAL) : 0
     const netoAPagar = redondear(salarioBruto - inssLaboral)
-    const inss = calcularInssPatronalMensual(salarioBruto, empresaGrande)
+    const inss = calcularInssPatronalMensual(salarioBruto, empresaGrande, aplicaInss)
 
     detalle.push({
       usuario_id: c.id,
@@ -333,7 +352,7 @@ export async function calcularPlanilla(query, tenantId, frecuencia, periodoInici
     inatec: acc.inatec + d.inatec,
   }), { bruto: 0, inssLaboral: 0, neto: 0, inssPatronal: 0, inatec: 0 })
 
-  return { frecuencia, periodoInicio, periodoFin, empresaGrande, detalle, totales }
+  return { frecuencia, periodoInicio, periodoFin, empresaGrande, aplicaInss, detalle, totales }
 }
 
 // Genera y guarda la planilla de un período (upsert por tenant_id +
@@ -345,16 +364,17 @@ export async function generarPlanilla(query, tenantId, frecuencia, periodoInicio
   const { rows } = await query(`
     INSERT INTO planillas (
       tenant_id, frecuencia, periodo_inicio, periodo_fin, generado_por,
-      empresa_grande, total_bruto, total_inss_laboral, total_neto,
+      empresa_grande, aplica_inss, total_bruto, total_inss_laboral, total_neto,
       total_inss_patronal, total_inatec
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
     ON CONFLICT (tenant_id, periodo_inicio) DO UPDATE SET
       frecuencia = EXCLUDED.frecuencia,
       periodo_fin = EXCLUDED.periodo_fin,
       generado_en = NOW(),
       generado_por = EXCLUDED.generado_por,
       empresa_grande = EXCLUDED.empresa_grande,
+      aplica_inss = EXCLUDED.aplica_inss,
       total_bruto = EXCLUDED.total_bruto,
       total_inss_laboral = EXCLUDED.total_inss_laboral,
       total_neto = EXCLUDED.total_neto,
@@ -363,7 +383,7 @@ export async function generarPlanilla(query, tenantId, frecuencia, periodoInicio
     RETURNING id
   `, [
     tenantId, frecuencia, periodoInicio, c.periodoFin, generadoPor,
-    c.empresaGrande, c.totales.bruto, c.totales.inssLaboral, c.totales.neto,
+    c.empresaGrande, c.aplicaInss, c.totales.bruto, c.totales.inssLaboral, c.totales.neto,
     c.totales.inssPatronal, c.totales.inatec,
   ])
   const planillaId = rows[0].id
@@ -418,7 +438,7 @@ export async function obtenerPlanilla(query, tenantId, planillaId) {
 
 // Cálculo consolidado de un colaborador. Devuelve null si no hay fecha de
 // ingreso registrada (dato mínimo indispensable para todos los cálculos).
-export function calcularPasivoColaborador(colaborador, pagosVariables = [], empresaGrande = false) {
+export function calcularPasivoColaborador(colaborador, pagosVariables = [], empresaGrande = false, aplicaInss = true) {
   if (!colaborador.fecha_ingreso) return null
 
   const hoy = new Date()
@@ -426,7 +446,7 @@ export function calcularPasivoColaborador(colaborador, pagosVariables = [], empr
   const aguinaldo = calcularAguinaldoAcumulado(base.aguinaldo, colaborador.fecha_ingreso, hoy)
   const vacaciones = calcularVacacionesAcumuladas(base.vacaciones, colaborador.fecha_ingreso, hoy)
   const indemnizacion = calcularIndemnizacionPotencial(base.indemnizacion, colaborador.fecha_ingreso, hoy)
-  const inss = calcularInssPatronalMensual(base.inssPatronal, empresaGrande)
+  const inss = calcularInssPatronalMensual(base.inssPatronal, empresaGrande, aplicaInss)
   const mesesAntiguedad = mesesEntre(colaborador.fecha_ingreso, hoy)
 
   return {
