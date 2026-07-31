@@ -67,7 +67,11 @@ async function enviarEmailAlerta(issueId, mensaje, stack, tenantId) {
 }
 
 router.post('/sentry-webhook', async (req, res) => {
-  const signatureHeader = req.headers['x-hub-signature-256']
+  // Sentry firma sus webhooks (Internal Integration) con el header
+  // 'sentry-hook-signature' — NO 'x-hub-signature-256' (eso es la convención
+  // de GitHub/Meta). Usar el header equivocado hace que la firma nunca
+  // valide, sin importar qué tan bien esté armado el HMAC.
+  const signatureHeader = req.headers['sentry-hook-signature']
   const webhookSecret = process.env.SENTRY_WEBHOOK_SECRET
 
   // Validación robusta: Fallar cerrado
@@ -77,7 +81,7 @@ router.post('/sentry-webhook', async (req, res) => {
   }
 
   if (!signatureHeader) {
-    console.error('[Sentry Webhook] Firma x-hub-signature-256 ausente')
+    console.error('[Sentry Webhook] Firma sentry-hook-signature ausente')
     return res.status(401).send('Firma ausente')
   }
 
@@ -90,7 +94,7 @@ router.post('/sentry-webhook', async (req, res) => {
   const expectedBuffer = Buffer.from(expectedSignature, 'utf-8')
 
   if (signatureBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
-    console.error('[Sentry Webhook] Firma x-hub-signature-256 inválida')
+    console.error('[Sentry Webhook] Firma sentry-hook-signature inválida')
     return res.status(401).send('Firma inválida')
   }
 
@@ -105,7 +109,14 @@ router.post('/sentry-webhook', async (req, res) => {
     const issue = payload.data?.issue || {}
     
     const sentryId = event.event_id || event.id || null
-    const sentryIssueId = issue.id ? String(issue.id) : null
+    // Los webhooks de tipo "event_alert" (Alert Rule → Send a notification via
+    // a webhook, que es el que vamos a usar) NO traen payload.data.issue —
+    // el id del issue viene como event.issue_id. Solo los webhooks de tipo
+    // "issue" (altas/bajas de estado, sin datos del evento) traen data.issue.
+    // Cubrimos ambos casos por si en el futuro se agrega esa suscripción.
+    const sentryIssueId = issue.id
+      ? String(issue.id)
+      : (event.issue_id ? String(event.issue_id) : null)
     const mensaje = issue.title || event.title || event.message || 'Error Desconocido'
     
     // Obtener el stacktrace si está formateado, o serializarlo
