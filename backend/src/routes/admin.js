@@ -5,17 +5,16 @@ import bcrypt from 'bcrypt'
 import rateLimit from 'express-rate-limit'
 import { query } from '../db/client.js'
 
-const router = Router()
-
-// Este router se monta ANTES del rate limiter global (ver index.js), así que
-// necesita el suyo propio — es el endpoint más sensible del sistema
-// (resetea contraseñas de cualquier usuario, cualquier tenant) y hasta ahora
-// no tenía ningún freno de intentos. Corregido en la auditoría del 2026-07-28.
-router.use(rateLimit({
+// Rate limiter específico para endpoints de errores (badge y listado)
+// para evitar que el polling frecuente choque con limitadores globales.
+const erroresLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
-  message: { error: 'Demasiados intentos. Esperá 15 minutos.' }
-}))
+  max: 100, // Permite hasta 100 consultas por 15 minutos
+  message: { error: 'Demasiadas consultas de diagnóstico desde el panel.' }
+})
+
+
+const router = Router()
 
 // Este router se monta antes del CORS restrictivo global (ver index.js),
 // porque el panel de estado vive fuera de los dominios de la app (masterbaker.store /
@@ -58,7 +57,7 @@ router.use((req, res, next) => {
 // registradas, ítems de inventario, consumo de tokens de IA y tiempo en
 // pantalla (total histórico y últimos 7 días). Pensado para el panel de
 // seguimiento de socios fundadores.
-router.get('/estado-fundadores', async (req, res, next) => {
+router.get('/estado-fundadores', erroresLimiter, async (req, res, next) => {
   try {
     const { rows: tenants } = await query(
       'SELECT id, slug, nombre_negocio, creado_en FROM tenants ORDER BY creado_en'
@@ -117,12 +116,20 @@ router.get('/estado-fundadores', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// Rate limiter estricto para restablecimiento de contraseña para fundadores.
+// (resetea contraseñas de cualquier usuario, cualquier tenant) y se limita específicamente.
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Demasiados intentos. Esperá 15 minutos.' }
+})
+
 // POST /api/admin/reset-password
 // Genera una contraseña temporal nueva. Acepta `slug` (resetea al primer
 // admin de ese negocio) o `email` (resetea esa cuenta puntual, sin importar
 // el negocio o rol). La devuelve una sola vez. Pensado para cuando un socio
 // fundador olvida su contraseña y no hay flujo de autoservicio.
-router.post('/reset-password', async (req, res, next) => {
+router.post('/reset-password', resetPasswordLimiter, async (req, res, next) => {
   try {
     const { slug, email } = req.body || {}
     if (!slug && !email) return res.status(400).json({ error: 'Falta slug del negocio o email' })
@@ -187,4 +194,51 @@ router.post('/reset-password', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// GET /api/admin/errores
+// Obtiene el listado de los errores más recientes con el nombre de su tenant
+router.get('/errores', erroresLimiter, async (req, res, next) => {
+  try {
+    const { rows } = await query(
+      `SELECT e.id, e.sentry_id, e.sentry_issue_id, e.tenant_id, e.mensaje, e.stack, e.leido, e.creado_en,
+              t.nombre_negocio AS negocio
+       FROM errores_sistema e
+       LEFT JOIN tenants t ON t.id = e.tenant_id
+       ORDER BY e.creado_en DESC
+       LIMIT 50`
+    )
+    res.json(rows)
+  } catch (e) { next(e) }
+})
+
+// GET /api/admin/errores/badge
+// Cuenta rápida de errores no leídos para el badge del panel de fundadores
+router.get('/errores/badge', erroresLimiter, async (req, res, next) => {
+  try {
+    const { rows } = await query('SELECT COUNT(*)::int AS unread FROM errores_sistema WHERE leido = false')
+    res.json({ unread: rows[0]?.unread || 0 })
+  } catch (e) { next(e) }
+})
+
+// POST /api/admin/errores/marcar-leidos
+// Marca todos los errores actuales como leídos (mismo rate limiter estricto)
+router.post('/errores/marcar-leidos', resetPasswordLimiter, async (req, res, next) => {
+  try {
+    await query('UPDATE errores_sistema SET leido = true WHERE leido = false')
+    res.json({ success: true })
+  } catch (e) { next(e) }
+})
+
+// POST /api/admin/error-sintetico
+// Dispara un error de prueba para comprobar el pipeline de Sentry, webhook y base de datos (mismo rate limiter estricto)
+router.post('/error-sintetico', resetPasswordLimiter, async (req, res, next) => {
+  try {
+    // Agregamos contexto al error
+    const errorSimulado = new Error('[Prueba Pipeline] Error sintético disparado manualmente desde el Panel de Fundadores')
+    throw errorSimulado
+  } catch (e) {
+    next(e)
+  }
+})
+
 export default router
+
