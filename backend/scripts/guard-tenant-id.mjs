@@ -110,6 +110,20 @@ function extraerLlamadasQuery(contenido) {
     const numeroLinea = antesDelMatch.split('\n').length
     llamadas.push({ sql: sqlResuelto, linea: numeroLinea })
   }
+
+  // tenantQuery(tenantId, sql, params) — RLS real (ver db/client.js). El SQL
+  // es el SEGUNDO argumento, no el primero. El primer argumento ya obliga a
+  // pasar un tenantId explícito (fail-closed en tiempo de ejecución si falta),
+  // así que esto es un refuerzo de estilo/legibilidad, no la defensa principal.
+  const patronTenantQuery = /(?:^|[^.\w])tenantQuery\s*\(\s*[^,]+,\s*(`[\s\S]*?`|'[^']*'|"[^"]*")/g
+  while ((match = patronTenantQuery.exec(contenido)) !== null) {
+    const sqlTexto = match[1].slice(1, -1)
+    const sqlResuelto = resolverInterpolaciones(sqlTexto, contenido, match.index)
+    const antesDelMatch = contenido.slice(0, match.index)
+    const numeroLinea = antesDelMatch.split('\n').length
+    llamadas.push({ sql: sqlResuelto, linea: numeroLinea })
+  }
+
   return llamadas
 }
 

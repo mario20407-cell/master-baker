@@ -2,7 +2,7 @@ import { Router } from 'express'
 import multer from 'multer'
 import ExcelJS from 'exceljs'
 import { parse as parseCsv } from 'csv-parse/sync'
-import { query, transaction } from '../db/client.js'
+import { tenantQuery, transaction } from '../db/client.js'
 import { requireAdminPin } from '../middleware/adminPinMiddleware.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 
@@ -134,7 +134,7 @@ function evaluarFilas(filasRaw, existentes) {
 
 router.get('/', async (req, res, next) => {
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT p.*,
         CASE WHEN r.id IS NOT NULL THEN true ELSE false END AS tiene_receta
       FROM productos p
@@ -150,7 +150,7 @@ router.get('/', async (req, res, next) => {
 router.get('/auditoria', async (req, res, next) => {
   try {
     const { limit = 50 } = req.query
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT * FROM auditoria_precios
       WHERE tenant_id = $1 AND tipo = 'producto'
       ORDER BY creado_en DESC
@@ -189,7 +189,7 @@ router.post('/', requireRol('admin'), requireAdminPin, async (req, res, next) =>
         valorNuevo: producto.precio, metodo: 'creacion', ip: req.ip,
       })
       return producto
-    })
+    }, { tenantId: req.tenantId })
     res.status(201).json(creado)
   } catch (e) {
     if (e.code === '23505') {
@@ -222,7 +222,7 @@ router.delete('/:id', requireRol('admin'), requireAdminPin, async (req, res, nex
         metodo: 'eliminacion', ip: req.ip,
       })
       return producto
-    })
+    }, { tenantId: req.tenantId })
     if (!eliminado) return res.status(404).json({ error: 'Producto no encontrado' })
     res.json({ eliminado: true, producto: eliminado })
   } catch (e) { next(e) }
@@ -249,7 +249,7 @@ router.post('/importar/preview', requireRol('admin'), upload.single('archivo'), 
 
   try {
     const filasRaw = await parsearArchivo(req.file)
-    const { rows: existentesRows } = await query(
+    const { rows: existentesRows } = await tenantQuery(req.tenantId,
       'SELECT nombre, categoria, presentacion, precio FROM productos WHERE tenant_id=$1 AND activo=true',
       [req.tenantId]
     )
@@ -274,7 +274,7 @@ router.post('/importar/confirmar', requireRol('admin'), requireAdminPin, upload.
 
   try {
     const filasRaw = await parsearArchivo(req.file)
-    const { rows: existentesRows } = await query(
+    const { rows: existentesRows } = await tenantQuery(req.tenantId,
       'SELECT nombre, categoria, presentacion, precio FROM productos WHERE tenant_id=$1 AND activo=true',
       [req.tenantId]
     )
@@ -356,7 +356,7 @@ router.put('/masivo/lista', requireRol('admin'), requireAdminPin, async (req, re
         }
       }
       return resultados
-    })
+    }, { tenantId: req.tenantId })
     res.json({ actualizados: actualizados.length, productos: actualizados })
   } catch (e) { next(e) }
 })
@@ -406,7 +406,7 @@ router.put('/masivo/categoria', requireRol('admin'), requireAdminPin, async (req
         resultados.push({ id: prod.id, nombre: prod.nombre, precio: nuevoPrecio })
       }
       return resultados
-    })
+    }, { tenantId: req.tenantId })
 
     res.json({ actualizados: actualizados.length, factor_aplicado: factor, productos: actualizados })
   } catch (e) { next(e) }
@@ -423,7 +423,7 @@ router.patch('/:id/disponible-hoy', async (req, res, next) => {
   }
 
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `UPDATE productos SET disponible_hoy=$1, actualizado_en=NOW()
        WHERE id=$2 AND tenant_id=$3 RETURNING *`,
       [req.body.disponible_hoy, req.params.id, req.tenantId]
@@ -436,7 +436,7 @@ router.patch('/:id/disponible-hoy', async (req, res, next) => {
 // POST /api/catalogo/disponible-hoy/reset-todo — marca todos los productos activos como disponibles hoy
 router.post('/disponible-hoy/reset-todo', async (req, res, next) => {
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `UPDATE productos SET disponible_hoy=true, actualizado_en=NOW()
        WHERE tenant_id=$1 AND activo=true RETURNING id`,
       [req.tenantId]
@@ -513,7 +513,7 @@ router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) 
         }
       }
       return rows[0] || null
-    })
+    }, { tenantId: req.tenantId })
 
     if (!actualizado) return res.status(404).json({ error: 'Producto no encontrado' })
     res.json(actualizado)
