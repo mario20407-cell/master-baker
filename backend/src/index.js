@@ -132,6 +132,32 @@ query(`
   console.warn('   Esquema:     (Aviso) No se pudieron verificar tablas de métricas:', err.message)
 })
 
+// RLS real por tenant (ver decisiones/2026-07-29-rls-real-diferido.md y
+// backend/src/db/client.js). Crea el rol restringido `app_tenant_scoped`
+// (sin BYPASSRLS) y le otorga exactamente los privilegios de tabla que
+// necesita — nada más. No bloqueante y, por sí solo, inocuo: mientras
+// RLS_TENANT_ENFORCE no esté en 'true' en Railway, ninguna query real usa
+// este rol todavía (ver tenantQuery/transaction en db/client.js). Es
+// seguro correr esto antes de que el código lo use — igual que el resto
+// de patches de este archivo.
+query(`
+  DO $$
+  BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_tenant_scoped') THEN
+      CREATE ROLE app_tenant_scoped NOLOGIN;
+    END IF;
+  END $$;
+  GRANT USAGE ON SCHEMA public TO app_tenant_scoped;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_tenant_scoped;
+  GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_tenant_scoped;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_tenant_scoped;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO app_tenant_scoped;
+`).then(() => {
+  console.log('   Esquema:     Rol app_tenant_scoped (RLS real) verificado')
+}).catch(err => {
+  console.warn('   Esquema:     (Aviso) No se pudo verificar rol app_tenant_scoped:', err.message)
+})
+
 // Perfil laboral por colaborador (salario/tipo de pago/fecha de ingreso)
 // e historial de pagos variables (destajo, ej. pago por quintal), para el
 // dossier de pasivos laborales (INSS, aguinaldo, vacaciones, indemnización).
