@@ -86,7 +86,10 @@ router.post('/sentry-webhook', async (req, res) => {
     .update(req.rawBody || '')
     .digest('hex')
 
-  if (signatureHeader !== expectedSignature) {
+  const signatureBuffer = Buffer.from(signatureHeader, 'utf-8')
+  const expectedBuffer = Buffer.from(expectedSignature, 'utf-8')
+
+  if (signatureBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
     console.error('[Sentry Webhook] Firma x-hub-signature-256 inválida')
     return res.status(401).send('Firma inválida')
   }

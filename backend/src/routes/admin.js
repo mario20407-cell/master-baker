@@ -16,16 +16,6 @@ const erroresLimiter = rateLimit({
 
 const router = Router()
 
-// Este router se monta ANTES del rate limiter global (ver index.js), así que
-// necesita el suyo propio — es el endpoint más sensible del sistema
-// (resetea contraseñas de cualquier usuario, cualquier tenant) y hasta ahora
-// no tenía ningún freno de intentos. Corregido en la auditoría del 2026-07-28.
-router.use(rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  message: { error: 'Demasiados intentos. Esperá 15 minutos.' }
-}))
-
 // Este router se monta antes del CORS restrictivo global (ver index.js),
 // porque el panel de estado vive fuera de los dominios de la app (masterbaker.store /
 // vercel). El acceso sigue protegido por el token, no por el origen.
@@ -126,12 +116,20 @@ router.get('/estado-fundadores', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+// Rate limiter estricto para restablecimiento de contraseña para fundadores.
+// (resetea contraseñas de cualquier usuario, cualquier tenant) y se limita específicamente.
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Demasiados intentos. Esperá 15 minutos.' }
+})
+
 // POST /api/admin/reset-password
 // Genera una contraseña temporal nueva. Acepta `slug` (resetea al primer
 // admin de ese negocio) o `email` (resetea esa cuenta puntual, sin importar
 // el negocio o rol). La devuelve una sola vez. Pensado para cuando un socio
 // fundador olvida su contraseña y no hay flujo de autoservicio.
-router.post('/reset-password', async (req, res, next) => {
+router.post('/reset-password', resetPasswordLimiter, async (req, res, next) => {
   try {
     const { slug, email } = req.body || {}
     if (!slug && !email) return res.status(400).json({ error: 'Falta slug del negocio o email' })
