@@ -57,7 +57,7 @@ router.use((req, res, next) => {
 // registradas, ítems de inventario, consumo de tokens de IA y tiempo en
 // pantalla (total histórico y últimos 7 días). Pensado para el panel de
 // seguimiento de socios fundadores.
-router.get('/estado-fundadores', async (req, res, next) => {
+router.get('/estado-fundadores', erroresLimiter, async (req, res, next) => {
   try {
     const { rows: tenants } = await query(
       'SELECT id, slug, nombre_negocio, creado_en FROM tenants ORDER BY creado_en'
@@ -220,8 +220,8 @@ router.get('/errores/badge', erroresLimiter, async (req, res, next) => {
 })
 
 // POST /api/admin/errores/marcar-leidos
-// Marca todos los errores actuales como leídos
-router.post('/errores/marcar-leidos', async (req, res, next) => {
+// Marca todos los errores actuales como leídos (mismo rate limiter estricto)
+router.post('/errores/marcar-leidos', resetPasswordLimiter, async (req, res, next) => {
   try {
     await query('UPDATE errores_sistema SET leido = true WHERE leido = false')
     res.json({ success: true })
@@ -229,8 +229,8 @@ router.post('/errores/marcar-leidos', async (req, res, next) => {
 })
 
 // POST /api/admin/error-sintetico
-// Dispara un error de prueba para comprobar el pipeline de Sentry, webhook y base de datos
-router.post('/error-sintetico', async (req, res, next) => {
+// Dispara un error de prueba para comprobar el pipeline de Sentry, webhook y base de datos (mismo rate limiter estricto)
+router.post('/error-sintetico', resetPasswordLimiter, async (req, res, next) => {
   try {
     // Agregamos contexto al error
     const errorSimulado = new Error('[Prueba Pipeline] Error sintético disparado manualmente desde el Panel de Fundadores')
