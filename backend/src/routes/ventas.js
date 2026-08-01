@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/authMiddleware.js'
-import { query, transaction } from '../db/client.js'
+import { tenantQuery, transaction } from '../db/client.js'
 import { norm } from '../lib/normalizarTexto.js'
 import { verificarSugerencia } from '../services/produccionService.js'
 
@@ -91,7 +91,7 @@ router.post('/', async (req, res, next) => {
       }
 
       return { ...v, items: itemsRows }
-    })
+    }, { tenantId })
 
     res.status(201).json(venta)
   } catch (e) { next(e) }
@@ -110,7 +110,7 @@ router.get('/', async (req, res, next) => {
 
     params.push(parseInt(limit))
 
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT
         v.*,
         COALESCE(
@@ -142,7 +142,7 @@ router.get('/resumen', async (req, res, next) => {
     const params    = fecha ? [tenantId, fecha] : [tenantId]
     const fechaCond = fecha ? 'v.fecha = $2' : 'v.fecha = CURRENT_DATE'
 
-    const { rows: [resumen] } = await query(`
+    const { rows: [resumen] } = await tenantQuery(req.tenantId, `
       SELECT
         COUNT(v.id)::INT                                          AS total_ventas,
         COALESCE(SUM(v.total), 0)                                 AS ingresos,
@@ -157,7 +157,7 @@ router.get('/resumen', async (req, res, next) => {
       WHERE v.tenant_id = $1 AND ${fechaCond}
     `, params)
 
-    const { rows: topProds } = await query(`
+    const { rows: topProds } = await tenantQuery(req.tenantId, `
       SELECT vi.producto, SUM(vi.cantidad)::INT AS piezas, SUM(vi.subtotal) AS ingresos
       FROM venta_items vi
       JOIN ventas v ON v.id = vi.venta_id AND v.tenant_id = vi.tenant_id
@@ -179,7 +179,7 @@ router.get('/cierre', async (req, res, next) => {
     const params    = fecha ? [tenantId, fecha] : [tenantId]
     const fechaCond = fecha ? 'v.fecha = $2' : 'v.fecha = CURRENT_DATE'
 
-    const { rows: ventas } = await query(`
+    const { rows: ventas } = await tenantQuery(req.tenantId, `
       SELECT v.id, v.hora, v.cliente, v.canal, v.metodo_pago, v.total,
         COALESCE(json_agg(json_build_object(
           'producto', vi.producto, 'cantidad', vi.cantidad, 'subtotal', vi.subtotal
@@ -207,7 +207,7 @@ router.get('/cierre', async (req, res, next) => {
 // ── GET /api/ventas/:id ───────────────────────────────────────────────────────
 router.get('/:id', async (req, res, next) => {
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT v.*,
         COALESCE(json_agg(json_build_object(
           'id', vi.id, 'producto', vi.producto, 'cantidad', vi.cantidad,
@@ -227,7 +227,7 @@ router.get('/:id', async (req, res, next) => {
 // ── DELETE /api/ventas/:id ─────────────────────────────────────────────────────
 router.delete('/:id', async (req, res, next) => {
   try {
-    const { rowCount } = await query(
+    const { rowCount } = await tenantQuery(req.tenantId, 
       'DELETE FROM ventas WHERE id = $1 AND tenant_id = $2',
       [req.params.id, req.tenantId]
     )

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query, transaction } from '../db/client.js'
+import { tenantQuery, transaction } from '../db/client.js'
 import { requireAuth, requirePermission } from '../middleware/authMiddleware.js'
 
 const router = Router()
@@ -24,7 +24,7 @@ router.get('/', requirePermission('ver_produccion'), async (req, res, next) => {
     if (fecha)    { params.push(fecha);    sql += ` AND l.fecha = $${params.length}` }
     if (producto) { params.push(`%${producto}%`); sql += ` AND l.producto ILIKE $${params.length}` }
     sql += ' ORDER BY l.fecha DESC, l.creado_en DESC'
-    const { rows } = await query(sql, params)
+    const { rows } = await tenantQuery(req.tenantId, sql, params)
     res.json(rows)
   } catch (e) { next(e) }
 })
@@ -47,7 +47,7 @@ router.post('/', requirePermission('gestionar_produccion'), async (req, res, nex
         [req.tenantId, lote.rows[0].id, cantidad, precio_unitario, fecha || null]
       )
       return { ...lote.rows[0], caja: caja.rows[0] }
-    })
+    }, { tenantId: req.tenantId })
     res.status(201).json(result)
   } catch (e) { next(e) }
 })
@@ -56,7 +56,7 @@ router.post('/', requirePermission('gestionar_produccion'), async (req, res, nex
 router.patch('/:id/caja', requirePermission('ver_produccion'), async (req, res, next) => {
   try {
     const { cantidad_vendida, cantidad_merma, precio_unitario, cerrado } = req.body
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `UPDATE caja_produccion
        SET cantidad_vendida = COALESCE($1, cantidad_vendida),
            cantidad_merma   = COALESCE($2, cantidad_merma),
@@ -73,7 +73,7 @@ router.patch('/:id/caja', requirePermission('ver_produccion'), async (req, res, 
 // DELETE /api/lotes/:id
 router.delete('/:id', requirePermission('gestionar_produccion'), async (req, res, next) => {
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       'DELETE FROM lotes WHERE id=$1 AND tenant_id=$2 RETURNING id',
       [req.params.id, req.tenantId]
     )

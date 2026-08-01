@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query } from '../db/client.js'
+import { tenantQuery } from '../db/client.js'
 import { requireAuth, requirePermission } from '../middleware/authMiddleware.js'
 
 const router = Router()
@@ -21,7 +21,7 @@ router.get('/', requirePermission('ver_produccion'), async (req, res, next) => {
     if (atendida !== undefined) { params.push(atendida === 'true'); sql += ` AND sp.atendida = $${params.length}` }
     else { sql += ` AND sp.atendida = false` }
     sql += ' ORDER BY sp.creado_en DESC'
-    const { rows } = await query(sql, params)
+    const { rows } = await tenantQuery(req.tenantId, sql, params)
     res.json(rows)
   } catch (e) { next(e) }
 })
@@ -30,7 +30,7 @@ router.get('/', requirePermission('ver_produccion'), async (req, res, next) => {
 router.patch('/:id', requirePermission('gestionar_produccion'), async (req, res, next) => {
   try {
     const { atendida = true } = req.body
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `UPDATE sugerencias_produccion SET atendida = $1
        WHERE id = $2 AND tenant_id = $3 RETURNING *`,
       [atendida, req.params.id, req.tenantId]

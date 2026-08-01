@@ -5,7 +5,7 @@
  */
 import { Router } from 'express'
 import { requireAuth } from '../middleware/authMiddleware.js'
-import { query } from '../db/client.js'
+import { tenantQuery } from '../db/client.js'
 import { sincronizarCostoIndirectoMano } from '../services/pasivosLaboralesService.js'
 
 const router = Router()
@@ -14,7 +14,7 @@ router.use(requireAuth)
 // ── GET /api/fiscal ───────────────────────────────────────────────────────────
 router.get('/', async (req, res, next) => {
   try {
-    const { rows } = await query('SELECT * FROM config_fiscal WHERE tenant_id = $1', [req.tenantId])
+    const { rows } = await tenantQuery(req.tenantId, 'SELECT * FROM config_fiscal WHERE tenant_id = $1', [req.tenantId])
     if (!rows.length) return res.json({ configurado: false })
     res.json(rows[0])
   } catch (e) { next(e) }
@@ -44,7 +44,7 @@ router.put('/', async (req, res, next) => {
 
   try {
     // Upsert por tenant_id: inserta si no existe, actualiza si ya existe.
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       INSERT INTO config_fiscal
         (tenant_id, regimen, cuota_fija, ir_anual, iva_aplica, produccion_mensual, nombre_negocio, ruc, configurado, actualizado_en)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, NOW())
@@ -64,9 +64,12 @@ router.put('/', async (req, res, next) => {
     // produccion_mensual es el denominador de la sugerencia de mano de obra
     // (ver pasivosLaboralesService.js) — si cambió, el costo aplicado a las
     // recetas debe recalcularse. Si falla, no tumba el guardado fiscal que
-    // ya se hizo con éxito.
+    // ya se hizo con éxito. sincronizarCostoIndirectoMano recibe un adapter
+    // (text, params) => tenantQuery(...) porque el servicio es compartido y
+    // no conoce db/client.js directamente (ver recetas.js, mismo patrón).
+    const queryTenantScoped = (text, params) => tenantQuery(req.tenantId, text, params)
     try {
-      await sincronizarCostoIndirectoMano(query, req.tenantId)
+      await sincronizarCostoIndirectoMano(queryTenantScoped, req.tenantId)
     } catch (e) {
       console.warn('[fiscal] No se pudo sincronizar costo_indirecto_mano:', e.message)
     }

@@ -2,7 +2,7 @@ import { Router } from 'express'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import rateLimit from 'express-rate-limit'
-import { query, transaction } from '../db/client.js'
+import { query, tenantQuery, transaction } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 import { registrarActividad } from '../services/bitacoraService.js'
 
@@ -38,6 +38,13 @@ function generarToken(usuario) {
 }
 
 // POST /api/auth/registrar-negocio — Auto-registro público con código de invitación
+// NOTA RLS: esta transacción se queda deliberadamente SIN tenantId (no usa
+// transaction(fn, {tenantId})) — el tenant que se está creando aquí adentro
+// no existe todavía antes del primer INSERT, así que no hay un tenantId
+// previo que setear vía SET LOCAL ROLE. No es un hueco de seguridad: solo
+// inserta filas nuevas bajo un tenant recién creado, no lee ni modifica
+// datos de ningún otro tenant — no hay nada que RLS pudiera haber evitado
+// que este flujo ya no evite por construcción (INSERT-only de datos propios).
 router.post('/registrar-negocio', authLimiter, async (req, res, next) => {
   const { nombreNegocio, nombreAdmin, email, password, codigoInvitacion } = req.body
 
@@ -193,6 +200,11 @@ router.post('/login', authLimiter, async (req, res, next) => {
       ? [email.toLowerCase().trim(), negocio.toLowerCase().trim()]
       : [email.toLowerCase().trim()]
 
+    // NOTA RLS: query() sin tenant scope a propósito — en login todavía no
+    // sabemos a qué tenant pertenece el usuario (puede ser el mismo email
+    // en varios negocios, ver la lógica de "validos" más abajo). Es
+    // justo lo que esta query está resolviendo, no hay tenantId previo
+    // que setear.
     const { rows: candidatos } = await query(
       `SELECT u.*, t.nombre_negocio AS tenant_nombre, t.plan AS tenant_plan, t.slug AS tenant_slug
        FROM usuarios u
@@ -222,10 +234,11 @@ router.post('/login', authLimiter, async (req, res, next) => {
     }
 
     const usuario = validos[0]
-    // tenant-guard: ignorar — filtra por id (PK única global), y ese id
-    // vino de "validos", ya resuelto arriba con email+password correctos
-    // para un tenant específico. No puede apuntar a otro tenant.
-    await query('UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1', [usuario.id])
+    // A partir de acá ya sabemos el tenant exacto (usuario.tenant_id,
+    // resuelto arriba con email+password correctos) — se usa tenantQuery
+    // con filtro explícito por tenant_id como defensa en profundidad real
+    // vía RLS, en vez de confiar solo en que "id" es una PK única global.
+    await tenantQuery(usuario.tenant_id, 'UPDATE usuarios SET ultimo_login = NOW() WHERE id = $1 AND tenant_id = $2', [usuario.id, usuario.tenant_id])
     const token = generarToken(usuario)
     res.json({
       token,
@@ -252,7 +265,7 @@ router.post('/registrar', requireAuth, requireRol('admin'), async (req, res, nex
   if (password.length < 8) return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' })
   try {
     const hash = await bcrypt.hash(password, 12)
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `INSERT INTO usuarios (tenant_id, email, password_hash, nombre, rol)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, email, nombre, rol, creado_en`,
@@ -267,13 +280,13 @@ router.post('/registrar', requireAuth, requireRol('admin'), async (req, res, nex
 
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `SELECT u.id, u.email, u.nombre, u.rol, u.permisos, u.ultimo_login,
               t.nombre_negocio AS tenant_nombre, t.plan AS tenant_plan
        FROM usuarios u
        JOIN tenants t ON t.id = u.tenant_id
-       WHERE u.id = $1 AND u.activo = true`,
-      [req.usuarioId]
+       WHERE u.id = $1 AND u.tenant_id = $2 AND u.activo = true`,
+      [req.usuarioId, req.tenantId]
     )
     if (!rows[0]) return res.status(401).json({ error: 'Sesión inválida' })
     res.json({ usuario: rows[0] })
@@ -283,7 +296,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
 // GET /api/auth/usuarios — Listar equipo (solo admin)
 router.get('/usuarios', requireAuth, requireRol('admin'), async (req, res, next) => {
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       'SELECT id, email, nombre, rol, activo, creado_en, ultimo_login FROM usuarios WHERE tenant_id = $1 ORDER BY nombre',
       [req.tenantId]
     )
@@ -302,7 +315,7 @@ router.put('/usuarios/:id/password', requireAuth, requireRol('admin'), async (re
     // Cambiar la contraseña también sube token_version — invalida de
     // inmediato cualquier sesión que ese usuario tuviera abierta con la
     // contraseña vieja (ver requireAuth en authMiddleware.js).
-    const { rowCount } = await query(
+    const { rowCount } = await tenantQuery(req.tenantId,
       'UPDATE usuarios SET password_hash = $1, token_version = token_version + 1 WHERE id = $2 AND tenant_id = $3',
       [hash, req.params.id, req.tenantId]
     )
@@ -321,9 +334,7 @@ router.put('/password', requireAuth, async (req, res, next) => {
     return res.status(400).json({ error: 'La contraseña nueva debe tener al menos 8 caracteres' })
   }
   try {
-    // tenant-guard: ignorar — filtra por id (PK única global) tomado de
-    // req.usuarioId, que viene del JWT ya verificado por requireAuth.
-    const { rows } = await query('SELECT password_hash FROM usuarios WHERE id = $1', [req.usuarioId])
+    const { rows } = await tenantQuery(req.tenantId, 'SELECT password_hash FROM usuarios WHERE id = $1 AND tenant_id = $2', [req.usuarioId, req.tenantId])
     if (!rows[0]) return res.status(404).json({ error: 'Usuario no encontrado' })
 
     const passwordValida = await bcrypt.compare(passwordActual, rows[0].password_hash)
@@ -333,9 +344,7 @@ router.put('/password', requireAuth, async (req, res, next) => {
     // Sube token_version: la sesión actual sigue viva (su JWT ya tiene el
     // número nuevo desde el próximo login), pero cualquier otra sesión
     // abierta con la contraseña vieja queda invalidada de inmediato.
-    // tenant-guard: ignorar — filtra por id (PK única global) tomado de
-    // req.usuarioId, ya verificado por requireAuth.
-    await query('UPDATE usuarios SET password_hash = $1, token_version = token_version + 1 WHERE id = $2', [hash, req.usuarioId])
+    await tenantQuery(req.tenantId, 'UPDATE usuarios SET password_hash = $1, token_version = token_version + 1 WHERE id = $2 AND tenant_id = $3', [hash, req.usuarioId, req.tenantId])
 
     await registrarActividad(req, {
       modulo: 'seguridad',
@@ -354,7 +363,7 @@ router.delete('/usuarios/:id', requireAuth, requireRol('admin'), async (req, res
     return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' })
   }
   try {
-    const { rowCount } = await query(
+    const { rowCount } = await tenantQuery(req.tenantId,
       'DELETE FROM usuarios WHERE id = $1 AND tenant_id = $2',
       [req.params.id, req.tenantId]
     )
@@ -373,7 +382,7 @@ router.post('/logout', requireAuth, (req, res) => {
 // antes deja de servir en el próximo request, aunque no haya expirado.
 router.post('/usuarios/:id/revocar-sesiones', requireAuth, requireRol('admin'), async (req, res, next) => {
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       'UPDATE usuarios SET token_version = token_version + 1 WHERE id = $1 AND tenant_id = $2 RETURNING id, email, nombre',
       [req.params.id, req.tenantId]
     )
@@ -401,7 +410,7 @@ router.post('/reset-password', requireAuth, requireRol('admin'), async (req, res
   }
   try {
     const hash = await bcrypt.hash(nueva_password, 12)
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `UPDATE usuarios SET password_hash = $1, token_version = token_version + 1
        WHERE email = $2 AND tenant_id = $3 AND activo = true RETURNING id, email, nombre`,
       [hash, email.toLowerCase().trim(), req.tenantId]
@@ -439,7 +448,7 @@ router.put('/negocio', requireAuth, requireRol('admin'), async (req, res, next) 
         [nombreAdmin.trim(), email.toLowerCase().trim(), req.usuarioId, req.tenantId]
       )
       return rows[0]
-    })
+    }, { tenantId: req.tenantId })
 
     await registrarActividad(req, {
       modulo: 'seguridad',

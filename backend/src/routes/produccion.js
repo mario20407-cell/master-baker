@@ -3,7 +3,7 @@
  * v3.2 — Busqueda de ingredientes insensible a tildes y mayusculas.
  */
 import { Router } from 'express'
-import { query, transaction } from '../db/client.js'
+import { tenantQuery, transaction } from '../db/client.js'
 import { requireAuth, requirePermission } from '../middleware/authMiddleware.js'
 import { distribuirLote } from '../services/produccionService.js'
 import { norm } from '../lib/normalizarTexto.js'
@@ -69,7 +69,7 @@ router.get('/verificar', requireAuth, requirePermission('ver_produccion'), async
   if (cantidadPiezas < 1) return res.status(400).json({ error: 'piezas debe ser mayor a 0' })
 
   try {
-    const { rows: recetas } = await query(
+    const { rows: recetas } = await tenantQuery(req.tenantId, 
       `SELECT r.piezas AS piezas_base, r.merma_pct,
               json_agg(json_build_object(
                 'nombre', i.nombre, 'cantidad', i.cantidad, 'unidad', i.unidad, 'tipo', i.tipo
@@ -95,7 +95,7 @@ router.get('/verificar', requireAuth, requirePermission('ver_produccion'), async
       }))
 
     // Traer todo el inventario del tenant y matchear por nombre normalizado
-    const { rows: stocks } = await query(
+    const { rows: stocks } = await tenantQuery(req.tenantId, 
       `SELECT nombre, existencia, unidad FROM inventario WHERE tenant_id = $1`,
       [req.tenantId]
     )
@@ -141,7 +141,7 @@ router.get('/verificar', requireAuth, requirePermission('ver_produccion'), async
 // ── GET /api/produccion ────────────────────────────────────────────────────
 router.get('/', requireAuth, requirePermission('ver_produccion'), async (req, res, next) => {
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId, 
       `SELECT op.*, u.nombre AS creado_por_nombre
        FROM ordenes_produccion op
        LEFT JOIN usuarios u ON u.id = op.creado_por
@@ -282,7 +282,7 @@ router.post('/', requireAuth, requirePermission('gestionar_produccion'), async (
         lote: { ...lote, caja },
         distribuciones: distribucionesResult,
       }
-    })
+    }, { tenantId: req.tenantId })
 
     res.status(201).json(result)
   } catch (e) {
@@ -303,7 +303,7 @@ router.get('/stock-hoy', requireAuth, requirePermission('ver_produccion'), async
     const fecha = req.query.fecha || new Date().toISOString().slice(0, 10)
 
     // Produccion del dia
-    const { rows: producido } = await query(
+    const { rows: producido } = await tenantQuery(req.tenantId, 
       `SELECT producto, SUM(piezas)::INT AS producido
        FROM ordenes_produccion
        WHERE tenant_id = $1 AND DATE(creado_en) = $2 AND estado = 'completada'
@@ -312,7 +312,7 @@ router.get('/stock-hoy', requireAuth, requirePermission('ver_produccion'), async
     )
 
     // Ventas del dia por producto
-    const { rows: vendido } = await query(
+    const { rows: vendido } = await tenantQuery(req.tenantId, 
       `SELECT vi.producto, SUM(vi.cantidad)::INT AS vendido
        FROM venta_items vi
        JOIN ventas v ON v.id = vi.venta_id

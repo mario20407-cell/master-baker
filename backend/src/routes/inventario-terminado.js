@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query, transaction } from '../db/client.js'
+import { tenantQuery, transaction } from '../db/client.js'
 
 import { requireAuth, requirePermission } from '../middleware/authMiddleware.js'
 import { distribuirLote, verificarSugerencia } from '../services/produccionService.js'
@@ -22,7 +22,7 @@ router.get('/', requirePermission('ver_produccion'), async (req, res, next) => {
     if (sucursal_id) { params.push(sucursal_id); sql += ` AND it.sucursal_id = $${params.length}` }
     if (producto)    { params.push(`%${producto}%`); sql += ` AND it.producto ILIKE $${params.length}` }
     sql += ' ORDER BY s.nombre, it.producto'
-    const { rows } = await query(sql, params)
+    const { rows } = await tenantQuery(req.tenantId, sql, params)
     res.json(rows)
   } catch (e) { next(e) }
 })
@@ -36,7 +36,7 @@ router.post('/distribuir', requirePermission('gestionar_produccion'), async (req
       return res.status(400).json({ error: 'lote_id y distribuciones requeridos' })
 
     // Verificar que el lote pertenece al tenant
-    const loteRes = await query(
+    const loteRes = await tenantQuery(req.tenantId,
       'SELECT * FROM lotes WHERE id = $1 AND tenant_id = $2',
       [lote_id, req.tenantId]
     )
@@ -45,7 +45,7 @@ router.post('/distribuir', requirePermission('gestionar_produccion'), async (req
 
     const result = await transaction(async (client) => {
       return distribuirLote(client, req.tenantId, lote, distribuciones)
-    })
+    }, { tenantId: req.tenantId })
     res.status(201).json(result)
   } catch (e) {
     if (e.status === 400) return res.status(400).json({ error: e.message })
@@ -74,7 +74,7 @@ router.patch('/:id', requirePermission('gestionar_produccion'), async (req, res,
         Number(registro.stock), Number(registro.stock_minimo)
       )
       return registro
-    })
+    }, { tenantId: req.tenantId })
     res.json(result)
   } catch (e) {
     if (e.status === 404) return res.status(404).json({ error: e.message })

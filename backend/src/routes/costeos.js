@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/authMiddleware.js'
-import { query } from '../db/client.js'
+import { tenantQuery } from '../db/client.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -13,7 +13,7 @@ router.get('/', async (req, res, next) => {
     let where = 'WHERE tenant_id = $1'
     if (producto) { params.push(producto); where += ` AND producto = $${params.length}` }
     params.push(parseInt(limit))
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `SELECT * FROM costeos ${where} ORDER BY creado_en DESC LIMIT $${params.length}`,
       params
     )
@@ -27,7 +27,7 @@ router.post('/', async (req, res, next) => {
     costo_total, costo_unitario, precio_venta, margen_pct, margen_fiscal_pct,
     costo_fiscal_unitario, utilidad_neta, aprobado_fiscal, factor_escala } = req.body
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       INSERT INTO costeos (tenant_id, producto, piezas_obj, piezas_reales, costo_directo, costo_indirecto,
         costo_total, costo_unitario, precio_venta, margen_pct, margen_fiscal_pct, costo_fiscal_unitario,
         utilidad_neta, aprobado, aprobado_fiscal, factor_escala)
