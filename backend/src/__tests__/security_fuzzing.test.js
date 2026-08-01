@@ -10,13 +10,20 @@ import app from '../index.js'
 // este archivo, que nunca declaran tokenVersion (undefined → 0 por defecto en
 // requireAuth) — y deja que cualquier otra query siga devolviendo lo que cada
 // test configure explícitamente.
+// authMiddleware.js y la inmensa mayoria de las rutas (post-migracion RLS,
+// ver decisiones/2026-07-29-rls-real-diferido.md) usan tenantQuery(tenantId,
+// sql, params), no query(sql, params) suelto -- hay que mockear ambas para
+// que el fuzzing de abajo ejercite la ruta real, no un mock que nunca se
+// llama. tenantQuery antepone tenantId como primer argumento.
 function mockQueryConAuth(resolverNegocio) {
-  query.mockImplementation((sql, params) => {
+  const conAuth = (sql, params) => {
     if (typeof sql === 'string' && sql.includes('FROM usuarios')) {
       return Promise.resolve({ rows: [{ token_version: 0, activo: true }] })
     }
     return resolverNegocio(sql, params)
-  })
+  }
+  query.mockImplementation(conAuth)
+  tenantQuery.mockImplementation((tenantId, sql, params) => conAuth(sql, params))
 }
 
 vi.mock('../db/client.js', () => {
@@ -38,7 +45,7 @@ vi.mock('../db/client.js', () => {
   }
 })
 
-import { query } from '../db/client.js'
+import { query, tenantQuery } from '../db/client.js'
 
 describe('🔥 PRUEBAS DE SEGURIDAD EXHAUSTIVAS & FUZZING (RED TEAMING AVANZADO)', () => {
   let secureSecret = 'secure-production-key-example'
@@ -108,9 +115,11 @@ describe('🔥 PRUEBAS DE SEGURIDAD EXHAUSTIVAS & FUZZING (RED TEAMING AVANZADO)
 
       // El estatus debe ser 200 pero la query debe estar parametrizada
       expect(res.status).toBe(200)
-      const lastQuery = query.mock.calls[query.mock.calls.length - 1]
-      expect(lastQuery[0]).toMatch(/\$2/) // La query debe usar marcadores posicionales
-      expect(lastQuery[1]).toContain("%' OR '1'='1%") // Debe contener el string sanitizado/escapado como parámetro literal
+      // GET /api/lotes usa tenantQuery(tenantId, sql, params) -- el sql y los
+      // params quedan en las posiciones 1 y 2, no 0 y 1 como en query() suelto.
+      const lastCall = tenantQuery.mock.calls[tenantQuery.mock.calls.length - 1]
+      expect(lastCall[1]).toMatch(/\$2/) // La query debe usar marcadores posicionales
+      expect(lastCall[2]).toContain("%' OR '1'='1%") // Debe contener el string sanitizado/escapado como parámetro literal
     })
 
     it('Ataque 2.2: Intentos de escape SQL de mutaciones destructivas (Debe sanitizarse)', async () => {
@@ -122,9 +131,9 @@ describe('🔥 PRUEBAS DE SEGURIDAD EXHAUSTIVAS & FUZZING (RED TEAMING AVANZADO)
         .set('Authorization', `Bearer ${jwt.sign({ usuarioId: 'u', tenantId: 't', rol: 'admin' }, secureSecret)}`)
 
       expect(res.status).toBe(200)
-      const lastQuery = query.mock.calls[query.mock.calls.length - 1]
+      const lastCall = tenantQuery.mock.calls[tenantQuery.mock.calls.length - 1]
       // Validamos que se pasa como un argumento literal sanitizado en lugar de concatenación directa
-      expect(lastQuery[1]).toContain(`%${maliciousName}%`)
+      expect(lastCall[2]).toContain(`%${maliciousName}%`)
     })
   })
 
@@ -147,7 +156,7 @@ describe('🔥 PRUEBAS DE SEGURIDAD EXHAUSTIVAS & FUZZING (RED TEAMING AVANZADO)
         .set('Authorization', `Bearer ${userToken}`)
 
       expect(res.status).toBe(200)
-      const paramsUsed = query.mock.calls[query.mock.calls.length - 1][1]
+      const paramsUsed = tenantQuery.mock.calls[tenantQuery.mock.calls.length - 1][2]
       // El tenantId del token JWT debe prevalecer SIEMPRE sobre cualquier parámetro inyectado
       expect(paramsUsed[0]).toBe('tenant-legitimo')
       expect(paramsUsed[0]).not.toBe('tenant-malicioso-1')
@@ -168,8 +177,8 @@ describe('🔥 PRUEBAS DE SEGURIDAD EXHAUSTIVAS & FUZZING (RED TEAMING AVANZADO)
         .set('Authorization', `Bearer ${userToken}`)
 
       expect(res.status).toBe(200)
-      const [sql, params] = query.mock.calls[query.mock.calls.length - 1]
-      
+      const [, sql, params] = tenantQuery.mock.calls[tenantQuery.mock.calls.length - 1]
+
       // Comprobar que el tenantId sigue asegurado
       expect(params[0]).toBe('tenant-legitimo')
     })
