@@ -309,7 +309,7 @@ router.post('/importar/confirmar', requireRol('admin'), requireAdminPin, upload.
           metodo: 'importacion', ip: req.ip,
         })
       }
-    })
+    }, { tenantId: req.tenantId })
 
     res.json({ creados, actualizados, errores })
   } catch (e) {

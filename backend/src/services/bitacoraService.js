@@ -1,4 +1,4 @@
-import { query } from '../db/client.js'
+import { tenantQuery } from '../db/client.js'
 
 /**
  * Registra una acción de auditoría en la tabla bitacora_actividades.
@@ -17,8 +17,8 @@ export async function registrarActividad(req, { modulo, accion, descripcion, det
   }
 
   try {
-    await query(`
-      INSERT INTO bitacora_actividades 
+    await tenantQuery(req.tenantId, `
+      INSERT INTO bitacora_actividades
         (tenant_id, usuario_id, usuario_nombre, usuario_email, modulo, accion, descripcion, detalles, ip_origen)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `, [

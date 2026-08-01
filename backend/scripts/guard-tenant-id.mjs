@@ -21,7 +21,16 @@ import { join, relative } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
-const ROUTES_DIR = join(__dirname, '..', 'src', 'routes')
+// Antes solo escaneaba src/routes — dejaba afuera src/services y
+// src/middleware, donde también hay queries a tablas por-tenant (ver
+// auditoría QA 2026-07-31, hallazgo ALTO #3: planMiddleware.js corría sin
+// que este guard lo viera nunca). Rutas siguen primero en la lista porque
+// es donde vive la inmensa mayoría de las queries.
+const DIRS_ESCANEADOS = [
+  join(__dirname, '..', 'src', 'routes'),
+  join(__dirname, '..', 'src', 'services'),
+  join(__dirname, '..', 'src', 'middleware'),
+]
 
 // Tablas de negocio que llevan tenant_id en schema.sql. tenants/planes son
 // las únicas tablas de negocio sin tenant_id (son las que LO DEFINEN), y
@@ -35,6 +44,7 @@ const TABLAS_POR_TENANT = [
   'auditoria_precios', 'bitacora_actividades', 'ai_usage_log',
   'actividad_heartbeats', 'uso_ia_mensual', 'clientes_whatsapp',
   'mensajes_whatsapp', 'pedidos_whatsapp', 'tenant_whatsapp_config',
+  'planillas', 'planilla_detalle',
 ]
 
 // Archivos completos excluidos: por diseño, hablan con la base sin
@@ -46,7 +56,13 @@ const ARCHIVOS_EXCLUIDOS = new Set([
 
 function listarArchivosJs(dir) {
   const resultado = []
-  for (const entrada of readdirSync(dir)) {
+  let entradas
+  try {
+    entradas = readdirSync(dir)
+  } catch {
+    return resultado // directorio no existe (ej. src/middleware en otro proyecto) — no es error
+  }
+  for (const entrada of entradas) {
     if (entrada === '__tests__') continue
     const ruta = join(dir, entrada)
     if (statSync(ruta).isDirectory()) {
@@ -141,7 +157,7 @@ function lineaTieneIgnorar(lineas, numeroLinea) {
 }
 
 function main() {
-  const archivos = listarArchivosJs(ROUTES_DIR)
+  const archivos = DIRS_ESCANEADOS.flatMap(listarArchivosJs)
   const hallazgos = []
 
   for (const archivo of archivos) {

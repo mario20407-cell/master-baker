@@ -142,7 +142,7 @@ export async function verificarYRegistrarUso(tenantId, nombreFuncion) {
         DO UPDATE SET mensajes_usados = uso_ia_mensual.mensajes_usados + 1, actualizado_en = NOW()
       `, [tenantId, anioMes])
       return true
-    })
+    }, { tenantId })
 
     if (!permitido) {
       return {

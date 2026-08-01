@@ -388,20 +388,24 @@ export async function generarPlanilla(query, tenantId, frecuencia, periodoInicio
   ])
   const planillaId = rows[0].id
 
-  await query('DELETE FROM planilla_detalle WHERE planilla_id = $1', [planillaId])
+  // tenant_id explícito en planilla_detalle (además del planilla_id FK):
+  // necesario para que la política RLS tenant_isolation pueda evaluarse
+  // sobre esta tabla sin depender de un JOIN (ver schema.sql y la
+  // migración no bloqueante en index.js que agrega esta columna).
+  await query('DELETE FROM planilla_detalle WHERE planilla_id = $1 AND tenant_id = $2', [planillaId, tenantId])
 
   // INSERT multi-fila en una sola query (nunca un loop de INSERTs por
   // colaborador) — mismo patrón N+1 que ya se corrigió en otros lugares
   // de este módulo (ver obtenerColaboradoresConDatosLaborales).
   if (c.detalle.length > 0) {
-    const params = [planillaId]
+    const params = [planillaId, tenantId]
     const filas = c.detalle.map(d => {
       const base = params.length
       params.push(d.usuario_id, d.nombre, d.tipo_pago, d.salario_bruto, d.inss_laboral, d.neto_a_pagar, d.inss_patronal, d.inatec)
-      return `($1, $${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`
+      return `($1, $2, $${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`
     })
     await query(`
-      INSERT INTO planilla_detalle (planilla_id, usuario_id, nombre, tipo_pago, salario_bruto, inss_laboral, neto_a_pagar, inss_patronal, inatec)
+      INSERT INTO planilla_detalle (planilla_id, tenant_id, usuario_id, nombre, tipo_pago, salario_bruto, inss_laboral, neto_a_pagar, inss_patronal, inatec)
       VALUES ${filas.join(',')}
     `, params)
   }
@@ -430,8 +434,8 @@ export async function obtenerPlanilla(query, tenantId, planillaId) {
 
   const { rows: detalle } = await query(
     `SELECT usuario_id, nombre, tipo_pago, salario_bruto, inss_laboral, neto_a_pagar, inss_patronal, inatec
-     FROM planilla_detalle WHERE planilla_id = $1 ORDER BY nombre`,
-    [planillaId]
+     FROM planilla_detalle WHERE planilla_id = $1 AND tenant_id = $2 ORDER BY nombre`,
+    [planillaId, tenantId]
   )
   return { ...planillaRows[0], detalle }
 }

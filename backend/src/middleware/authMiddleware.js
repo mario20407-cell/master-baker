@@ -30,7 +30,7 @@
  *   router.put('/precio', requireAuth, requireRol('admin'), requireAdminPin, handler)
  */
 import jwt from 'jsonwebtoken'
-import { query } from '../db/client.js'
+import { tenantQuery } from '../db/client.js'
 
 // ── requireAuth ───────────────────────────────────────────────────────────────
 export async function requireAuth(req, res, next) {
@@ -68,7 +68,15 @@ export async function requireAuth(req, res, next) {
     // Se rechaza explícitamente solo cuando el usuario no existe o está
     // desactivado (activo === false); un campo activo ausente no rechaza,
     // para no romper mocks de test que no modelan esa columna.
-    const { rows } = await query('SELECT token_version, activo FROM usuarios WHERE id = $1', [payload.usuarioId])
+    // tenantQuery + AND tenant_id: payload.tenantId ya viene firmado y
+    // verificado por jwt.verify arriba (no es dato de usuario sin validar),
+    // así que esto es defensa en profundidad real, no solo un filtro
+    // cosmético — mismo patrón que el resto de la migración RLS (ver
+    // decisiones/2026-07-29-rls-real-diferido.md, adenda 2026-07-31).
+    const { rows } = await tenantQuery(payload.tenantId,
+      'SELECT token_version, activo FROM usuarios WHERE id = $1 AND tenant_id = $2',
+      [payload.usuarioId, payload.tenantId]
+    )
     const usuarioActual = rows[0]
 
     if (!usuarioActual || usuarioActual.activo === false) {
