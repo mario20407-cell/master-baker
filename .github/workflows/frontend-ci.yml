@@ -1,0 +1,44 @@
+name: CI frontend
+
+# Corre en cada Pull Request que toque el frontend, antes de poder mergear a
+# main. Antes no había ningún gate acá — un PR podía romper el build o el
+# lint y recién se notaba cuando Vercel lo desplegaba. Este workflow no
+# despliega nada, solo verifica que el código compile, pase lint y pase los
+# tests unitarios que existan.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests unitarios
+        run: npm test
+
+      - name: Build de producción
+        run: npm run build
+
+      - name: npm audit (solo reporta, no bloquea el merge)
+        run: npm audit --production || true

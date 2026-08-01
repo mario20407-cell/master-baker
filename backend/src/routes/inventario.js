@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { tenantQuery, transaction } from '../db/client.js'
-import { requireAdminPin } from '../middleware/adminPinMiddleware.js'
+import { requireAdminPin, adminPinLimiter } from '../middleware/adminPinMiddleware.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 import { normalizarInsumo } from '../utils/normalizarInsumo.js'
 
@@ -86,7 +86,7 @@ router.post('/', async (req, res, next) => {
 })
 
 // PUT /api/inventario/masivo/lista — ajuste masivo de costos
-router.put('/masivo/lista', requireRol('admin'), requireAdminPin, async (req, res, next) => {
+router.put('/masivo/lista', requireRol('admin'), adminPinLimiter, requireAdminPin, async (req, res, next) => {
   const { insumos = [] } = req.body
   if (!insumos.length) return res.status(400).json({ error: 'Se requiere al menos un insumo' })
 
@@ -126,7 +126,7 @@ router.put('/masivo/lista', requireRol('admin'), requireAdminPin, async (req, re
 })
 
 // PUT /api/inventario/masivo/porcentaje — ajuste porcentual masivo
-router.put('/masivo/porcentaje', requireRol('admin'), requireAdminPin, async (req, res, next) => {
+router.put('/masivo/porcentaje', requireRol('admin'), adminPinLimiter, requireAdminPin, async (req, res, next) => {
   const { porcentaje } = req.body
   const pct = parseFloat(porcentaje)
   if (isNaN(pct)) {
@@ -167,7 +167,7 @@ router.put('/masivo/porcentaje', requireRol('admin'), requireAdminPin, async (re
 })
 
 // PUT /api/inventario/:id — editar insumo individual normalizado
-router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) => {
+router.put('/:id', requireRol('admin'), adminPinLimiter, requireAdminPin, async (req, res, next) => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!uuidRegex.test(req.params.id)) {
     return res.status(400).json({ error: 'ID de insumo inválido' })

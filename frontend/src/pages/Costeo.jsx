@@ -98,7 +98,7 @@ export default function Costeo() {
         aprobado_fiscal:       res.aprobadoFiscal,
         factor_escala:         res.factor,
       })
-    } catch (_) {}
+    } catch (_) { /* el resultado ya se muestra al usuario; el guardado es solo historial en segundo plano */ }
   }
 
   const r = resultado
