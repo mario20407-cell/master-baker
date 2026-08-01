@@ -21,6 +21,10 @@ vi.mock('../../db/client.js', () => {
   const resultadoFalso = { rows: [filaFalsa], rowCount: 1 }
   return {
     query: vi.fn().mockResolvedValue(resultadoFalso),
+    // tenantQuery: mismo resultado falso, ignora el tenantId — recetas.js la usa
+    // para RLS real (ver decisiones/2026-07-29-rls-real-diferido.md), pero este
+    // test solo valida la validación de costo cero, no el aislamiento por tenant.
+    tenantQuery: vi.fn().mockResolvedValue(resultadoFalso),
     transaction: vi.fn(async (fn) => {
       const clienteFalso = { query: vi.fn().mockResolvedValue(resultadoFalso) }
       return fn(clienteFalso)

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query, transaction } from '../db/client.js'
+import { tenantQuery, transaction } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 import { registrarActividad } from '../services/bitacoraService.js'
 import { calcularSugerenciaManoObra } from '../services/pasivosLaboralesService.js'
@@ -11,9 +11,9 @@ router.use(requireAuth)
 // GET /api/recetas/configuracion-costeo/settings
 router.get('/configuracion-costeo/settings', async (req, res, next) => {
   try {
-    const { rows } = await query('SELECT * FROM configuracion_costeo WHERE tenant_id = $1', [req.tenantId])
+    const { rows } = await tenantQuery(req.tenantId, 'SELECT * FROM configuracion_costeo WHERE tenant_id = $1', [req.tenantId])
     if (!rows.length) {
-      const { rows: [created] } = await query(
+      const { rows: [created] } = await tenantQuery(req.tenantId,
         'INSERT INTO configuracion_costeo (tenant_id) VALUES ($1) RETURNING *',
         [req.tenantId]
       )
@@ -32,7 +32,7 @@ router.put('/configuracion-costeo/settings', async (req, res, next) => {
     return res.status(400).json({ error: 'frecuencia_pago debe ser "semanal", "quincenal" o "mensual"' })
   }
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       INSERT INTO configuracion_costeo (tenant_id, costo_indirecto_gas, costo_indirecto_luz, costo_indirecto_mano, margen_objetivo, aplica_inss, frecuencia_pago, actualizado_en)
       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
       ON CONFLICT (tenant_id) DO UPDATE SET
@@ -64,7 +64,8 @@ router.put('/configuracion-costeo/settings', async (req, res, next) => {
 // la UI de Configuración, no es el único lugar donde se aplica.
 router.get('/configuracion-costeo/sugerencia-mano-obra', requireRol('admin'), async (req, res, next) => {
   try {
-    const resultado = await calcularSugerenciaManoObra(query, req.tenantId)
+    const queryTenantScoped = (text, params) => tenantQuery(req.tenantId, text, params)
+    const resultado = await calcularSugerenciaManoObra(queryTenantScoped, req.tenantId)
     res.json(resultado)
   } catch (e) { next(e) }
 })
@@ -72,7 +73,7 @@ router.get('/configuracion-costeo/sugerencia-mano-obra', requireRol('admin'), as
 // GET /api/recetas — todas las recetas del tenant, con ingredientes
 router.get('/', async (req, res, next) => {
   try {
-    const { rows: recetas } = await query(`
+    const { rows: recetas } = await tenantQuery(req.tenantId, `
       SELECT r.*,
         json_agg(
           json_build_object(
@@ -99,7 +100,7 @@ router.get('/', async (req, res, next) => {
 // GET /api/recetas/:producto
 router.get('/:producto', async (req, res, next) => {
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT r.*,
         json_agg(json_build_object(
           'id', i.id, 'nombre', i.nombre, 'cantidad', i.cantidad,
@@ -180,9 +181,9 @@ router.post('/', async (req, res, next) => {
         `, params)
       }
       return r
-    })
+    }, { tenantId })
 
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(tenantId, `
       SELECT r.*, json_agg(json_build_object(
         'nombre', i.nombre, 'cantidad', i.cantidad, 'unidad', i.unidad, 'precio', i.precio, 'tipo', i.tipo, 'costo_cero_intencional', i.costo_cero_intencional
       )) FILTER (WHERE i.id IS NOT NULL) AS ingredientes,
@@ -263,7 +264,7 @@ router.put('/:id', async (req, res, next) => {
       })
 
       return true
-    })
+    }, { tenantId })
 
     if (!actualizada) return res.status(404).json({ error: 'Receta no encontrada' })
     res.json({ ok: true })
@@ -273,11 +274,11 @@ router.put('/:id', async (req, res, next) => {
 // DELETE /api/recetas/:id
 router.delete('/:id', async (req, res, next) => {
   try {
-    const { rows: checkReceta } = await query('SELECT producto FROM recetas WHERE id = $1 AND tenant_id = $2', [req.params.id, req.tenantId])
+    const { rows: checkReceta } = await tenantQuery(req.tenantId, 'SELECT producto FROM recetas WHERE id = $1 AND tenant_id = $2', [req.params.id, req.tenantId])
     if (!checkReceta.length) return res.status(404).json({ error: 'Receta no encontrada' })
     const prodName = checkReceta[0].producto
 
-    const { rowCount } = await query('DELETE FROM recetas WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])
+    const { rowCount } = await tenantQuery(req.tenantId, 'DELETE FROM recetas WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])
     if (!rowCount) return res.status(404).json({ error: 'Receta no encontrada' })
 
     await registrarActividad(req, {
@@ -328,7 +329,7 @@ router.post('/import-csv', async (req, res, next) => {
             tenantId, r.id, i.nombre, i.cantidad, i.unidad, i.precio, i.tipo, !!i.costo_cero_intencional
           ])
         )
-      })
+      }, { tenantId })
       importadas++
     }
 
