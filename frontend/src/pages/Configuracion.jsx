@@ -115,7 +115,7 @@ export default function Configuracion() {
     if ((colaborador.tipo_pago || colaborador.base?.fuente) === 'variable') {
       try {
         await cargarPagosVariables(colaborador.usuario_id || colaborador.id)
-      } catch (e) {}
+      } catch (e) { /* precarga best-effort, el modal igual abre sin el historial de pagos */ }
     }
   }
 
@@ -141,6 +141,7 @@ export default function Configuracion() {
         setEditPerfilUser(null)
       }
     } catch (err) {
+      toast.error('No se pudo guardar el perfil laboral')
     } finally {
       setGuardandoPerfil(false)
     }
@@ -158,6 +159,7 @@ export default function Configuracion() {
       await guardarPagoVariable(usuarioId, nuevoPago.mes, Number(nuevoPago.monto))
       setNuevoPago({ mes: new Date().toISOString().slice(0, 7), monto: '' })
     } catch (err) {
+      toast.error('No se pudo guardar el pago variable')
     } finally {
       setGuardandoPago(false)
     }

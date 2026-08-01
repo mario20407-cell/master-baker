@@ -34,7 +34,7 @@ export default function Produccion() {
     try {
       const { data } = await getHistorialProduccion()
       setHistorial(data)
-    } catch {}
+    } catch { toast.error('No se pudo cargar el historial de producción') }
     finally { setLoadingHist(false) }
   }, [])
 
@@ -42,7 +42,7 @@ export default function Produccion() {
     try {
       const { data } = await getSucursales()
       setSucursales(data)
-    } catch {}
+    } catch { toast.error('No se pudieron cargar las sucursales') }
   }, [])
 
   useEffect(() => { cargarRecetas(); cargarHistorial(); cargarSucursales() }, [cargarRecetas, cargarHistorial, cargarSucursales])

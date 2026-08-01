@@ -48,7 +48,7 @@ export default function WhatsAppCRM() {
         <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">WhatsApp — CRM</h2>
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400 -mt-3">
-        Pedidos y clientes que llegan por el bot de WhatsApp. Marcá un pedido como "listo" para avisarle al cliente automáticamente.
+        Pedidos y clientes que llegan por el bot de WhatsApp. Marcá un pedido como &quot;listo&quot; para avisarle al cliente automáticamente.
       </p>
 
       <div className="flex gap-1 border-b border-gray-200 dark:border-navy-800">

@@ -582,19 +582,18 @@ CREATE OR REPLACE TRIGGER trg_tenants_ts
   BEFORE UPDATE ON tenants
   FOR EACH ROW EXECUTE FUNCTION actualizar_timestamp();
 
--- ── RLS defensivo por tenant_id (R2, deuda técnica) ────────────
--- El rol de conexión definido en DATABASE_URL tiene el atributo BYPASSRLS,
--- así que estas políticas hoy no cambian nada en la práctica — todas las
--- queries actuales las siguen bypasseando por completo. Es preparación
--- para el día que se use un rol restringido (ej. conexión vía Supabase
--- con anon/authenticated key, o un rol de app dedicado). Para que eso
--- funcione de verdad, además hace falta que cada request setee
--- SET LOCAL app.tenant_id = '<uuid>' dentro de una transacción antes de
--- correr queries — el pool compartido actual (backend/src/db/client.js,
--- pool.query() directo) no hace esto. Cambiar el rol de conexión sin
--- implementar eso primero rompería la aplicación entera (0 filas en
--- todas las queries). Ese cambio de arquitectura queda fuera de alcance
--- de este commit.
+-- ── RLS real por tenant_id ──────────────────────────────────────
+-- ACTUALIZADO 2026-08-01 (antes decía "defensivo, no cambia nada en la
+-- práctica" — ya no es así, dejarlo así confundía). Estas políticas SÍ
+-- se aplican de verdad para toda query que pase por tenantQuery() o
+-- transaction(fn,{tenantId}) (backend/src/db/client.js): esas funciones
+-- hacen SET LOCAL ROLE app_tenant_scoped + set_config('app.tenant_id',...)
+-- dentro de una transacción real antes de correr la query, y ese rol NO
+-- tiene BYPASSRLS. El rol de conexión "de fábrica" definido en
+-- DATABASE_URL sigue teniendo BYPASSRLS y lo sigue ignorando todo cuando
+-- se usa query() directo (pool.query() sin pasar por tenantQuery) — eso
+-- es intencional para operaciones administrativas/cross-tenant (ver
+-- decisiones/2026-07-29-rls-real-diferido.md para el diseño completo).
 DO $$
 DECLARE
   t text;

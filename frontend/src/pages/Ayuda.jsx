@@ -242,7 +242,7 @@ export default function Ayuda() {
       {/* Aviso si la búsqueda no encontró nada */}
       {busqueda && manualFiltrado.length === 0 && (
         <div className="card text-center py-8 text-sm text-gray-400 print:hidden">
-          No encontramos nada para "{busqueda}". Intenta con otra palabra o revisa la sección de un módulo específico.
+          No encontramos nada para &quot;{busqueda}&quot;. Intenta con otra palabra o revisa la sección de un módulo específico.
         </div>
       )}
 

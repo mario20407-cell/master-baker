@@ -30,7 +30,7 @@ function escribirLocal(ventas) {
     const todas  = raw ? JSON.parse(raw) : []
     const sinHoy = todas.filter(v => v.fecha !== HOY_ISO())
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...sinHoy, ...ventas]))
-  } catch {}
+  } catch { /* localStorage no disponible/lleno, no es crítico */ }
 }
 
 function calcResumenLocal(ventas) {

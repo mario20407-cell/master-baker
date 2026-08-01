@@ -3,7 +3,7 @@ import multer from 'multer'
 import ExcelJS from 'exceljs'
 import { parse as parseCsv } from 'csv-parse/sync'
 import { tenantQuery, transaction } from '../db/client.js'
-import { requireAdminPin } from '../middleware/adminPinMiddleware.js'
+import { requireAdminPin, adminPinLimiter } from '../middleware/adminPinMiddleware.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 
 const router = Router()
@@ -165,7 +165,7 @@ router.get('/auditoria', async (req, res, next) => {
 // Express toma "masivo" o "importar" como si fuera el parámetro :id.
 
 // POST /api/catalogo — creación individual de producto
-router.post('/', requireRol('admin'), requireAdminPin, async (req, res, next) => {
+router.post('/', requireRol('admin'), adminPinLimiter, requireAdminPin, async (req, res, next) => {
   const { nombre, categoria, precio, presentacion } = req.body
 
   if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'El nombre no puede estar vacío' })
@@ -200,7 +200,7 @@ router.post('/', requireRol('admin'), requireAdminPin, async (req, res, next) =>
 })
 
 // DELETE /api/catalogo/:id — soft-delete (activo=false), no borra físicamente
-router.delete('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) => {
+router.delete('/:id', requireRol('admin'), adminPinLimiter, requireAdminPin, async (req, res, next) => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!uuidRegex.test(req.params.id)) {
     return res.status(400).json({ error: 'ID de producto inválido' })
@@ -269,7 +269,7 @@ router.post('/importar/preview', requireRol('admin'), upload.single('archivo'), 
 })
 
 // POST /api/catalogo/importar/confirmar — revalida contra el estado actual y escribe (upsert por nombre)
-router.post('/importar/confirmar', requireRol('admin'), requireAdminPin, upload.single('archivo'), async (req, res, next) => {
+router.post('/importar/confirmar', requireRol('admin'), adminPinLimiter, requireAdminPin, upload.single('archivo'), async (req, res, next) => {
   if (!req.file) return res.status(400).json({ error: 'Se requiere un archivo (.xlsx o .csv)' })
 
   try {
@@ -319,7 +319,7 @@ router.post('/importar/confirmar', requireRol('admin'), requireAdminPin, upload.
 })
 
 // PUT /api/catalogo/masivo/lista — edición masiva: lista explícita de {id, precio}
-router.put('/masivo/lista', requireRol('admin'), requireAdminPin, async (req, res, next) => {
+router.put('/masivo/lista', requireRol('admin'), adminPinLimiter, requireAdminPin, async (req, res, next) => {
   const { productos = [] } = req.body
   if (!productos.length) return res.status(400).json({ error: 'Se requiere al menos un producto' })
 
@@ -362,7 +362,7 @@ router.put('/masivo/lista', requireRol('admin'), requireAdminPin, async (req, re
 })
 
 // PUT /api/catalogo/masivo/categoria — ajuste por porcentaje a toda una categoría
-router.put('/masivo/categoria', requireRol('admin'), requireAdminPin, async (req, res, next) => {
+router.put('/masivo/categoria', requireRol('admin'), adminPinLimiter, requireAdminPin, async (req, res, next) => {
   const { categoria, porcentaje } = req.body
   const pct = parseFloat(porcentaje)
   if (isNaN(pct)) {
@@ -445,7 +445,7 @@ router.post('/disponible-hoy/reset-todo', async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) => {
+router.put('/:id', requireRol('admin'), adminPinLimiter, requireAdminPin, async (req, res, next) => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!uuidRegex.test(req.params.id)) {
     return res.status(400).json({ error: 'ID de producto inválido' })

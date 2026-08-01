@@ -33,7 +33,7 @@ function leerLocal() {
 }
 
 function escribirLocal(config) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(config)) } catch {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(config)) } catch { /* localStorage no disponible/lleno, no es crítico */ }
 }
 
 export function useFiscalConfig() {

@@ -45,7 +45,7 @@ export function Compras() {
               if (!isNaN(dateObj.getTime())) {
                 setFecha(dateObj.toISOString().slice(0, 10))
               }
-            } catch (err) {}
+            } catch (err) { /* fecha del OCR no parseable, se deja el campo como estaba */ }
           }
           
           if (parsed.items && parsed.items.length > 0) {
