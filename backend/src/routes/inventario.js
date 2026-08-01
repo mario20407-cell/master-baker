@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query, transaction } from '../db/client.js'
+import { tenantQuery, transaction } from '../db/client.js'
 import { requireAdminPin } from '../middleware/adminPinMiddleware.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 import { normalizarInsumo } from '../utils/normalizarInsumo.js'
@@ -23,7 +23,7 @@ async function registrarAuditoria(client, { tenantId, entidadId, entidadNombre, 
 // GET /api/inventario — lectura libre, sin PIN, filtrando activos
 router.get('/', async (req, res, next) => {
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT *,
         CASE WHEN consumo_diario > 0
           THEN FLOOR(existencia / consumo_diario)
@@ -46,7 +46,7 @@ router.get('/', async (req, res, next) => {
 router.get('/auditoria', async (req, res, next) => {
   try {
     const { limit = 50 } = req.query
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT * FROM auditoria_precios
       WHERE tenant_id = $1 AND tipo = 'insumo'
       ORDER BY creado_en DESC
@@ -65,7 +65,7 @@ router.post('/', async (req, res, next) => {
   const norm = normalizarInsumo({ nombre, existencia, unidad, consumo_diario, punto_reposicion, costo_unitario })
 
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       INSERT INTO inventario (tenant_id, nombre, existencia, unidad, consumo_diario, punto_reposicion, costo_unitario, densidad_g_ml, activo)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true)
       ON CONFLICT (tenant_id, lower(trim(regexp_replace(nombre, '\\s+', ' ', 'g')))) 
@@ -120,7 +120,7 @@ router.put('/masivo/lista', requireRol('admin'), requireAdminPin, async (req, re
         }
       }
       return resultados
-    })
+    }, { tenantId: req.tenantId })
     res.json({ actualizados: actualizados.length, insumos: actualizados })
   } catch (e) { next(e) }
 })
@@ -160,7 +160,7 @@ router.put('/masivo/porcentaje', requireRol('admin'), requireAdminPin, async (re
         resultados.push({ id: ins.id, nombre: ins.nombre, costo_unitario: nuevoCosto })
       }
       return resultados
-    })
+    }, { tenantId: req.tenantId })
 
     res.json({ actualizados: actualizados.length, factor_aplicado: factor, insumos: actualizados })
   } catch (e) { next(e) }
@@ -210,7 +210,7 @@ router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) 
         })
       }
       return rows[0] || null
-    })
+    }, { tenantId: req.tenantId })
 
     if (!actualizado) return res.status(404).json({ error: 'Insumo no encontrado' })
     res.json(actualizado)
@@ -220,13 +220,13 @@ router.put('/:id', requireRol('admin'), requireAdminPin, async (req, res, next) 
 // DELETE /api/inventario/:id — baja lógica si está en uso en recetas, o física si no
 router.delete('/:id', async (req, res, next) => {
   try {
-    const { rows: insumo } = await query('SELECT nombre FROM inventario WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])
+    const { rows: insumo } = await tenantQuery(req.tenantId, 'SELECT nombre FROM inventario WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])
     if (!insumo.length) return res.status(404).json({ error: 'Insumo no encontrado' })
 
     const insumoNombre = insumo[0].nombre
 
     // Verificar si está referenciado en ingredientes de recetas
-    const { rows: countRows } = await query(
+    const { rows: countRows } = await tenantQuery(req.tenantId,
       'SELECT COUNT(*) as count FROM ingredientes WHERE tenant_id = $1 AND lower(trim(nombre)) = lower(trim($2))',
       [req.tenantId, insumoNombre]
     )
@@ -234,11 +234,11 @@ router.delete('/:id', async (req, res, next) => {
 
     if (enUso) {
       // Baja lógica
-      await query('UPDATE inventario SET activo = false, actualizado_en=NOW() WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])
+      await tenantQuery(req.tenantId, 'UPDATE inventario SET activo = false, actualizado_en=NOW() WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])
       res.json({ ok: true, tipo: 'logica', mensaje: 'Insumo en uso, desactivado lógicamente.' })
     } else {
       // Eliminación física
-      await query('DELETE FROM inventario WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])
+      await tenantQuery(req.tenantId, 'DELETE FROM inventario WHERE id=$1 AND tenant_id=$2', [req.params.id, req.tenantId])
       res.json({ ok: true, tipo: 'fisica', mensaje: 'Insumo eliminado físicamente.' })
     }
   } catch (e) { next(e) }

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query } from '../db/client.js'
+import { tenantQuery } from '../db/client.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
@@ -30,7 +30,7 @@ const toRow = (cols) => cols.map(escapeCsv).join(',') + '\n'
 // GET /api/exportar/catalogo
 router.get('/catalogo', async (req, res, next) => {
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT p.nombre, p.precio, p.presentacion, p.categoria,
         CASE WHEN r.id IS NOT NULL THEN 'Sí' ELSE 'No' END AS tiene_receta
       FROM productos p
@@ -47,7 +47,7 @@ router.get('/catalogo', async (req, res, next) => {
 // GET /api/exportar/recetas
 router.get('/recetas', async (req, res, next) => {
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT r.producto, r.piezas, r.peso_por_pieza, r.merma_pct,
         i.nombre AS ingrediente, i.cantidad, i.unidad, i.precio, i.tipo
       FROM recetas r
@@ -69,7 +69,7 @@ router.get('/recetas', async (req, res, next) => {
 // GET /api/exportar/costeos
 router.get('/costeos', async (req, res, next) => {
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT producto, piezas_obj, piezas_reales, costo_directo, costo_indirecto,
         costo_total, costo_unitario, precio_venta, margen_pct, utilidad_neta,
         CASE WHEN aprobado THEN 'Aprobado' ELSE 'Rechazado' END AS estado,
@@ -94,7 +94,7 @@ router.get('/costeos', async (req, res, next) => {
 // GET /api/exportar/inventario
 router.get('/inventario', async (req, res, next) => {
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT nombre, existencia, unidad, consumo_diario, punto_reposicion,
         costo_unitario,
         CASE WHEN consumo_diario > 0 THEN FLOOR(existencia/consumo_diario) ELSE NULL END AS dias_restantes,
@@ -117,7 +117,7 @@ router.get('/inventario', async (req, res, next) => {
 // GET /api/exportar/compras
 router.get('/compras', async (req, res, next) => {
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT f.proveedor, TO_CHAR(f.fecha,'YYYY-MM-DD') AS fecha, f.total,
         fi.producto, fi.cantidad, fi.precio_actual, fi.precio_anterior,
         fi.variacion_pct,
@@ -141,7 +141,7 @@ router.get('/compras', async (req, res, next) => {
 // GET /api/exportar/reporte — reporte ejecutivo completo
 router.get('/reporte', async (req, res, next) => {
   try {
-    const [{ rows: resumen }] = await Promise.all([query(`
+    const [{ rows: resumen }] = await Promise.all([tenantQuery(req.tenantId, `
       SELECT
         (SELECT COUNT(*) FROM productos WHERE activo AND tenant_id = $1) AS total_productos,
         (SELECT COUNT(*) FROM recetas WHERE tenant_id = $1) AS total_recetas,
@@ -152,7 +152,7 @@ router.get('/reporte', async (req, res, next) => {
         (SELECT COUNT(*) FROM inventario WHERE consumo_diario > 0 AND existencia/consumo_diario <= 3 AND tenant_id = $1) AS insumos_criticos
     `, [req.tenantId])])
 
-    const { rows: topCosteos } = await query(`
+    const { rows: topCosteos } = await tenantQuery(req.tenantId, `
       SELECT producto, ROUND(AVG(margen_pct),2) AS margen_avg,
         ROUND(AVG(costo_unitario),4) AS cu_avg, COUNT(*) AS veces_costeado
       FROM costeos 

@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import ExcelJS from 'exceljs'
 import PDFDocument from 'pdfkit'
-import { query } from '../db/client.js'
+import { tenantQuery } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 import {
   calcularPasivoColaborador, obtenerColaboradoresConDatosLaborales, sincronizarCostoIndirectoMano,
@@ -17,7 +17,8 @@ const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/
 // guardó correctamente — se registra el error y se sigue.
 async function sincronizarSinRomper(tenantId) {
   try {
-    await sincronizarCostoIndirectoMano(query, tenantId)
+    const queryTenantScoped = (text, params) => tenantQuery(tenantId, text, params)
+    await sincronizarCostoIndirectoMano(queryTenantScoped, tenantId)
   } catch (e) {
     console.warn('[pasivosLaborales] No se pudo sincronizar costo_indirecto_mano:', e.message)
   }
@@ -32,7 +33,7 @@ router.use(requireAuth, requireRol('admin'))
 // laboral (tipo de pago, salario fijo, fecha de ingreso).
 router.get('/perfil', async (req, res, next) => {
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `SELECT id, nombre, email, rol, tipo_pago, salario_mensual, fecha_ingreso
        FROM usuarios
        WHERE tenant_id = $1 AND activo = true
@@ -51,7 +52,7 @@ router.put('/perfil/:usuarioId', async (req, res, next) => {
     return res.status(400).json({ error: 'tipo_pago debe ser "fijo" o "variable"' })
   }
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `UPDATE usuarios
        SET tipo_pago = COALESCE($1, tipo_pago),
            salario_mensual = $2,
@@ -71,7 +72,7 @@ router.put('/perfil/:usuarioId', async (req, res, next) => {
 // ej. pago por quintal producido). Devuelve los últimos 12 meses.
 router.get('/pagos-variables/:usuarioId', async (req, res, next) => {
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `SELECT mes, monto FROM pagos_variables
        WHERE usuario_id = $1 AND tenant_id = $2
        ORDER BY mes DESC LIMIT 12`,
@@ -94,7 +95,7 @@ router.post('/pagos-variables/:usuarioId', async (req, res, next) => {
   }
   try {
     const mesNormalizado = `${String(mes).slice(0, 7)}-01` // normaliza a primer día del mes
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `INSERT INTO pagos_variables (tenant_id, usuario_id, mes, monto)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (usuario_id, mes)
@@ -114,8 +115,9 @@ router.get('/dossier', async (req, res, next) => {
     // 2 queries en total sin importar cuántos colaboradores haya (antes:
     // 1 query de pagos_variables por cada colaborador de pago variable,
     // dentro del loop — ver pasivosLaboralesService.js).
-    const { colaboradores, empresaGrande } = await obtenerColaboradoresConDatosLaborales(query, req.tenantId)
-    const aplicaInss = await obtenerAplicaInss(query, req.tenantId)
+    const queryTenantScoped = (text, params) => tenantQuery(req.tenantId, text, params)
+    const { colaboradores, empresaGrande } = await obtenerColaboradoresConDatosLaborales(queryTenantScoped, req.tenantId)
+    const aplicaInss = await obtenerAplicaInss(queryTenantScoped, req.tenantId)
 
     const detalle = []
     for (const colaborador of colaboradores) {
@@ -154,7 +156,8 @@ router.get('/planilla/vista-previa', async (req, res, next) => {
     return res.status(400).json({ error: 'periodo_inicio debe tener formato YYYY-MM-DD' })
   }
   try {
-    const resultado = await calcularPlanilla(query, req.tenantId, frecuencia, periodo_inicio)
+    const queryTenantScoped = (text, params) => tenantQuery(req.tenantId, text, params)
+    const resultado = await calcularPlanilla(queryTenantScoped, req.tenantId, frecuencia, periodo_inicio)
     res.json(resultado)
   } catch (e) { next(e) }
 })
@@ -172,7 +175,8 @@ router.post('/planilla/generar', async (req, res, next) => {
     return res.status(400).json({ error: 'periodo_inicio debe tener formato YYYY-MM-DD' })
   }
   try {
-    const resultado = await generarPlanilla(query, req.tenantId, frecuencia, periodo_inicio, req.usuarioId || null)
+    const queryTenantScoped = (text, params) => tenantQuery(req.tenantId, text, params)
+    const resultado = await generarPlanilla(queryTenantScoped, req.tenantId, frecuencia, periodo_inicio, req.usuarioId || null)
     res.json(resultado)
   } catch (e) { next(e) }
 })
@@ -181,7 +185,8 @@ router.post('/planilla/generar', async (req, res, next) => {
 // generadas (resumen, sin el detalle por colaborador).
 router.get('/planilla/historial', async (req, res, next) => {
   try {
-    const rows = await obtenerHistorialPlanillas(query, req.tenantId)
+    const queryTenantScoped = (text, params) => tenantQuery(req.tenantId, text, params)
+    const rows = await obtenerHistorialPlanillas(queryTenantScoped, req.tenantId)
     res.json(rows)
   } catch (e) { next(e) }
 })
@@ -190,7 +195,8 @@ router.get('/planilla/historial', async (req, res, next) => {
 // planilla ya generada (para verla o exportarla).
 router.get('/planilla/:id', async (req, res, next) => {
   try {
-    const planilla = await obtenerPlanilla(query, req.tenantId, req.params.id)
+    const queryTenantScoped = (text, params) => tenantQuery(req.tenantId, text, params)
+    const planilla = await obtenerPlanilla(queryTenantScoped, req.tenantId, req.params.id)
     if (!planilla) return res.status(404).json({ error: 'Planilla no encontrada' })
     res.json(planilla)
   } catch (e) { next(e) }
@@ -203,7 +209,8 @@ router.get('/planilla/:id/exportar', async (req, res, next) => {
     return res.status(400).json({ error: 'formato debe ser excel o pdf' })
   }
   try {
-    const planilla = await obtenerPlanilla(query, req.tenantId, req.params.id)
+    const queryTenantScoped = (text, params) => tenantQuery(req.tenantId, text, params)
+    const planilla = await obtenerPlanilla(queryTenantScoped, req.tenantId, req.params.id)
     if (!planilla) return res.status(404).json({ error: 'Planilla no encontrada' })
 
     // Los NUMERIC de Postgres vienen como string vía node-pg — se

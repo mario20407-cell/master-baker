@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/authMiddleware.js'
-import { query, transaction } from '../db/client.js'
+import { tenantQuery, transaction } from '../db/client.js'
 
 const router = Router()
 router.use(requireAuth)
@@ -8,7 +8,7 @@ router.use(requireAuth)
 // GET /api/compras
 router.get('/', async (req, res, next) => {
   try {
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(req.tenantId, `
       SELECT f.*,
         json_agg(json_build_object(
           'id', fi.id, 'producto', fi.producto, 'cantidad', fi.cantidad,
@@ -55,9 +55,9 @@ router.post('/', async (req, res, next) => {
             variacion ? parseFloat(variacion.toFixed(2)) : null, alerta])
       }
       return f
-    })
+    }, { tenantId })
 
-    const { rows } = await query(`
+    const { rows } = await tenantQuery(tenantId, `
       SELECT f.*, json_agg(json_build_object(
         'producto', fi.producto, 'cantidad', fi.cantidad,
         'precio_actual', fi.precio_actual, 'variacion_pct', fi.variacion_pct, 'alerta', fi.alerta

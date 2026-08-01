@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import bcrypt from 'bcrypt'
-import { query } from '../db/client.js'
+import { tenantQuery } from '../db/client.js'
 import { requireAuth, requireRol } from '../middleware/authMiddleware.js'
 
 // PIN de administrador por negocio (no una variable de entorno global —
@@ -12,7 +12,7 @@ router.use(requireAuth, requireRol('admin'))
 // sin revelar el valor.
 router.get('/estado', async (req, res, next) => {
   try {
-    const { rows } = await query('SELECT admin_pin_hash FROM tenants WHERE id = $1', [req.tenantId])
+    const { rows } = await tenantQuery(req.tenantId, 'SELECT admin_pin_hash FROM tenants WHERE id = $1', [req.tenantId])
     res.json({ configurado: !!rows[0]?.admin_pin_hash })
   } catch (e) { next(e) }
 })
@@ -25,7 +25,7 @@ router.put('/', async (req, res, next) => {
     return res.status(400).json({ error: 'El PIN nuevo debe tener al menos 4 caracteres' })
   }
   try {
-    const { rows } = await query('SELECT admin_pin_hash FROM tenants WHERE id = $1', [req.tenantId])
+    const { rows } = await tenantQuery(req.tenantId, 'SELECT admin_pin_hash FROM tenants WHERE id = $1', [req.tenantId])
     const hashActual = rows[0]?.admin_pin_hash
 
     if (hashActual) {
@@ -39,7 +39,7 @@ router.put('/', async (req, res, next) => {
     }
 
     const hashNuevo = await bcrypt.hash(String(pin_nuevo).trim(), 12)
-    await query('UPDATE tenants SET admin_pin_hash = $1 WHERE id = $2', [hashNuevo, req.tenantId])
+    await tenantQuery(req.tenantId, 'UPDATE tenants SET admin_pin_hash = $1 WHERE id = $2', [hashNuevo, req.tenantId])
     res.json({ ok: true })
   } catch (e) { next(e) }
 })

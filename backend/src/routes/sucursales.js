@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query } from '../db/client.js'
+import { tenantQuery } from '../db/client.js'
 import { requireAuth, requirePermission } from '../middleware/authMiddleware.js'
 
 const router = Router()
@@ -9,7 +9,7 @@ router.use(requireAuth)
 // GET /api/sucursales
 router.get('/', requirePermission('ver_produccion'), async (req, res, next) => {
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       'SELECT * FROM sucursales WHERE tenant_id = $1 ORDER BY nombre',
       [req.tenantId]
     )
@@ -22,7 +22,7 @@ router.post('/', requirePermission('gestionar_produccion'), async (req, res, nex
   try {
     const { nombre, direccion } = req.body
     if (!nombre) return res.status(400).json({ error: 'nombre requerido' })
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       'INSERT INTO sucursales (tenant_id, nombre, direccion) VALUES ($1,$2,$3) RETURNING *',
       [req.tenantId, nombre, direccion || null]
     )
@@ -34,7 +34,7 @@ router.post('/', requirePermission('gestionar_produccion'), async (req, res, nex
 router.patch('/:id', requirePermission('gestionar_produccion'), async (req, res, next) => {
   try {
     const { nombre, direccion, activo } = req.body
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `UPDATE sucursales SET
         nombre    = COALESCE($1, nombre),
         direccion = COALESCE($2, direccion),

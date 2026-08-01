@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 import crypto from 'crypto'
 import { verificarYRegistrarUso } from '../middleware/planMiddleware.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
-import { query } from '../db/client.js'
+import { query, tenantQuery } from '../db/client.js'
 import { descifrar } from '../utils/cifrado.js'
 
 export const publicRouter = Router()
@@ -19,6 +19,9 @@ const MAX_HISTORIAL = 10 // mensajes recientes que se pasan como contexto a la I
 
 // ── Resuelve a qué tenant pertenece un mensaje entrante, según el
 // phone_number_id que manda Meta en el payload del webhook ────────────────────
+// Usa query() sin tenant scope a propósito: en este punto todavía NO
+// sabemos el tenantId — es justo lo que esta función está resolviendo
+// (problema del huevo y la gallina, igual que el login en auth.js).
 async function resolverTenantWhatsApp(phoneNumberId) {
   const { rows } = await query(
     `SELECT tenant_id, access_token FROM tenant_whatsapp_config
@@ -32,7 +35,7 @@ async function resolverTenantWhatsApp(phoneNumberId) {
 // Credenciales de WhatsApp de un tenant ya autenticado (dashboard), para
 // los endpoints que envían mensajes fuera del webhook.
 async function obtenerCredencialesWhatsApp(tenantId) {
-  const { rows } = await query(
+  const { rows } = await tenantQuery(tenantId,
     `SELECT phone_number_id, access_token FROM tenant_whatsapp_config
      WHERE tenant_id = $1 AND activo = true`,
     [tenantId]
@@ -50,7 +53,7 @@ const EMOJI_CATEGORIA = {
 const EMOJI_CATEGORIA_DEFAULT = '🥖'
 
 async function construirCatalogoDelDia(tenantId) {
-  let { rows } = await query(
+  let { rows } = await tenantQuery(tenantId,
     `SELECT nombre, precio, categoria FROM productos
      WHERE tenant_id = $1 AND activo = true AND disponible_hoy = true
      ORDER BY categoria, nombre`,
@@ -59,7 +62,7 @@ async function construirCatalogoDelDia(tenantId) {
 
   if (!rows.length) {
     console.warn(`[WhatsApp] Tenant ${tenantId} no tiene productos marcados disponible_hoy — mostrando catálogo completo (activo=true) como respaldo`)
-    ;({ rows } = await query(
+    ;({ rows } = await tenantQuery(tenantId,
       `SELECT nombre, precio, categoria FROM productos
        WHERE tenant_id = $1 AND activo = true
        ORDER BY categoria, nombre`,
@@ -126,7 +129,7 @@ const HERRAMIENTAS = [{
 // Reemplaza el Map en RAM que se usaba antes (se borraba en cada redeploy).
 
 async function obtenerOCrearCliente(tenantId, telefono) {
-  const { rows } = await query(
+  const { rows } = await tenantQuery(tenantId,
     `INSERT INTO clientes_whatsapp (tenant_id, telefono, ultima_interaccion)
      VALUES ($1, $2, NOW())
      ON CONFLICT (tenant_id, telefono)
@@ -139,37 +142,38 @@ async function obtenerOCrearCliente(tenantId, telefono) {
 
 async function guardarMensaje(tenantId, clienteId, rol, contenido) {
   if (!contenido) return
-  await query(
+  await tenantQuery(tenantId,
     `INSERT INTO mensajes_whatsapp (tenant_id, cliente_id, rol, contenido) VALUES ($1, $2, $3, $4)`,
     [tenantId, clienteId, rol, contenido]
   )
 }
 
-async function obtenerHistorial(clienteId, limite = MAX_HISTORIAL) {
-  // tenant-guard: ignorar — clienteId viene de clientes_whatsapp, cuya
-  // búsqueda/creación sí filtra por tenant_id (ver el resto del archivo).
-  // Es un id de PK única global, no puede pertenecer a otro tenant.
-  const { rows } = await query(
+async function obtenerHistorial(tenantId, clienteId, limite = MAX_HISTORIAL) {
+  // Antes filtraba solo por cliente_id (comentado "tenant-guard: ignorar",
+  // confiando en que clienteId ya viene de una búsqueda tenant-scoped más
+  // arriba). Ahora que tenantId está disponible en todos los llamadores,
+  // se agrega el filtro explícito — defensa en profundidad real vía RLS,
+  // no solo confianza en la lógica de la app.
+  const { rows } = await tenantQuery(tenantId,
     `SELECT rol, contenido FROM mensajes_whatsapp
-     WHERE cliente_id = $1
+     WHERE cliente_id = $1 AND tenant_id = $2
      ORDER BY creado_en DESC
-     LIMIT $2`,
-    [clienteId, limite]
+     LIMIT $3`,
+    [clienteId, tenantId, limite]
   )
   return rows.reverse().map(r => ({ role: r.rol, content: r.contenido }))
 }
 
 // Productos que más pidió este cliente históricamente — base de la sugerencia.
-async function obtenerProductosFavoritos(clienteId, limite = 3) {
-  // tenant-guard: ignorar — mismo caso que obtenerHistorial() arriba.
-  const { rows } = await query(
+async function obtenerProductosFavoritos(tenantId, clienteId, limite = 3) {
+  const { rows } = await tenantQuery(tenantId,
     `SELECT item->>'producto' AS producto, COUNT(*) AS veces
      FROM pedidos_whatsapp, jsonb_array_elements(items) AS item
-     WHERE cliente_id = $1 AND estado != 'cancelado'
+     WHERE cliente_id = $1 AND tenant_id = $2 AND estado != 'cancelado'
      GROUP BY producto
      ORDER BY veces DESC
-     LIMIT $2`,
-    [clienteId, limite]
+     LIMIT $3`,
+    [clienteId, tenantId, limite]
   )
   return rows.map(r => r.producto).filter(Boolean)
 }
@@ -177,7 +181,7 @@ async function obtenerProductosFavoritos(clienteId, limite = 3) {
 async function guardarPedido(tenantId, clienteId, datos) {
   const items = Array.isArray(datos.items) ? datos.items : []
   const tipoEntrega = datos.tipo_entrega === 'agendado' ? 'agendado' : 'inmediato'
-  const { rows } = await query(
+  const { rows } = await tenantQuery(tenantId,
     `INSERT INTO pedidos_whatsapp (tenant_id, cliente_id, items, total, direccion, tipo_entrega, fecha_programada)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
@@ -311,8 +315,8 @@ async function procesarConIA(tenantId, telefono, mensajeUsuario) {
   }
 
   const [historial, favoritos, catalogo] = await Promise.all([
-    obtenerHistorial(cliente.id),
-    obtenerProductosFavoritos(cliente.id),
+    obtenerHistorial(tenantId, cliente.id),
+    obtenerProductosFavoritos(tenantId, cliente.id),
     construirCatalogoDelDia(tenantId),
   ])
   const estadoNegocio = obtenerEstadoNegocio()
@@ -513,7 +517,7 @@ privateRouter.post('/enviar', requireAuth, async (req, res, next) => {
 // ── Endpoint: marcar un pedido como "listo" y avisarle al cliente ────────────
 privateRouter.put('/pedidos/:id/listo', requireAuth, async (req, res, next) => {
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `SELECT p.*, c.telefono, c.nombre
        FROM pedidos_whatsapp p
        JOIN clientes_whatsapp c ON c.id = p.cliente_id
@@ -523,7 +527,7 @@ privateRouter.put('/pedidos/:id/listo', requireAuth, async (req, res, next) => {
     const pedido = rows[0]
     if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' })
 
-    await query(
+    await tenantQuery(req.tenantId,
       `UPDATE pedidos_whatsapp SET estado = 'listo', notificado_listo = true WHERE id = $1 AND tenant_id = $2`,
       [pedido.id, req.tenantId]
     )
@@ -554,7 +558,7 @@ privateRouter.put('/pedidos/:id/estado', requireAuth, async (req, res, next) => 
     return res.status(400).json({ error: 'Estado inválido' })
   }
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `UPDATE pedidos_whatsapp SET estado = $1 WHERE id = $2 AND tenant_id = $3 RETURNING id`,
       [estado, req.params.id, req.tenantId]
     )
@@ -579,7 +583,7 @@ privateRouter.get('/pedidos', requireAuth, async (req, res, next) => {
       condiciones.push(`p.tipo_entrega = $${params.length}`)
     }
 
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `SELECT p.*, c.telefono, c.nombre
        FROM pedidos_whatsapp p
        JOIN clientes_whatsapp c ON c.id = p.cliente_id
@@ -594,7 +598,7 @@ privateRouter.get('/pedidos', requireAuth, async (req, res, next) => {
 // ── Endpoint: listar clientes del bot con su historial de consumo (CRM) ───────
 privateRouter.get('/clientes', requireAuth, async (req, res, next) => {
   try {
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `SELECT c.*,
               COUNT(p.id) FILTER (WHERE p.estado != 'cancelado') AS total_pedidos,
               COALESCE(SUM(p.total) FILTER (WHERE p.estado != 'cancelado'), 0) AS total_gastado
@@ -612,18 +616,16 @@ privateRouter.get('/clientes', requireAuth, async (req, res, next) => {
 // ── Endpoint: ver historial de conversación de un cliente ────────────────────
 privateRouter.get('/clientes/:telefono/mensajes', requireAuth, async (req, res, next) => {
   try {
-    const { rows: clienteRows } = await query(
+    const { rows: clienteRows } = await tenantQuery(req.tenantId,
       `SELECT id FROM clientes_whatsapp WHERE tenant_id = $1 AND telefono = $2`,
       [req.tenantId, req.params.telefono]
     )
     if (!clienteRows[0]) return res.json({ telefono: req.params.telefono, mensajes: [] })
 
-    // tenant-guard: ignorar — clienteRows[0].id se acaba de resolver dos
-    // líneas arriba con "WHERE tenant_id = $1 AND telefono = $2".
-    const { rows } = await query(
+    const { rows } = await tenantQuery(req.tenantId,
       `SELECT rol, contenido, creado_en FROM mensajes_whatsapp
-       WHERE cliente_id = $1 ORDER BY creado_en ASC`,
-      [clienteRows[0].id]
+       WHERE cliente_id = $1 AND tenant_id = $2 ORDER BY creado_en ASC`,
+      [clienteRows[0].id, req.tenantId]
     )
     res.json({ telefono: req.params.telefono, mensajes: rows })
   } catch (e) { next(e) }
@@ -633,7 +635,7 @@ privateRouter.get('/clientes/:telefono/mensajes', requireAuth, async (req, res, 
 privateRouter.get('/status', requireAuth, async (req, res, next) => {
   try {
     const [{ rows }, credenciales] = await Promise.all([
-      query(`SELECT COUNT(*)::int AS clientes FROM clientes_whatsapp WHERE tenant_id = $1`, [req.tenantId]),
+      tenantQuery(req.tenantId, `SELECT COUNT(*)::int AS clientes FROM clientes_whatsapp WHERE tenant_id = $1`, [req.tenantId]),
       obtenerCredencialesWhatsApp(req.tenantId),
     ])
     res.json({
