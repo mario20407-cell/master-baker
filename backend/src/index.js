@@ -152,6 +152,16 @@ query(`
   GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_tenant_scoped;
   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_tenant_scoped;
   ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO app_tenant_scoped;
+  -- SET LOCAL ROLE (ver db/client.js) solo funciona si el rol de conexión es
+  -- miembro de app_tenant_scoped (o superusuario). No asumimos que el rol de
+  -- conexión sea superusuario — se le otorga membresía explícita al rol
+  -- actual (current_user), sea cual sea su nombre real detrás del pooler de
+  -- Supabase. Causa raíz del 500 en catalogo.js del primer intento de
+  -- activar RLS_TENANT_ENFORCE (2026-07-31): faltaba exactamente este GRANT.
+  DO $$
+  BEGIN
+    EXECUTE format('GRANT app_tenant_scoped TO %I', current_user);
+  END $$;
 `).then(() => {
   console.log('   Esquema:     Rol app_tenant_scoped (RLS real) verificado')
 }).catch(err => {

@@ -19,15 +19,24 @@ function mockQueryConAuth(resolverNegocio) {
   })
 }
 
-vi.mock('../db/client.js', () => ({
-  query: vi.fn((sql) => {
+vi.mock('../db/client.js', () => {
+  const resolver = (sql) => {
     if (typeof sql === 'string' && sql.includes('FROM usuarios')) {
       return Promise.resolve({ rows: [{ token_version: 0, activo: true }] })
     }
     return Promise.resolve({ rows: [] })
-  }),
-  transaction: vi.fn(),
-}))
+  }
+  return {
+    query: vi.fn(resolver),
+    // tenantQuery: usada por catalogo.js/recetas.js para RLS real (ver
+    // decisiones/2026-07-29-rls-real-diferido.md) — mismo resolver, ignora
+    // tenantId. Sin esto, cualquier fuzzing futuro contra esas rutas
+    // rompería con "tenantQuery is not a function" en vez de probar lo que
+    // este archivo realmente quiere probar.
+    tenantQuery: vi.fn((tenantId, sql) => resolver(sql)),
+    transaction: vi.fn(),
+  }
+})
 
 import { query } from '../db/client.js'
 
