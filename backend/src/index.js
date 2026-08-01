@@ -140,7 +140,19 @@ query(`
 // este rol todavía (ver tenantQuery/transaction en db/client.js). Es
 // seguro correr esto antes de que el código lo use — igual que el resto
 // de patches de este archivo.
-query(`
+// NOTA (2026-08-01): este bloque y el de planillas/planilla_detalle de abajo
+// se encadenan con .finally() en vez de dispararse como dos promesas
+// independientes en paralelo. Antes de este cambio, ambos son DDL pesado
+// (GRANT/ALTER DEFAULT PRIVILEGES sobre TODAS las tablas del primero, ALTER
+// TABLE ... ENABLE/FORCE ROW LEVEL SECURITY sobre planillas/planilla_detalle
+// del segundo) corriendo al mismo tiempo contra la misma base al arrancar el
+// proceso — Postgres detectó un deadlock real entre ambos en el primer
+// deploy que los tuvo juntos (ver Deploy Logs, 2026-07-31 23:50:49 CST:
+// "No se pudo verificar rol app_tenant_scoped: deadlock detected"). El rol y
+// sus GRANTs ya estaban bien establecidos de deploys anteriores, así que no
+// hubo impacto real esa vez — pero encadenarlos evita que dependa de la
+// suerte en el próximo deploy que sí necesite aplicar un cambio real.
+const migracionRolTenantScoped = query(`
   DO $$
   BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_tenant_scoped') THEN
@@ -175,8 +187,9 @@ query(`
 // para las filas que ya existan, y recién ahí se activa RLS sobre las dos
 // tablas de planilla — en ese orden, para no dejar nunca una fila con
 // tenant_id NULL bajo FORCE ROW LEVEL SECURITY (WITH CHECK la rechazaría).
-// No bloqueante — mismo patrón que el resto de este archivo.
-query(`
+// Encadenado con .finally() sobre la migración del rol de arriba (ver nota) —
+// corre siempre, gane o pierda esa promesa, pero nunca al mismo tiempo.
+migracionRolTenantScoped.finally(() => query(`
   ALTER TABLE planilla_detalle ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
   UPDATE planilla_detalle pd SET tenant_id = p.tenant_id
     FROM planillas p WHERE p.id = pd.planilla_id AND pd.tenant_id IS NULL;
@@ -200,7 +213,7 @@ query(`
   console.log('   Esquema:     tenant_id + RLS en planillas/planilla_detalle verificados')
 }).catch(err => {
   console.warn('   Esquema:     (Aviso) No se pudo verificar RLS de planillas/planilla_detalle:', err.message)
-})
+}))
 
 // Perfil laboral por colaborador (salario/tipo de pago/fecha de ingreso)
 // e historial de pagos variables (destajo, ej. pago por quintal), para el
