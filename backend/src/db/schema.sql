@@ -131,6 +131,10 @@ CREATE INDEX IF NOT EXISTS idx_planillas_tenant ON planillas(tenant_id);
 CREATE TABLE IF NOT EXISTS planilla_detalle (
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   planilla_id    UUID NOT NULL REFERENCES planillas(id) ON DELETE CASCADE,
+  -- tenant_id propio (no solo vía planilla_id) para que la política RLS
+  -- tenant_isolation pueda evaluarse directo sobre esta tabla, sin JOIN
+  -- (ver auditoría QA 2026-07-31, hallazgo CRÍTICO #1).
+  tenant_id      UUID NOT NULL REFERENCES tenants(id),
   usuario_id     UUID REFERENCES usuarios(id) ON DELETE SET NULL,
   nombre         VARCHAR(120) NOT NULL,
   tipo_pago      VARCHAR(20) NOT NULL,
@@ -142,6 +146,7 @@ CREATE TABLE IF NOT EXISTS planilla_detalle (
 );
 
 CREATE INDEX IF NOT EXISTS idx_planilla_detalle_planilla ON planilla_detalle(planilla_id);
+CREATE INDEX IF NOT EXISTS idx_planilla_detalle_tenant ON planilla_detalle(tenant_id);
 
 -- ── Sucursales ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sucursales (
@@ -601,7 +606,7 @@ BEGIN
     'lotes','lote_distribuciones','caja_produccion','sugerencias_produccion',
     'auditoria_precios','bitacora_actividades','ai_usage_log','actividad_heartbeats',
     'uso_ia_mensual','clientes_whatsapp','mensajes_whatsapp','pedidos_whatsapp',
-    'tenant_whatsapp_config'
+    'tenant_whatsapp_config','planillas','planilla_detalle'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);

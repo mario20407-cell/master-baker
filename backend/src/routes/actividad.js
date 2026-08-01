@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query } from '../db/client.js'
+import { tenantQuery } from '../db/client.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
 
 const router = Router()
@@ -9,7 +9,7 @@ const router = Router()
 // ~1 minuto de "tiempo en pantalla" activo, usado en el panel de fundadores.
 router.post('/heartbeat', requireAuth, async (req, res, next) => {
   try {
-    await query(
+    await tenantQuery(req.tenantId,
       'INSERT INTO actividad_heartbeats (tenant_id, usuario_id) VALUES ($1, $2)',
       [req.tenantId, req.usuarioId]
     )

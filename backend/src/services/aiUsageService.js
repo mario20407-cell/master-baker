@@ -6,7 +6,7 @@
  * exitosa del proveedor de IA — nunca bloquea ni rompe la respuesta al
  * usuario si el registro falla (es solo telemetría, no algo crítico).
  */
-import { query } from '../db/client.js'
+import { tenantQuery } from '../db/client.js'
 
 export function registrarUsoTokens(tenantId, tokens) {
   if (!tenantId || !tokens) return
@@ -14,7 +14,7 @@ export function registrarUsoTokens(tenantId, tokens) {
   const output = Number(tokens.output_tokens) || 0
   if (!input && !output) return
 
-  query(
+  tenantQuery(tenantId,
     'INSERT INTO ai_usage_log (tenant_id, input_tokens, output_tokens) VALUES ($1, $2, $3)',
     [tenantId, input, output]
   ).catch(e => {

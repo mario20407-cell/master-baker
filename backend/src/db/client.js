@@ -17,8 +17,25 @@ export const query = (text, params) => pool.query(text, params)
 
 export const getClient = () => pool.connect()
 
+// Fail-closed (2026-07-31, auditoría QA post-RLS — hallazgo CRÍTICO #2):
+// antes, omitir `tenantId` acá caía en silencio a una transacción sin RLS
+// (rol privilegiado, BYPASSRLS) — sin error, sin log. Cualquier ruta nueva
+// que se olvidara de pasar `{ tenantId }` quedaba desprotegida sin que nada
+// lo avisara. Ahora se exige explícitamente uno de los dos:
+//   - `{ tenantId }` (el caso normal — 19 de 20 call sites del código)
+//   - `{ sinTenant: true }` (opt-out deliberado, solo para el puñado de
+//     flujos que genuinamente no tienen tenantId todavía — ver auth.js
+//     `registrar-negocio`, el único caso real hoy)
+// Omitir ambos es ahora un error inmediato, antes de abrir conexión —
+// mismo espíritu fail-closed que tenantQuery.
 export const transaction = async (fn, opts = {}) => {
-  const { tenantId } = opts
+  const { tenantId, sinTenant } = opts
+  if (process.env.RLS_TENANT_ENFORCE === 'true' && !tenantId && !sinTenant) {
+    throw new Error(
+      'transaction: falta tenantId (fail-closed, no hay fallback a rol privilegiado). ' +
+      'Si este flujo genuinamente no tiene tenant todavía, pasá { sinTenant: true } explícitamente.'
+    )
+  }
   const client = await pool.connect()
   try {
     await client.query('BEGIN')

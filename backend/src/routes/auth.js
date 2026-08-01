@@ -38,13 +38,15 @@ function generarToken(usuario) {
 }
 
 // POST /api/auth/registrar-negocio — Auto-registro público con código de invitación
-// NOTA RLS: esta transacción se queda deliberadamente SIN tenantId (no usa
-// transaction(fn, {tenantId})) — el tenant que se está creando aquí adentro
-// no existe todavía antes del primer INSERT, así que no hay un tenantId
-// previo que setear vía SET LOCAL ROLE. No es un hueco de seguridad: solo
-// inserta filas nuevas bajo un tenant recién creado, no lee ni modifica
-// datos de ningún otro tenant — no hay nada que RLS pudiera haber evitado
-// que este flujo ya no evite por construcción (INSERT-only de datos propios).
+// NOTA RLS: esta transacción se queda deliberadamente SIN tenantId — el
+// tenant que se está creando aquí adentro no existe todavía antes del
+// primer INSERT, así que no hay un tenantId previo que setear vía SET
+// LOCAL ROLE. No es un hueco de seguridad: solo inserta filas nuevas bajo
+// un tenant recién creado, no lee ni modifica datos de ningún otro tenant
+// — no hay nada que RLS pudiera haber evitado que este flujo ya no evite
+// por construcción (INSERT-only de datos propios). Pasa { sinTenant: true }
+// explícitamente para dejar constancia de que es una excepción deliberada,
+// no un olvido — transaction() exige uno de los dos (ver db/client.js).
 router.post('/registrar-negocio', authLimiter, async (req, res, next) => {
   const { nombreNegocio, nombreAdmin, email, password, codigoInvitacion } = req.body
 
@@ -169,7 +171,7 @@ router.post('/registrar-negocio', authLimiter, async (req, res, next) => {
       const nuevoUsuario = userRows[0]
 
       return { nuevoTenant, nuevoUsuario }
-    })
+    }, { sinTenant: true })
 
     const token = generarToken(result.nuevoUsuario)
     res.status(201).json({

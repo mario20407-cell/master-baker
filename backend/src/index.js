@@ -168,6 +168,40 @@ query(`
   console.warn('   Esquema:     (Aviso) No se pudo verificar rol app_tenant_scoped:', err.message)
 })
 
+// planilla_detalle no tenía tenant_id propio (solo planilla_id → planillas
+// → tenant_id, un JOIN de por medio) — insuficiente para que una política
+// RLS `tenant_isolation` la evalúe directo (ver auditoría QA 2026-07-31,
+// hallazgo CRÍTICO #1). Se agrega la columna, se rellena desde planillas
+// para las filas que ya existan, y recién ahí se activa RLS sobre las dos
+// tablas de planilla — en ese orden, para no dejar nunca una fila con
+// tenant_id NULL bajo FORCE ROW LEVEL SECURITY (WITH CHECK la rechazaría).
+// No bloqueante — mismo patrón que el resto de este archivo.
+query(`
+  ALTER TABLE planilla_detalle ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
+  UPDATE planilla_detalle pd SET tenant_id = p.tenant_id
+    FROM planillas p WHERE p.id = pd.planilla_id AND pd.tenant_id IS NULL;
+  ALTER TABLE planilla_detalle ALTER COLUMN tenant_id SET NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_planilla_detalle_tenant ON planilla_detalle(tenant_id);
+
+  ALTER TABLE planillas ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE planillas FORCE ROW LEVEL SECURITY;
+  DROP POLICY IF EXISTS tenant_isolation ON planillas;
+  CREATE POLICY tenant_isolation ON planillas
+    USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+    WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+
+  ALTER TABLE planilla_detalle ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE planilla_detalle FORCE ROW LEVEL SECURITY;
+  DROP POLICY IF EXISTS tenant_isolation ON planilla_detalle;
+  CREATE POLICY tenant_isolation ON planilla_detalle
+    USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+    WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+`).then(() => {
+  console.log('   Esquema:     tenant_id + RLS en planillas/planilla_detalle verificados')
+}).catch(err => {
+  console.warn('   Esquema:     (Aviso) No se pudo verificar RLS de planillas/planilla_detalle:', err.message)
+})
+
 // Perfil laboral por colaborador (salario/tipo de pago/fecha de ingreso)
 // e historial de pagos variables (destajo, ej. pago por quintal), para el
 // dossier de pasivos laborales (INSS, aguinaldo, vacaciones, indemnización).
