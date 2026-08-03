@@ -21,21 +21,10 @@ const tenantB = 'bbbbbbbb-2222-2222-2222-222222222222'
 let productoA, productoB
 
 beforeAll(async () => {
-  // Idempotente y a propósito redundante con la migración no bloqueante de
-  // index.js — este archivo no debe depender del orden en que vitest
-  // importe otros archivos de test para tener el rol listo.
-  await query(`
-    DO $$
-    BEGIN
-      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_tenant_scoped') THEN
-        CREATE ROLE app_tenant_scoped NOLOGIN;
-      END IF;
-    END $$;
-    GRANT USAGE ON SCHEMA public TO app_tenant_scoped;
-    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_tenant_scoped;
-    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_tenant_scoped;
-  `)
-
+  // El rol app_tenant_scoped y sus GRANTs ya están listos acá: los aplica
+  // backend/src/test-setup/globalSetup.js (misma función que usa index.js
+  // en producción, ver db/rlsSetup.js) una sola vez antes de toda la suite.
+  // Este archivo solo se ocupa de sus propios datos de prueba.
   await query(
     `INSERT INTO tenants (id, slug, nombre_negocio, pais, moneda, margen_objetivo, activo, plan)
      VALUES ($1, 'test-tenant-rls-a', 'Test RLS A', 'Nicaragua', 'C$', '57.00', true, 'trial'),
@@ -72,10 +61,16 @@ describe('tenantQuery — fail-closed', () => {
 })
 
 describe('tenantQuery — aislamiento real vía RLS (RLS_TENANT_ENFORCE=true)', () => {
-  const envPrevio = process.env.RLS_TENANT_ENFORCE
-
-  beforeAll(() => { process.env.RLS_TENANT_ENFORCE = 'true' })
-  afterAll(() => { process.env.RLS_TENANT_ENFORCE = envPrevio })
+  // A propósito NO se prende el flag acá: viene de env (ver
+  // .github/workflows/backend-ci.yml, RLS_TENANT_ENFORCE: 'true'), igual
+  // que en producción. Si CI corre esta suite sin ese env, estos tests
+  // fallan de forma honesta en vez de fingir que RLS está activo.
+  if (process.env.RLS_TENANT_ENFORCE !== 'true') {
+    throw new Error(
+      'RLS_TENANT_ENFORCE debe estar en \'true\' para correr esta suite (ver backend-ci.yml). ' +
+      'Si estás corriendo esto localmente, exportá la variable antes de correr los tests.'
+    )
+  }
 
   it('con WHERE tenant_id correcto, cada tenant ve solo lo suyo', async () => {
     const { rows: rowsA } = await tenantQuery(tenantA, 'SELECT * FROM productos WHERE tenant_id = $1', [tenantA])

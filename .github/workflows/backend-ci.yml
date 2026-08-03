@@ -36,7 +36,6 @@ jobs:
 
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/master_baker_test
       JWT_SECRET: ci-test-jwt-secret-no-es-el-de-produccion
 
     steps:
@@ -60,7 +59,36 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
           PGPASSWORD=postgres psql -h localhost -U postgres -d master_baker_test -v ON_ERROR_STOP=1 -f src/db/schema.sql
 
+      # app_conn replica el perfil de privilegios del rol "postgres" de
+      # Supabase en producción: BYPASSRLS + CREATEROLE, pero NO superusuario.
+      # Un superusuario puede SET ROLE a cualquier rol sin necesitar
+      # membresía explícita — eso es justo lo que hacía que este CI nunca
+      # detectara el incidente real del 2026-07-31 (faltaba el GRANT de
+      # membresía de app_tenant_scoped). Con app_conn como rol de conexión,
+      # SET LOCAL ROLE (ver db/client.js) sí depende de esa membresía real.
+      #
+      # REASSIGN OWNED BY transfiere la propiedad de todo lo creado por
+      # postgres (tablas, secuencias) a app_conn, para que app_conn pueda
+      # hacer GRANT sobre esos objetos sin haber ejecutado él mismo el DDL
+      # de schema.sql — evita que "uuid-ossp" (que requiere superusuario
+      # para CREATE EXTENSION) bloquee el approach.
+      - name: Crear rol de conexión restringido (app_conn) y transferir ownership
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d master_baker_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE app_conn WITH LOGIN CREATEROLE BYPASSRLS PASSWORD 'app_conn_ci_pw';
+          GRANT USAGE, CREATE ON SCHEMA public TO app_conn;
+          REASSIGN OWNED BY postgres TO app_conn;
+          SQL
+
       - name: Correr tests de integración (contra la DB de test, no producción)
+        env:
+          # Rol restringido (ver paso anterior) — NO postgres/superuser. Con
+          # RLS_TENANT_ENFORCE=true, tenantQuery.test.js exige este env y
+          # ejercita el camino real de producción: si el GRANT de membresía
+          # de app_tenant_scoped (backend/src/db/rlsSetup.js) se rompe, esta
+          # suite falla en rojo de inmediato.
+          DATABASE_URL: postgresql://app_conn:app_conn_ci_pw@localhost:5432/master_baker_test
+          RLS_TENANT_ENFORCE: 'true'
         run: npm test
 
       - name: Guard — queries a tablas por-tenant sin filtrar tenant_id
