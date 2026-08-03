@@ -39,3 +39,6 @@ gitleaks-*.json
 
 # Output de graphify (regenerable con `graphify . --code-only`)
 graphify-out/
+
+# Notas de trabajo de sesión, no son contenido del proyecto
+ANCLA-SESION-*.md
