@@ -39,7 +39,7 @@ jobs:
       JWT_SECRET: ci-test-jwt-secret-no-es-el-de-produccion
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
