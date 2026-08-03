@@ -36,7 +36,6 @@ jobs:
 
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/master_baker_test
       JWT_SECRET: ci-test-jwt-secret-no-es-el-de-produccion
 
     steps:
@@ -60,7 +59,52 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
           PGPASSWORD=postgres psql -h localhost -U postgres -d master_baker_test -v ON_ERROR_STOP=1 -f src/db/schema.sql
 
+      # app_conn replica el perfil de privilegios del rol "postgres" de
+      # Supabase en producción: BYPASSRLS + CREATEROLE, pero NO superusuario.
+      # Un superusuario puede SET ROLE a cualquier rol sin necesitar
+      # membresía explícita — eso es justo lo que hacía que este CI nunca
+      # detectara el incidente real del 2026-07-31 (faltaba el GRANT de
+      # membresía de app_tenant_scoped). Con app_conn como rol de conexión,
+      # SET LOCAL ROLE (ver db/client.js) sí depende de esa membresía real.
+      #
+      # Se transfiere la propiedad de las tablas/secuencias de public (las
+      # que crea schema.sql) a app_conn, para que pueda hacer GRANT sobre
+      # ellas sin haber ejecutado él mismo el DDL — evita que "uuid-ossp"
+      # (que requiere superusuario para CREATE EXTENSION) bloquee el
+      # approach. A propósito NO se usa `REASSIGN OWNED BY postgres TO
+      # app_conn` a secas: en el postgres:16 de Docker, ese rol es el
+      # superusuario bootstrap de initdb y es dueño de objetos del sistema
+      # (ej. el lenguaje plpgsql) que Postgres rechaza reasignar
+      # ("required by the database system") — confirmado en el primer
+      # intento de este PR. Iterar pg_tables/pg_sequences de "public" evita
+      # tocar esos objetos de sistema por completo.
+      - name: Crear rol de conexión restringido (app_conn) y transferir ownership
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d master_baker_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE app_conn WITH LOGIN CREATEROLE BYPASSRLS PASSWORD 'app_conn_ci_pw';
+          GRANT USAGE, CREATE ON SCHEMA public TO app_conn;
+
+          DO $$
+          DECLARE r RECORD;
+          BEGIN
+            FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+              EXECUTE format('ALTER TABLE public.%I OWNER TO app_conn', r.tablename);
+            END LOOP;
+            FOR r IN SELECT sequencename FROM pg_sequences WHERE schemaname = 'public' LOOP
+              EXECUTE format('ALTER SEQUENCE public.%I OWNER TO app_conn', r.sequencename);
+            END LOOP;
+          END $$;
+          SQL
+
       - name: Correr tests de integración (contra la DB de test, no producción)
+        env:
+          # Rol restringido (ver paso anterior) — NO postgres/superuser. Con
+          # RLS_TENANT_ENFORCE=true, tenantQuery.test.js exige este env y
+          # ejercita el camino real de producción: si el GRANT de membresía
+          # de app_tenant_scoped (backend/src/db/rlsSetup.js) se rompe, esta
+          # suite falla en rojo de inmediato.
+          DATABASE_URL: postgresql://app_conn:app_conn_ci_pw@localhost:5432/master_baker_test
+          RLS_TENANT_ENFORCE: 'true'
         run: npm test
 
       - name: Guard — queries a tablas por-tenant sin filtrar tenant_id
