@@ -1,6 +1,6 @@
 // pages/Produccion.jsx — v3.0 Órdenes de producción con merma automática y modo oscuro
 import { useState, useEffect, useCallback } from 'react'
-import { Factory, Plus, CheckCircle, AlertTriangle, ChevronDown, Clock, Package } from 'lucide-react'
+import { Factory, CheckCircle, AlertTriangle, Clock, Package } from 'lucide-react'
 import { getRecetas, verificarProduccion, crearOrdenProduccion, getHistorialProduccion, getSucursales } from '../lib/api'
 import toast from 'react-hot-toast'
 

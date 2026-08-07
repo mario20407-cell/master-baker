@@ -24,8 +24,7 @@ export default function Escalado() {
   ])
   const [resultado, setResultado] = useState(null)
 
-  const prod   = prodIdx !== '' ? PRODUCTOS[parseInt(prodIdx)] : null
-  const receta = prod ? recetas[prod.n] : null
+  const prod = prodIdx !== '' ? PRODUCTOS[parseInt(prodIdx)] : null
 
   const handleProdChange = (idx) => {
     setProdIdx(idx)

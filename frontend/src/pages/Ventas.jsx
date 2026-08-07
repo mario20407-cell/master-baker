@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useVentas } from '../hooks/useVentas'
 import { PRODUCTOS } from '../lib/catalogo'
 import { getSucursales } from '../lib/api'
-import { ShoppingCart, Receipt, BarChart2, Calculator, Search, Plus, Minus, Trash2, CheckCircle, AlertTriangle, Download } from 'lucide-react'
+import { ShoppingCart, Receipt, Search, Plus, Minus, Trash2, CheckCircle, AlertTriangle, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const fmt   = v => 'C$ ' + (parseFloat(v) || 0).toFixed(2)
@@ -11,7 +11,6 @@ const CATS  = ['Todos', ...[...new Set(PRODUCTOS.map(p => p.cat))].sort()]
 
 // ── Helpers de fecha ──────────────────────────────────────────────────────────
 const HOY_DISPLAY = () => new Date().toLocaleDateString('es-NI')
-const HOY_ISO     = () => new Date().toISOString().slice(0, 10)
 // Bug 4 fix: nombre de archivo sin barras
 const HOY_FILE    = () => new Date().toISOString().slice(0, 10)
 
@@ -165,7 +164,7 @@ export default function Ventas() {
   const [tab,       setTab]       = useState('venta')
   const [cajaFisico, setCajaFisico] = useState('')  // fix: estado persistente entre tabs
 
-  const { ventas: ventasRaw, resumen, registrar, anular, loading: ventaLoading, apiOnline } = useVentas()
+  const { ventas: ventasRaw, resumen, registrar, loading: ventaLoading, apiOnline } = useVentas()
 
   // Normalizar todas las ventas al montar y cuando cambian
   const ventas = ventasRaw.map(normVenta)

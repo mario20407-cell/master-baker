@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 import { Plus, ChefHat, X, Check, Package } from 'lucide-react'
@@ -13,16 +13,16 @@ export default function CajaProduccion() {
   const [form, setForm]         = useState({ producto: '', cantidad: '', unidad: 'unidad', costo_total: '', precio_unitario: '', notas: '' })
   const [editando, setEditando] = useState(null) // lote_id siendo editado en caja
 
-  const cargar = async () => {
+  const cargar = useCallback(async () => {
     setCargando(true)
     try {
       const { data } = await api.get('/lotes', { params: { fecha } })
       setLotes(data)
     } catch { toast.error('Error al cargar lotes') }
     finally { setCargando(false) }
-  }
+  }, [fecha])
 
-  useEffect(() => { cargar() }, [fecha])
+  useEffect(() => { cargar() }, [cargar])
 
   const crearLote = async (e) => {
     e.preventDefault()

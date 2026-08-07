@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRecetas } from '../hooks/useRecetas'
 import { PRODUCTOS, CAT_COLORS } from '../lib/catalogo'
-import { ChefHat, Plus, Search, Upload, Edit2, Trash2, Calculator, CheckCircle, AlertTriangle, Settings } from 'lucide-react'
+import { ChefHat, Plus, Search, Upload, Edit2, Trash2, Calculator, CheckCircle, Settings } from 'lucide-react'
 import { getInventario } from '../lib/api'
 import { convertirPrecio, convertirCantidad } from '../lib/unidades'
 import { calcularCosteoReceta } from '../lib/costeo'
@@ -183,8 +183,6 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
 
   const costoDirecto    = resultadoCosteo.costoDirecto
   const costoIndirecto  = resultadoCosteo.costoIndirecto
-  const costoTotal      = resultadoCosteo.costoTotal
-  const piezasEfectivas = resultadoCosteo.piezasReales
   const costoUnitario   = resultadoCosteo.costoUnitario
   const precioSugerido  = resultadoCosteo.precioMinimo
   // Desglose solo para mostrar en el JSX (el motor compartido ya no distingue
@@ -345,7 +343,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
 
 export default function Recetas() {
   const navigate = useNavigate()
-  const { recetas, loading, guardar, eliminar, recargar } = useRecetas()
+  const { recetas, guardar, eliminar, recargar } = useRecetas()
   const [vista, setVista] = useState('lista') // lista | nueva | editar | pegar
   const [editando, setEditando] = useState(null)
   const [busqueda, setBusqueda] = useState('')

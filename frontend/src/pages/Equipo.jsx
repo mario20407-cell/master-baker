@@ -3,12 +3,12 @@ import { usePlanilla } from '../hooks/usePlanilla'
 import { useState, useEffect, useRef } from 'react'
 import {
   getUsuarios, saveUsuario, updateUsuario, resetUsuarioPassword, deleteUsuario, getBitacora,
-  getPerfilesLaborales, updatePerfilLaboral, getPagosVariables, savePagoVariable, getDossierPasivosLaborales,
+  updatePerfilLaboral,
   exportarPlanilla, getConfiguracionCosteoSettings
 } from '../lib/api'
 import {
   Users, UserPlus, Key, Trash2, Shield, Eye, EyeOff, Check, X,
-  Activity, ClipboardList, ShieldAlert, Clock, Info, ChevronDown, ChevronUp,
+  Activity, ClipboardList, Clock, Info, ChevronDown, ChevronUp,
   Wallet, Calendar, AlertTriangle, Pencil, Download, History, Receipt
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -94,7 +94,7 @@ export default function Equipo() {
   // Hook de Planilla
   const {
     vistaPrevia, loadingVistaPrevia, cargarVistaPrevia,
-    planillaActual, generando, generar: generarPlanillaHook, setPlanillaActual,
+    planillaActual, generando, generar: generarPlanillaHook,
     historial, loadingHistorial, cargarHistorial, cargarPlanilla,
   } = usePlanilla()
   const [planillaForm, setPlanillaForm] = useState({
@@ -180,7 +180,7 @@ export default function Equipo() {
       cargarDossier()
       cargarHistorial()
     }
-  }, [activeTab])
+  }, [activeTab, cargarDossier, cargarHistorial])
 
   const handleCrearColaborador = async (e) => {
     e.preventDefault()

@@ -11,22 +11,12 @@ import {
 import {
   Settings,
   Building,
-  User,
   Shield,
   Wallet,
   Calculator,
-  Percent,
-  Flame,
-  Lightbulb,
-  DollarSign,
-  TrendingUp,
   Info,
   Save,
-  CheckCircle,
-  HelpCircle,
   Pencil,
-  Plus,
-  Trash2,
   Calendar,
   X,
   Check
@@ -40,7 +30,7 @@ function formatoCordobas(n) {
 }
 
 export default function Configuracion() {
-  const { usuario, login } = useAuth()
+  const { usuario } = useAuth()
   const [activeTab, setActiveTab] = useState('negocio')
 
   // Seccion 1: Negocio y Administrador
@@ -93,7 +83,6 @@ export default function Configuracion() {
     loading: loadingDossier,
     pagosVariables,
     loadingPagos,
-    cargarDossier,
     guardarPerfil,
     cargarPagosVariables,
     guardarPagoVariable

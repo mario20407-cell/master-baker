@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRecetas } from '../hooks/useRecetas'
-import { Bot, Send, User, Upload, FileText, Zap, Brain, Image } from 'lucide-react'
+import { Bot, Send, User, Upload, FileText } from 'lucide-react'
 import { getAiStatus, chatIA, analizarPdf } from '../lib/api'
 
 const MODELOS = [
