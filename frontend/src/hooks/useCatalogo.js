@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useAuth } from '../context/AuthContext'
 import { getCatalogo } from '../lib/api'
 
 export function useCatalogo() {
-  const { usuario } = useAuth()
   const [productos, setProductos] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
