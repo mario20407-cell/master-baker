@@ -10,6 +10,51 @@
     --navy: #263D4F;
     --navy-light: #EEF1F3;
     --navy-dark: #1B2C39;
+
+    /* ── Tokens semanticos — usar via clases text-, bg- y border- en componentes ── */
+    --color-brand-primary:       #C29C53;
+    --color-brand-primary-hover: #A8813E;
+    --color-brand-ink:           #263D4F;
+
+    --color-text-default: #111827;
+    --color-text-subtle:  #4B5563;
+    --color-text-muted:   #9CA3AF;
+
+    --color-surface:       #FFFFFF;
+    --color-surface-muted: #F9FAFB;
+    --color-border-default: #F3F4F6;
+
+    --color-status-success:    #3B6D11;
+    --color-status-success-fg: #27500A;
+    --color-status-warning:    #A8813E;
+    --color-status-warning-fg: #7A5E2C;
+    --color-status-danger:     #A32D2D;
+    --color-status-danger-fg:  #791F1F;
+    --color-status-info:       #185FA5;
+    --color-status-info-fg:    #0C447C;
+  }
+
+  .dark {
+    --color-brand-primary:       #C29C53;
+    --color-brand-primary-hover: #A8813E;
+    --color-brand-ink:           #A9B8C4;
+
+    --color-text-default: #F3F4F6;
+    --color-text-subtle:  #D1D5DB;
+    --color-text-muted:   #9CA3AF;
+
+    --color-surface:       #1B2C39;
+    --color-surface-muted: #101A22;
+    --color-border-default: #1B2C39;
+
+    --color-status-success:    #6FA83A;
+    --color-status-success-fg: #8FC15C;
+    --color-status-warning:    #C29C53;
+    --color-status-warning-fg: #D9BC85;
+    --color-status-danger:     #E06565;
+    --color-status-danger-fg:  #EF9A9A;
+    --color-status-info:       #5B9BD5;
+    --color-status-info-fg:    #8FBEE8;
   }
 
   * { box-sizing: border-box; }

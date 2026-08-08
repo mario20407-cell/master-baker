@@ -37,17 +37,17 @@ export default function AdminPinModal({ abierto, onCerrar, onConfirmar, titulo =
       <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#263D4F' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-ink">
               <Shield size={15} className="text-white" />
             </div>
-            <h3 className="text-sm font-semibold text-gray-800">{titulo}</h3>
+            <h3 className="text-sm font-semibold text-text-default">{titulo}</h3>
           </div>
-          <button onClick={onCerrar} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onCerrar} className="text-text-muted hover:text-text-subtle">
             <X size={16} />
           </button>
         </div>
 
-        <p className="text-xs text-gray-500 mb-3">
+        <p className="text-xs text-text-muted mb-3">
           Esta acción cambia un precio en el sistema. Ingresa el PIN de administrador para confirmar.
         </p>
 

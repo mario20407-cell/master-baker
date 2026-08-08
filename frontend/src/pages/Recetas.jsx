@@ -59,12 +59,12 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
                 unidad_inventario: matched ? matched.unidad : undefined
               })
             }}
-            className={ing.tipo === 'indirecto' ? 'bg-blue-50 flex-1' : 'flex-1'}
+            className={ing.tipo === 'indirecto' ? 'bg-info-light flex-1' : 'flex-1'}
           />
           <button 
             type="button" 
             onClick={() => setEsPersonalizado(false)}
-            className="text-[9px] text-gray-400 hover:text-gray-600 px-1 py-0.5 border border-gray-200 rounded hover:bg-gray-50 flex-shrink-0"
+            className="text-[9px] text-text-muted hover:text-text-subtle px-1 py-0.5 border border-border-default rounded hover:bg-surface-muted flex-shrink-0"
             title="Usar lista del inventario"
           >
             Lista
@@ -74,7 +74,7 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
         <select
           value={ing.nombre}
           onChange={e => handleSelectChange(e.target.value)}
-          className={ing.tipo === 'indirecto' ? 'bg-blue-50 dark:bg-navy-800' : ''}
+          className={ing.tipo === 'indirecto' ? 'bg-info-light dark:bg-info/10' : ''}
         >
           <option value="">— Seleccionar insumo —</option>
           {ing.nombre && !existeEnInventario && (
@@ -100,7 +100,7 @@ function IngredienteRow({ ing, onChange, onDelete, inventario = [] }) {
         <input type="number" value={ing.precio} placeholder="C$/u" step="0.0001" min="0"
           onChange={e => onChange({ ...ing, precio: parseFloat(e.target.value) || 0 })} />
         {parseFloat(ing.precio) === 0 && (
-          <label className="flex items-center gap-1 text-[9px] text-gray-400 cursor-pointer">
+          <label className="flex items-center gap-1 text-[9px] text-text-muted cursor-pointer">
             <input 
               type="checkbox" 
               checked={!!ing.costo_cero_intencional}
@@ -227,7 +227,7 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
   return (
     <div className="space-y-4">
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Datos de la receta</h3>
+        <h3 className="text-sm font-semibold text-text-subtle mb-3">Datos de la receta</h3>
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="form-group">
             <label className="form-label">Producto del catálogo</label>
@@ -262,26 +262,26 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
 
       <div className="card">
         <div className="flex justify-between items-center mb-3">
-          <h3 className="text-sm font-semibold text-gray-700">Ingredientes</h3>
+          <h3 className="text-sm font-semibold text-text-subtle">Ingredientes</h3>
           <div className="flex gap-2">
             <button onClick={() => addIng('directo')} className="btn-secondary text-xs px-2 py-1 flex items-center gap-1">
               <Plus size={12} /> Directo
             </button>
-            <button onClick={() => addIng('indirecto')} className="btn-secondary text-xs px-2 py-1 flex items-center gap-1" style={{ color: '#185FA5' }}>
+            <button onClick={() => addIng('indirecto')} className="btn-secondary text-xs px-2 py-1 flex items-center gap-1 text-status-info">
               <Plus size={12} /> Indirecto
             </button>
         </div>
       </div>
 
         {parseFloat(configCosteo.costo_indirecto_gas || 0) + parseFloat(configCosteo.costo_indirecto_luz || 0) + parseFloat(configCosteo.costo_indirecto_mano || 0) > 0 && (
-          <div className="bg-blue-50 border border-blue-100 text-blue-800 text-[11px] p-2 rounded-lg mb-3">
+          <div className="bg-info-light border border-info/30 text-status-info-fg text-[11px] p-2 rounded-lg mb-3">
             💡 <strong>Costos indirectos fijos activos:</strong> Gas, luz y mano de obra ya están incluidos automáticamente en base a la configuración global. Evita agregarlos de forma manual en la lista para prevenir doble cobro.
           </div>
         )}
 
         <div className="grid grid-cols-[2fr_1fr_1fr_1.2fr_auto] gap-2 mb-2">
           {['Ingrediente', 'Cantidad', 'Unidad', 'C$/unidad', ''].map((h, i) => (
-            <div key={i} className="text-xs text-gray-400 font-medium">{h}</div>
+            <div key={i} className="text-xs text-text-muted font-medium">{h}</div>
           ))}
         </div>
 
@@ -292,39 +292,39 @@ function FormReceta({ inicial, onGuardar, onCancelar, inventario = [], configCos
             onDelete={() => removeIng(i)} />
         ))}
 
-        <div className="flex gap-2 mt-1 text-xs text-gray-400 mb-3">
+        <div className="flex gap-2 mt-1 text-xs text-text-muted mb-3">
           <span className="badge-gray">Directo</span> ingredientes físicos &nbsp;
           <span className="badge-info">Indirecto</span> gas, energía, mano de obra
         </div>
       </div>
 
       {/* Desglose matemático en tiempo real */}
-      <div className="card bg-gray-50 border border-gray-200">
-        <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Costeo Estimado en Tiempo Real</h4>
+      <div className="card bg-surface-muted border border-border-default">
+        <h4 className="text-xs font-bold text-text-subtle uppercase tracking-wider mb-2">Costeo Estimado en Tiempo Real</h4>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <div>
-            <div className="text-gray-400">Costo Directo</div>
-            <div className="font-semibold text-gray-800">C$ {costoDirecto.toFixed(2)}</div>
+            <div className="text-text-muted">Costo Directo</div>
+            <div className="font-semibold text-text-default">C$ {costoDirecto.toFixed(2)}</div>
           </div>
           <div>
-            <div className="text-gray-400">Costo Indirecto</div>
-            <div className="font-semibold text-gray-800">C$ {costoIndirecto.toFixed(2)}</div>
+            <div className="text-text-muted">Costo Indirecto</div>
+            <div className="font-semibold text-text-default">C$ {costoIndirecto.toFixed(2)}</div>
           </div>
           <div>
-            <div className="text-gray-400">Costo Indirecto (config. global)</div>
-            <div className="font-semibold text-gray-800">C$ {costoIndirectoGlobal.toFixed(2)}</div>
+            <div className="text-text-muted">Costo Indirecto (config. global)</div>
+            <div className="font-semibold text-text-default">C$ {costoIndirectoGlobal.toFixed(2)}</div>
           </div>
           <div>
-            <div className="text-gray-400">Costo Indirecto (ingredientes manuales)</div>
-            <div className="font-semibold text-gray-800">C$ {costoIndirectoIngredientes.toFixed(2)}</div>
+            <div className="text-text-muted">Costo Indirecto (ingredientes manuales)</div>
+            <div className="font-semibold text-text-default">C$ {costoIndirectoIngredientes.toFixed(2)}</div>
           </div>
           <div>
-            <div className="text-gray-400">Costo Unitario ({pz} pz)</div>
-            <div className="font-bold text-amber-700">C$ {costoUnitario.toFixed(2)} /pz</div>
+            <div className="text-text-muted">Costo Unitario ({pz} pz)</div>
+            <div className="font-bold text-brand-primary-hover">C$ {costoUnitario.toFixed(2)} /pz</div>
           </div>
           <div>
-            <div className="text-gray-400">Precio Sugerido ({configCosteo.margen_objetivo}% Margen)</div>
-            <div className="font-bold text-green-700">C$ {precioSugerido.toFixed(2)} /pz</div>
+            <div className="text-text-muted">Precio Sugerido ({configCosteo.margen_objetivo}% Margen)</div>
+            <div className="font-bold text-status-success-fg">C$ {precioSugerido.toFixed(2)} /pz</div>
           </div>
         </div>
       </div>
@@ -488,10 +488,10 @@ export default function Recetas() {
     <div className="max-w-4xl">
       <div className="flex justify-between items-center mb-4">
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        <div className="flex gap-1 bg-border-default rounded-xl p-1 w-fit">
           {[['lista','Mis recetas'],['nueva','Nueva'],['pegar','Pegar tabla']].map(([v, l]) => (
             <button key={v} onClick={() => setVista(v)}
-              className={`px-4 py-1.5 text-sm rounded-lg transition-all ${vista === v ? 'bg-white font-medium shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`px-4 py-1.5 text-sm rounded-lg transition-all ${vista === v ? 'bg-white font-medium shadow-sm text-text-default' : 'text-text-muted hover:text-text-subtle'}`}>
               {l}
             </button>
           ))}
@@ -505,8 +505,8 @@ export default function Recetas() {
       </div>
 
       {panelConfig && (
-        <div className="card mb-4 bg-gray-50 border border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">Configuración General de Costeos</h3>
+        <div className="card mb-4 bg-surface-muted border border-border-default">
+          <h3 className="text-sm font-semibold text-text-subtle mb-3 flex items-center gap-2">Configuración General de Costeos</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 text-xs">
             <div className="form-group">
               <label className="form-label">Costo Gas indirecto (C$)</label>
@@ -541,7 +541,7 @@ export default function Recetas() {
         <div>
           <div className="flex gap-3 mb-4 items-center">
             <div className="relative flex-1 max-w-sm">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
               <input className="pl-8" value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar receta..." />
             </div>
             <button onClick={() => setVista('nueva')} className="btn-primary flex items-center gap-2">
@@ -551,8 +551,8 @@ export default function Recetas() {
 
           {lista.length === 0 ? (
             <div className="card text-center py-12">
-              <ChefHat size={36} className="mx-auto text-gray-300 mb-3" />
-              <p className="text-sm text-gray-500 mb-4">
+              <ChefHat size={36} className="mx-auto text-text-muted mb-3" />
+              <p className="text-sm text-text-muted mb-4">
                 {busqueda ? `Sin resultados para "${busqueda}"` : 'Aún no tienes recetas guardadas.'}
               </p>
               <button onClick={() => setVista('nueva')} className="btn-primary inline-flex items-center gap-2">
@@ -577,12 +577,12 @@ export default function Recetas() {
                 return (
                   <div key={r.producto}>
                     <div
-                      className={`card cursor-pointer hover:border-amber-300 transition-all ${sel ? 'border-brand-400 bg-amber-50/10' : ''}`}
+                      className={`card cursor-pointer hover:border-brand-primary transition-all ${sel ? 'border-brand-400 bg-amber-50/10' : ''}`}
                       onClick={() => setDetalle(sel ? null : r.producto)}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className="text-sm font-semibold text-gray-900">{r.producto}</span>
+                          <span className="text-sm font-semibold text-text-default">{r.producto}</span>
                           <span className="text-[10px] px-2 py-0.5 rounded-md font-medium"
                             style={{ background: color.bg, color: color.text }}>{r.categoria}</span>
                         </div>
@@ -594,24 +594,24 @@ export default function Recetas() {
                           )}
                           <span className="badge-info">{r.ingredientes?.length || 0} ing.</span>
                           <button onClick={e => { e.stopPropagation(); handleEditar(r) }}
-                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                            className="p-1.5 rounded-lg hover:bg-border-default text-text-muted hover:text-text-subtle">
                             <Edit2 size={13} />
                           </button>
                           <button onClick={e => { e.stopPropagation(); handleEliminar(r.producto) }}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500">
+                            className="p-1.5 rounded-lg hover:bg-danger-light text-text-muted hover:text-status-danger">
                             <Trash2 size={13} />
                           </button>
                         </div>
                       </div>
-                      <div className="flex gap-4 mt-1 text-xs text-gray-400">
+                      <div className="flex gap-4 mt-1 text-xs text-text-muted">
                         <span>{r.piezas} piezas</span>
                         {(r.peso_por_pieza > 0 || r.peso > 0) && <span>{r.peso_por_pieza || r.peso}g/pieza</span>}
                         <span>Precio Venta: C$ {parseFloat(r.pventa || 0).toFixed(2)}</span>
-                        {cu > 0 && <span className="text-amber-700 font-medium">Costo unit: C$ {cu.toFixed(2)}</span>}
+                        {cu > 0 && <span className="text-brand-primary-hover font-medium">Costo unit: C$ {cu.toFixed(2)}</span>}
                       </div>
                     </div>
                     {sel && (
-                      <div className="card border-t-0 rounded-t-none bg-gray-50">
+                      <div className="card border-t-0 rounded-t-none bg-surface-muted">
                         <div className="overflow-x-auto">
                           <table className="table-base text-xs">
                             <thead>
@@ -625,8 +625,8 @@ export default function Recetas() {
                                 const precioMostrar = convertirPrecio(p, uI, ing.unidad)
                                 const subtotal = q * precioMostrar
                                 return (
-                                  <tr key={i} className="border-b border-gray-100 last:border-0">
-                                    <td className="py-1 font-medium text-gray-700">{ing.nombre}</td>
+                                  <tr key={i} className="border-b border-border-default last:border-0">
+                                    <td className="py-1 font-medium text-text-subtle">{ing.nombre}</td>
                                     <td>{q}</td>
                                     <td>{ing.unidad}</td>
                                     <td className="text-right" title={`Precio de inventario: C$ ${p.toFixed(4)} / ${uI}`}>C$ {precioMostrar.toFixed(2)}</td>
@@ -643,11 +643,11 @@ export default function Recetas() {
                           </table>
                         </div>
                         
-                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 border-t border-gray-200 pt-3 text-xs mb-3 text-gray-600">
-                          <div><span className="text-gray-400">Costo Directo:</span> C$ {cd.toFixed(2)}</div>
-                          <div><span className="text-gray-400">Costo Indirecto:</span> C$ {ci.toFixed(2)}</div>
-                          <div><span className="text-gray-400">Costo Unitario:</span> C$ {cu.toFixed(2)}</div>
-                          <div><span className="text-gray-400">Precio Sugerido:</span> C$ {parseFloat(r.precio_sugerido || cu).toFixed(2)}</div>
+                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 border-t border-border-default pt-3 text-xs mb-3 text-text-subtle">
+                          <div><span className="text-text-muted">Costo Directo:</span> C$ {cd.toFixed(2)}</div>
+                          <div><span className="text-text-muted">Costo Indirecto:</span> C$ {ci.toFixed(2)}</div>
+                          <div><span className="text-text-muted">Costo Unitario:</span> C$ {cu.toFixed(2)}</div>
+                          <div><span className="text-text-muted">Precio Sugerido:</span> C$ {parseFloat(r.precio_sugerido || cu).toFixed(2)}</div>
                         </div>
 
                         <div className="flex gap-2">
@@ -682,8 +682,8 @@ export default function Recetas() {
       {/* PEGAR TABLA */}
       {vista === 'pegar' && (
         <div className="card max-w-2xl">
-          <h3 className="text-sm font-medium text-gray-700 mb-1">Pegar receta desde Excel</h3>
-          <p className="text-xs text-gray-400 mb-3">Copia celdas de Excel. Columnas: Ingrediente | Cantidad | Unidad | Precio C$/u</p>
+          <h3 className="text-sm font-medium text-text-subtle mb-1">Pegar receta desde Excel</h3>
+          <p className="text-xs text-text-muted mb-3">Copia celdas de Excel. Columnas: Ingrediente | Cantidad | Unidad | Precio C$/u</p>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="form-group">
               <label className="form-label">Producto</label>
