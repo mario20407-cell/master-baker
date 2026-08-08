@@ -158,10 +158,10 @@ export default function Inventario() {
     }
   }
 
-  const barColor = d => {
-    if (d <= 3) return '#EF4444'
-    if (d <= 7) return '#F59E0B'
-    return '#10B981'
+  const barColorClass = d => {
+    if (d <= 3) return 'bg-status-danger'
+    if (d <= 7) return 'bg-brand-primary'
+    return 'bg-status-success'
   }
 
   const estadoBadge = (dias) => {
@@ -175,10 +175,10 @@ export default function Inventario() {
     <div className="space-y-4">
       {insumos.filter(i => i.dias_restantes !== null && i.dias_restantes <= 3).length > 0 && (
         <div className="alert-bad">
-          <AlertTriangle size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
+          <AlertTriangle size={18} className="text-status-danger flex-shrink-0 mt-0.5" />
           <div>
-            <div className="font-medium text-red-800">⚠ Insumos críticos — reponer inmediatamente</div>
-            <div className="text-xs text-red-700 mt-0.5">
+            <div className="font-medium text-status-danger-fg">⚠ Insumos críticos — reponer inmediatamente</div>
+            <div className="text-xs text-status-danger-fg mt-0.5">
               {insumos.filter(i => i.dias_restantes !== null && i.dias_restantes <= 3)
                 .map(i => `${i.nombre} (${i.dias_restantes}d)`).join(' · ')}
             </div>
@@ -186,7 +186,7 @@ export default function Inventario() {
         </div>
       )}
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-text-subtle mb-3 flex items-center gap-2">
           {editandoInsumoId ? 'Editar Insumo de Inventario' : 'Registrar Nuevo Insumo'}
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
@@ -233,7 +233,7 @@ export default function Inventario() {
 
       <div className="card">
         <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
-          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center gap-2"><Package size={14} /> Estado del inventario ({insumos.length} insumos)</h3>
+          <h3 className="text-sm font-medium text-text-subtle flex items-center gap-2"><Package size={14} /> Estado del inventario ({insumos.length} insumos)</h3>
           <div className="flex gap-2">
             <button onClick={verAuditoria} className="btn-secondary flex items-center gap-1.5 text-xs whitespace-nowrap">
               <History size={13} /> Historial de cambios
@@ -245,8 +245,8 @@ export default function Inventario() {
         </div>
 
         {panelMasivo && (
-          <div className="rounded-xl p-3 mb-3" style={{ border: '0.5px solid #C29C53', background: '#FBF6EC' }}>
-            <p className="text-xs font-medium text-gray-700 mb-2">Ajustar costo de TODOS los insumos por porcentaje</p>
+          <div className="rounded-xl p-3 mb-3 border border-brand-primary bg-brand-50">
+            <p className="text-xs font-medium text-text-subtle mb-2">Ajustar costo de TODOS los insumos por porcentaje</p>
             <div className="flex gap-2 items-end">
               <input type="number" value={pctMasivo} onChange={e => setPctMasivo(e.target.value)}
                 placeholder="Ej: 8 (sube 8%) o -5 (baja 5%)" step="0.5" className="flex-1" />
@@ -254,20 +254,20 @@ export default function Inventario() {
                 <RefreshCw size={12} /> Aplicar
               </button>
             </div>
-            <p className="text-[10px] text-gray-400 mt-1.5">Requiere PIN de administrador. Útil cuando un proveedor sube precios de forma general.</p>
+            <p className="text-[10px] text-text-muted mt-1.5">Requiere PIN de administrador. Útil cuando un proveedor sube precios de forma general.</p>
           </div>
         )}
 
         {panelAuditoria && (
-          <div className="rounded-xl p-3 mb-3 border border-gray-100">
+          <div className="rounded-xl p-3 mb-3 border border-border-default">
             <div className="flex justify-between items-center mb-2">
-              <p className="text-xs font-medium text-gray-700 dark:text-gray-200">Últimos cambios de costo</p>
-              <button onClick={() => setPanelAuditoria(false)} className="text-gray-400 hover:text-gray-600">
+              <p className="text-xs font-medium text-text-subtle">Últimos cambios de costo</p>
+              <button onClick={() => setPanelAuditoria(false)} className="text-text-muted hover:text-text-subtle">
                 <X size={14} />
               </button>
             </div>
             {auditoria.length === 0 ? (
-              <p className="text-xs text-gray-400">Sin cambios registrados todavía.</p>
+              <p className="text-xs text-text-muted">Sin cambios registrados todavía.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="table-base text-xs">
@@ -275,10 +275,10 @@ export default function Inventario() {
                   <tbody>
                     {auditoria.map(a => (
                       <tr key={a.id}>
-                        <td className="text-gray-500">{new Date(a.creado_en).toLocaleString('es-NI', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                        <td className="text-text-muted">{new Date(a.creado_en).toLocaleString('es-NI', { dateStyle: 'short', timeStyle: 'short' })}</td>
                         <td>{a.entidad_nombre}</td>
-                        <td className="text-right text-gray-400">{fmtC(a.valor_anterior)}</td>
-                        <td className="text-right font-medium" style={{ color: '#C29C53' }}>{fmtC(a.valor_nuevo)}</td>
+                        <td className="text-right text-text-muted">{fmtC(a.valor_anterior)}</td>
+                        <td className="text-right font-medium text-brand-primary">{fmtC(a.valor_nuevo)}</td>
                         <td><span className="badge-gray">{a.metodo === 'individual' ? 'Individual' : a.metodo === 'masivo_lista' ? 'Masivo' : `${a.porcentaje_aplicado > 0 ? '+' : ''}${a.porcentaje_aplicado}%`}</span></td>
                       </tr>
                     ))}
@@ -290,9 +290,9 @@ export default function Inventario() {
         )}
 
         {loading ? (
-          <div className="text-sm text-gray-400">Cargando...</div>
+          <div className="text-sm text-text-muted">Cargando...</div>
         ) : insumos.length === 0 ? (
-          <div className="text-sm text-gray-400 py-6 text-center">Sin insumos registrados.</div>
+          <div className="text-sm text-text-muted py-6 text-center">Sin insumos registrados.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="table-base">
@@ -306,9 +306,9 @@ export default function Inventario() {
                   return (
                     <tr key={inv.id || inv.nombre}>
                       <td>
-                        <div className="font-semibold text-gray-700 dark:text-gray-200">{inv.nombre}</div>
-                        <div className="h-1.5 bg-gray-100 dark:bg-navy-800 rounded-full overflow-hidden mt-1 w-24">
-                           <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: dias != null ? barColor(dias) : '#C29C53' }} />
+                        <div className="font-semibold text-text-subtle">{inv.nombre}</div>
+                        <div className="h-1.5 bg-border-default rounded-full overflow-hidden mt-1 w-24">
+                           <div className={`h-full rounded-full transition-all ${dias != null ? barColorClass(dias) : 'bg-brand-primary'}`} style={{ width: `${pct}%` }} />
                         </div>
                       </td>
                       <td>{parseFloat(inv.existencia).toFixed(2)} {inv.unidad}</td>
@@ -328,30 +328,30 @@ export default function Inventario() {
                               className="w-20 py-0.5 text-xs"
                               step="0.0001"
                             />
-                            <button onClick={() => confirmarCosto(inv)} className="p-1 rounded hover:bg-green-50 text-green-600">
+                            <button onClick={() => confirmarCosto(inv)} className="p-1 rounded hover:bg-success-light text-status-success">
                               <Check size={12} />
                             </button>
-                            <button onClick={cancelarEdicionCosto} className="p-1 rounded hover:bg-red-50 text-red-500">
+                            <button onClick={cancelarEdicionCosto} className="p-1 rounded hover:bg-danger-light text-status-danger">
                               <X size={12} />
                             </button>
                           </div>
                         ) : (
                           <button onClick={() => empezarEdicionCosto(inv)} className="flex items-center gap-1 group">
                             <span>{inv.costo_unitario > 0 ? fmtC(inv.costo_unitario) : '—'}</span>
-                            <Pencil size={10} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+                            <Pencil size={10} className="text-text-muted group-hover:text-text-subtle transition-colors" />
                           </button>
                         )}
                       </td>
-                      <td className="text-gray-500 text-xs">{inv.densidad_g_ml ? `${inv.densidad_g_ml} g/ml` : '—'}</td>
+                      <td className="text-text-muted text-xs">{inv.densidad_g_ml ? `${inv.densidad_g_ml} g/ml` : '—'}</td>
                       <td className="flex items-center gap-1">
                         <button onClick={() => handleEditarFila(inv)}
-                          className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-amber-600 transition-colors"
+                          className="p-1.5 rounded hover:bg-border-default text-text-muted hover:text-status-warning transition-colors"
                           title="Editar insumo"
                         >
                           <Pencil size={13} />
                         </button>
                         <button onClick={() => handleEliminar(inv.id, inv.nombre)}
-                          className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                          className="p-1.5 rounded hover:bg-danger-light text-text-muted hover:text-status-danger transition-colors"
                           title="Eliminar insumo"
                         >
                           <Trash2 size={13} />

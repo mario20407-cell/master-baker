@@ -108,7 +108,7 @@ export default function Produccion() {
 
       {/* FORMULARIO NUEVA ORDEN */}
       <div className="card">
-        <h3 className="text-sm font-medium text-[#1B2A4A] dark:text-gray-200 mb-4 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-text-default mb-4 flex items-center gap-2">
           <Factory size={15} className="text-brand-400" /> Nueva orden de producción
         </h3>
 
@@ -116,7 +116,7 @@ export default function Produccion() {
           <div className="form-group sm:col-span-2">
             <label className="form-label">Producto</label>
             {loadingRec ? (
-              <div className="text-xs text-gray-400 dark:text-gray-500 py-2">Cargando recetas...</div>
+              <div className="text-xs text-text-muted py-2">Cargando recetas...</div>
             ) : (
               <select value={producto} onChange={e => { setProducto(e.target.value); setVerificacion(null) }}>
                 <option value="">Seleccionar producto...</option>
@@ -142,7 +142,7 @@ export default function Produccion() {
 
         {producto && piezas && sucursales.length > 0 && (
           <div className="form-group mb-3">
-            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
+            <label className="flex items-center gap-2 text-xs text-text-subtle cursor-pointer">
               <input type="checkbox" checked={usarDistribucion} onChange={toggleDistribucion} />
               Distribuir a sucursales al producir
             </label>
@@ -150,14 +150,14 @@ export default function Produccion() {
               <div className="mt-2 space-y-2">
                 {distribuciones.map((d, i) => (
                   <div key={d.sucursal_id} className="flex items-center gap-3">
-                    <span className="text-sm text-gray-600 dark:text-gray-400 flex-1">{d.nombre}</span>
+                    <span className="text-sm text-text-subtle flex-1">{d.nombre}</span>
                     <input type="number" min="0" value={d.cantidad}
                       onChange={e => setDistribuciones(prev => prev.map((x, xi) => xi === i ? { ...x, cantidad: e.target.value } : x))}
-                      className="w-24 text-sm border border-gray-200 dark:border-navy-600 rounded-lg px-2 py-1.5 text-right"
+                      className="w-24 text-sm border border-border-default rounded-lg px-2 py-1.5 text-right"
                       placeholder="0" />
                   </div>
                 ))}
-                <div className="text-xs text-gray-400 dark:text-gray-500">
+                <div className="text-xs text-text-muted">
                   Total distribuido: {totalDistribuido} / {piezas || 0} piezas
                 </div>
               </div>
@@ -175,18 +175,18 @@ export default function Produccion() {
         {/* RESULTADO DE VERIFICACION */}
         {verificacion && (
           <div className="mt-4 space-y-3">
-            <div className={`rounded-xl p-3 flex items-start gap-2 border ${verificacion.puede_producir ? 'bg-green-50 border-green-100 dark:bg-green-950/20 dark:border-green-800/40' : 'bg-red-50 border-red-100 dark:bg-red-950/20 dark:border-red-800/40'}`}>
+            <div className={`rounded-xl p-3 flex items-start gap-2 border ${verificacion.puede_producir ? 'bg-success-light border-green-100 dark:bg-success/10 dark:border-green-800/40' : 'bg-danger-light border-red-100 dark:bg-danger/10 dark:border-red-800/40'}`}>
               {verificacion.puede_producir
-                ? <CheckCircle size={16} className="text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-                : <AlertTriangle size={16} className="text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />}
+                ? <CheckCircle size={16} className="text-status-success flex-shrink-0 mt-0.5" />
+                : <AlertTriangle size={16} className="text-status-danger flex-shrink-0 mt-0.5" />}
               <div>
-                <div className={`text-sm font-semibold ${verificacion.puede_producir ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}`}>
+                <div className={`text-sm font-semibold ${verificacion.puede_producir ? 'text-status-success-fg' : 'text-status-danger-fg'}`}>
                   {verificacion.puede_producir
                     ? `Hay stock suficiente para producir ${verificacion.piezas} piezas de ${verificacion.producto}`
                     : `Stock insuficiente para producir ${verificacion.piezas} piezas`}
                 </div>
                 {recetaSeleccionada && (
-                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                  <div className="text-xs text-text-muted mt-0.5">
                     Factor de escala: x{(verificacion.piezas / verificacion.piezas_base).toFixed(2)} sobre receta base de {verificacion.piezas_base} pzas
                   </div>
                 )}
@@ -208,15 +208,15 @@ export default function Produccion() {
                 <tbody>
                   {verificacion.ingredientes.map(ing => (
                     <tr key={ing.nombre}>
-                      <td className="font-semibold text-gray-700 dark:text-gray-200">{ing.nombre}</td>
+                      <td className="font-semibold text-text-subtle">{ing.nombre}</td>
                       <td className="text-right">{fmtNum(ing.necesario)} {ing.unidad}</td>
                       <td className="text-right">
                         {ing.sin_inventario
-                          ? <span className="text-gray-400 dark:text-gray-500">Sin registro</span>
+                          ? <span className="text-text-muted">Sin registro</span>
                           : `${fmtNum(ing.disponible)} ${ing.unidad}`}
                       </td>
                       <td className="text-right">
-                        {ing.suficiente ? '—' : <span className="text-red-600 dark:text-red-400 font-bold">{fmtNum(ing.faltante)} {ing.unidad}</span>}
+                        {ing.suficiente ? '—' : <span className="text-status-danger font-bold">{fmtNum(ing.faltante)} {ing.unidad}</span>}
                       </td>
                       <td>
                         {ing.sin_inventario
@@ -241,10 +241,10 @@ export default function Produccion() {
               ) : (
                 <>
                   <button onClick={() => handleConfirmar(true)} disabled={confirmando}
-                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-navy-800 transition-colors">
+                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-status-warning text-status-warning-fg hover:bg-warn-light dark:hover:bg-navy-800 transition-colors">
                     <AlertTriangle size={13} /> {confirmando ? 'Procesando...' : 'Producir de todas formas'}
                   </button>
-                  <span className="text-xs text-gray-400 dark:text-gray-500 self-center">El inventario quedará en negativo en los ingredientes faltantes</span>
+                  <span className="text-xs text-text-muted self-center">El inventario quedará en negativo en los ingredientes faltantes</span>
                 </>
               )}
             </div>
@@ -254,13 +254,13 @@ export default function Produccion() {
 
       {/* HISTORIAL */}
       <div className="card">
-        <h3 className="text-sm font-medium text-[#1B2A4A] dark:text-gray-200 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-medium text-text-default mb-3 flex items-center gap-2">
           <Clock size={14} className="text-brand-400" /> Historial de órdenes
         </h3>
         {loadingHist ? (
-          <div className="text-sm text-gray-400 dark:text-gray-500">Cargando...</div>
+          <div className="text-sm text-text-muted">Cargando...</div>
         ) : historial.length === 0 ? (
-          <div className="text-sm text-gray-400 dark:text-gray-500 py-4 text-center">Sin órdenes registradas todavía.</div>
+          <div className="text-sm text-text-muted py-4 text-center">Sin órdenes registradas todavía.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="table-base text-xs">
@@ -270,12 +270,12 @@ export default function Produccion() {
               <tbody>
                 {historial.map(o => (
                   <tr key={o.id}>
-                    <td className="text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtFecha(o.creado_en)}</td>
-                    <td className="font-semibold text-gray-700 dark:text-gray-200">{o.producto}</td>
+                    <td className="text-text-muted whitespace-nowrap">{fmtFecha(o.creado_en)}</td>
+                    <td className="font-semibold text-text-subtle">{o.producto}</td>
                     <td className="text-right font-bold">{o.piezas}</td>
                     <td><span className="badge-ok">Completada</span></td>
-                    <td className="text-gray-500 dark:text-gray-400">{o.creado_por_nombre || '—'}</td>
-                    <td className="text-gray-400 dark:text-gray-500">{o.notas || '—'}</td>
+                    <td className="text-text-muted">{o.creado_por_nombre || '—'}</td>
+                    <td className="text-text-muted">{o.notas || '—'}</td>
                   </tr>
                 ))}
               </tbody>

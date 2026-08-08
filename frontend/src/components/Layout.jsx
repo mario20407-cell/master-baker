@@ -119,24 +119,24 @@ export default function Layout() {
   }, [usuario])
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-navy-950 overflow-hidden text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    <div className="flex flex-col h-screen bg-surface-muted overflow-hidden text-text-default transition-colors duration-200">
 
       {/* Top Navbar */}
-      <header className="bg-white dark:bg-navy-900 border-b border-gray-100 dark:border-navy-800 px-6 py-3.5 flex items-center justify-between flex-shrink-0 transition-colors duration-200 z-40 relative">
+      <header className="bg-white dark:bg-navy-900 border-b border-border-default px-6 py-3.5 flex items-center justify-between flex-shrink-0 transition-colors duration-200 z-40 relative">
         <div className="flex items-center gap-6">
           {/* Mobile Hamburger menu Button */}
-          <button className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" onClick={() => setSidebarOpen(true)}>
+          <button className="lg:hidden text-text-muted hover:text-text-subtle dark:hover:text-gray-200" onClick={() => setSidebarOpen(true)}>
             <Menu size={20} />
           </button>
 
           {/* Logo & Brand Branding */}
           <Link to="/dashboard" className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#263D4F' }}>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 bg-brand-ink">
               <img src="/branding/logo-emblema.png" alt="Master Baker" className="w-6 h-6 object-contain" />
             </div>
             <div>
-              <div className="text-xs font-semibold leading-tight tracking-wide" style={{ color: '#C29C53' }}>MASTER BAKER</div>
-              <div className="text-[8px] text-gray-400 dark:text-gray-500 leading-tight">Gestión Panadería</div>
+              <div className="text-xs font-semibold leading-tight tracking-wide text-brand-primary">MASTER BAKER</div>
+              <div className="text-[8px] text-text-muted leading-tight">Gestión Panadería</div>
             </div>
           </Link>
 
@@ -144,32 +144,29 @@ export default function Layout() {
           <nav className="hidden lg:flex items-center gap-1 ml-4">
             {filteredNavGroups.map((group, idx) => (
               <div key={idx} className="relative group px-2 py-1">
-                <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 rounded-lg hover:bg-gray-50 dark:hover:bg-navy-800 transition-all cursor-pointer">
+                <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-text-subtle hover:text-brand-600 dark:hover:text-brand-400 rounded-lg hover:bg-surface-muted dark:hover:bg-navy-800 transition-all cursor-pointer">
                   {group.title}
-                  <ChevronDown size={12} className="text-gray-400 group-hover:text-brand-400 transition-transform duration-200 group-hover:rotate-180" />
+                  <ChevronDown size={12} className="text-text-muted group-hover:text-brand-400 transition-transform duration-200 group-hover:rotate-180" />
                 </button>
 
                 {/* Cascade Dropdown Card */}
-                <div className="absolute left-0 mt-1 w-48 bg-white dark:bg-navy-900 border border-gray-100 dark:border-navy-800 rounded-xl shadow-xl py-1.5 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-1 group-hover:translate-y-0">
+                <div className="absolute left-0 mt-1 w-48 bg-white dark:bg-navy-900 border border-border-default rounded-xl shadow-xl py-1.5 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-1 group-hover:translate-y-0">
                   {group.items.map(({ to, icon: Icon, label, badge }) => (
                     <NavLink
                       key={to}
                       to={to}
                       className={({ isActive }) => `
-                        flex items-center gap-3 px-4 py-2 text-xs transition-colors hover:bg-gray-50 dark:hover:bg-navy-800
+                        flex items-center gap-3 px-4 py-2 text-xs transition-colors hover:bg-surface-muted dark:hover:bg-navy-800
                         ${isActive
-                          ? 'text-brand-600 dark:text-brand-400 font-semibold bg-amber-50/50 dark:bg-navy-800/50'
-                          : 'text-gray-600 dark:text-gray-300'
+                          ? 'text-brand-600 dark:text-brand-400 font-semibold bg-brand-50/50 dark:bg-navy-800/50'
+                          : 'text-text-subtle'
                         }
                       `}
                     >
-                      <Icon size={14} className="text-gray-400" />
+                      <Icon size={14} className="text-text-muted" />
                       <span className="flex-1">{label}</span>
                       {badge && (
-                        <span className="text-[7px] font-extrabold px-1.5 py-0.5 rounded-full text-white"
-                          style={{
-                            background: badge === 'NEW' ? '#3B6D11' : badge === 'DGI' ? '#263D4F' : '#C29C53',
-                          }}>
+                        <span className={`text-[7px] font-extrabold px-1.5 py-0.5 rounded-full text-white ${badge === 'NEW' ? 'bg-status-success' : badge === 'DGI' ? 'bg-brand-ink' : 'bg-brand-primary'}`}>
                           {badge}
                         </span>
                       )}
@@ -183,7 +180,7 @@ export default function Layout() {
 
         {/* Right Header Panel */}
         <div className="flex items-center gap-3">
-          <span className="hidden sm:inline-flex text-[10px] px-2.5 py-1 rounded-md font-medium" style={{ background: '#EAF3DE', color: '#27500A' }}>
+          <span className="hidden sm:inline-flex text-[10px] px-2.5 py-1 rounded-md font-medium bg-success-light text-status-success-fg">
             Margen objetivo: ≥57%
           </span>
 
@@ -192,12 +189,12 @@ export default function Layout() {
             <div className="relative">
               <button
                 onClick={() => setNotifOpen(o => !o)}
-                className="relative p-1.5 rounded-lg border border-gray-200 dark:border-navy-800 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-800 transition-colors cursor-pointer"
+                className="relative p-1.5 rounded-lg border border-border-default text-text-muted hover:bg-surface-muted dark:hover:bg-navy-800 transition-colors cursor-pointer"
                 title="Notificaciones de WhatsApp"
               >
                 <Bell size={15} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[#C0392B] text-white text-[9px] font-bold flex items-center justify-center">
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-status-danger text-white text-[9px] font-bold flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -206,12 +203,12 @@ export default function Layout() {
               {notifOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
-                  <div className="absolute right-0 mt-1 w-72 bg-white dark:bg-navy-900 border border-gray-100 dark:border-navy-800 rounded-xl shadow-xl py-1.5 z-50">
-                    <div className="px-4 py-2 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-navy-800">
+                  <div className="absolute right-0 mt-1 w-72 bg-white dark:bg-navy-900 border border-border-default rounded-xl shadow-xl py-1.5 z-50">
+                    <div className="px-4 py-2 text-[10px] font-bold text-text-muted uppercase tracking-wider border-b border-border-default">
                       Pedidos nuevos por WhatsApp
                     </div>
                     {ultimosNuevos.length === 0 ? (
-                      <div className="px-4 py-4 text-xs text-gray-400 dark:text-gray-500 text-center">
+                      <div className="px-4 py-4 text-xs text-text-muted text-center">
                         Sin pedidos nuevos por ahora
                       </div>
                     ) : (
@@ -219,16 +216,16 @@ export default function Layout() {
                         <button
                           key={p.id}
                           onClick={() => { setNotifOpen(false); limpiarNoLeidos(); navigate('/whatsapp-crm') }}
-                          className="w-full text-left flex flex-col gap-0.5 px-4 py-2 text-xs hover:bg-gray-50 dark:hover:bg-navy-800 transition-colors"
+                          className="w-full text-left flex flex-col gap-0.5 px-4 py-2 text-xs hover:bg-surface-muted dark:hover:bg-navy-800 transition-colors"
                         >
-                          <span className="font-semibold text-[#1B2A4A] dark:text-gray-200">{p.nombre || p.telefono}</span>
-                          <span className="text-gray-400 dark:text-gray-500 text-[10px]">C$ {Number(p.total || 0).toLocaleString('es-NI', { minimumFractionDigits: 2 })}</span>
+                          <span className="font-semibold text-text-default">{p.nombre || p.telefono}</span>
+                          <span className="text-text-muted text-[10px]">C$ {Number(p.total || 0).toLocaleString('es-NI', { minimumFractionDigits: 2 })}</span>
                         </button>
                       ))
                     )}
                     <button
                       onClick={() => { setNotifOpen(false); limpiarNoLeidos(); navigate('/whatsapp-crm') }}
-                      className="w-full text-center px-4 py-2 text-[10px] font-semibold text-brand-600 dark:text-brand-400 border-t border-gray-100 dark:border-navy-800 hover:bg-gray-50 dark:hover:bg-navy-800 transition-colors"
+                      className="w-full text-center px-4 py-2 text-[10px] font-semibold text-brand-600 dark:text-brand-400 border-t border-border-default hover:bg-surface-muted dark:hover:bg-navy-800 transition-colors"
                     >
                       Ver todos los pedidos
                     </button>
@@ -241,7 +238,7 @@ export default function Layout() {
           {/* Theme switcher */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-1.5 rounded-lg border border-gray-200 dark:border-navy-800 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg border border-border-default text-text-muted hover:bg-surface-muted dark:hover:bg-navy-800 transition-colors cursor-pointer"
             title="Alternar tema"
           >
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
@@ -251,23 +248,23 @@ export default function Layout() {
           {usuario && (
             <div className="relative group px-1 py-1">
               <button
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 rounded-lg hover:bg-gray-50 dark:hover:bg-navy-800 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-text-subtle hover:text-brand-600 dark:hover:text-brand-400 rounded-lg hover:bg-surface-muted dark:hover:bg-navy-800 transition-all cursor-pointer"
                 onClick={() => setUserMenuOpen(o => !o)}
               >
                 {usuario.nombre || usuario.email}
-                <ChevronDown size={12} className="text-gray-400 group-hover:text-brand-400 transition-transform duration-200 group-hover:rotate-180" />
+                <ChevronDown size={12} className="text-text-muted group-hover:text-brand-400 transition-transform duration-200 group-hover:rotate-180" />
               </button>
 
-              <div className={`absolute right-0 mt-1 w-44 bg-white dark:bg-navy-900 border border-gray-100 dark:border-navy-800 rounded-xl shadow-xl py-1.5 z-50 transition-all duration-200 transform
+              <div className={`absolute right-0 mt-1 w-44 bg-white dark:bg-navy-900 border border-border-default rounded-xl shadow-xl py-1.5 z-50 transition-all duration-200 transform
                 opacity-0 invisible translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0
                 ${userMenuOpen ? 'opacity-100 visible translate-y-0' : ''}`}
               >
-                <div className="px-4 py-2 text-[10px] text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-navy-800">
+                <div className="px-4 py-2 text-[10px] text-text-muted border-b border-border-default">
                   {usuario.rol}
                 </div>
                 <button
                   onClick={logout}
-                  className="w-full flex items-center gap-3 px-4 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2 text-xs text-status-danger hover:bg-danger-light dark:hover:bg-danger/10 transition-colors"
                 >
                   <LogOut size={14} />
                   Cerrar sesión
@@ -282,19 +279,19 @@ export default function Layout() {
       {sidebarOpen && (
         <>
           <div className="fixed inset-0 bg-black/40 dark:bg-black/60 z-45 lg:hidden animate-fade-in" onClick={() => setSidebarOpen(false)} />
-          <aside className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-navy-900 border-r border-gray-100 dark:border-navy-800 z-50 flex flex-col transition-transform duration-250 lg:hidden">
+          <aside className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-navy-900 border-r border-border-default z-50 flex flex-col transition-transform duration-250 lg:hidden">
             {/* Sidebar Mobile Header */}
-            <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100 dark:border-navy-800 min-h-[63px]">
+            <div className="flex items-center gap-3 px-4 py-4 border-b border-border-default min-h-[63px]">
               <Link to="/dashboard" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#263D4F' }}>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 bg-brand-ink">
                   <img src="/branding/logo-emblema.png" alt="Master Baker" className="w-6 h-6 object-contain" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold leading-tight tracking-wide" style={{ color: '#C29C53' }}>MASTER BAKER</div>
-                  <div className="text-[8px] text-gray-400 dark:text-gray-500 leading-tight">Gestión Panadería</div>
+                  <div className="text-xs font-semibold leading-tight tracking-wide text-brand-primary">MASTER BAKER</div>
+                  <div className="text-[8px] text-text-muted leading-tight">Gestión Panadería</div>
                 </div>
               </Link>
-              <button className="ml-auto text-gray-400" onClick={() => setSidebarOpen(false)}>
+              <button className="ml-auto text-text-muted" onClick={() => setSidebarOpen(false)}>
                 <X size={16} />
               </button>
             </div>
@@ -303,7 +300,7 @@ export default function Layout() {
             <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
               {filteredNavGroups.map((group, groupIdx) => (
                 <div key={groupIdx} className="space-y-1">
-                  <h3 className="px-3 text-[9px] font-bold text-gray-400 dark:text-navy-400 uppercase tracking-wider mb-2">
+                  <h3 className="px-3 text-[9px] font-bold text-text-muted uppercase tracking-wider mb-2">
                     {group.title}
                   </h3>
                   {group.items.map(({ to, icon: Icon, label, badge }) => (
@@ -315,17 +312,14 @@ export default function Layout() {
                         flex items-center gap-3 px-3 py-2 text-xs rounded-lg cursor-pointer transition-colors whitespace-nowrap
                         ${isActive
                           ? 'bg-brand-400 text-white font-medium shadow-sm'
-                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-800'
+                          : 'text-text-subtle hover:bg-surface-muted dark:hover:bg-navy-800'
                         }
                       `}
                     >
                       <Icon size={15} />
                       <span className="flex-1">{label}</span>
                       {badge && (
-                        <span className="text-[7px] font-extrabold px-1.5 py-0.5 rounded-full text-white"
-                          style={{
-                            background: badge === 'NEW' ? '#3B6D11' : badge === 'DGI' ? '#263D4F' : '#C29C53',
-                          }}>
+                        <span className={`text-[7px] font-extrabold px-1.5 py-0.5 rounded-full text-white ${badge === 'NEW' ? 'bg-status-success' : badge === 'DGI' ? 'bg-brand-ink' : 'bg-brand-primary'}`}>
                           {badge}
                         </span>
                       )}
@@ -334,17 +328,17 @@ export default function Layout() {
                 </div>
               ))}
             </nav>
-            <div className="p-4 border-t border-gray-100 dark:border-navy-800">
+            <div className="p-4 border-t border-border-default">
               {usuario && (
                 <button
                   onClick={logout}
-                  className="w-full flex items-center gap-2 text-xs font-medium text-red-500 hover:text-red-600 transition-colors py-1.5 px-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 mb-2"
+                  className="w-full flex items-center gap-2 text-xs font-medium text-status-danger hover:text-status-danger-fg transition-colors py-1.5 px-2 rounded-lg hover:bg-danger-light dark:hover:bg-danger/10 mb-2"
                 >
                   <LogOut size={14} />
                   Cerrar sesión
                 </button>
               )}
-              <div className="text-[10px] text-gray-500 dark:text-navy-400">
+              <div className="text-[10px] text-text-muted">
                 v2.7.2
               </div>
             </div>
@@ -355,11 +349,11 @@ export default function Layout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile Page Indicator */}
-        <div className="lg:hidden bg-white dark:bg-navy-900 border-b border-gray-100 dark:border-navy-800 px-6 py-2.5 text-xs font-semibold text-gray-800 dark:text-gray-200 flex-shrink-0 transition-colors duration-200">
+        <div className="lg:hidden bg-white dark:bg-navy-900 border-b border-border-default px-6 py-2.5 text-xs font-semibold text-text-default flex-shrink-0 transition-colors duration-200">
           📍 {currentPage}
         </div>
 
-        <main className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-navy-950 transition-colors duration-200">
+        <main className="flex-1 overflow-y-auto p-6 bg-surface-muted transition-colors duration-200">
           <Outlet />
         </main>
       </div>

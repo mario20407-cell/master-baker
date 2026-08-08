@@ -48,7 +48,7 @@ export default function Dashboard() {
   const ingresosHoy = resumenVentas?.total_ingresos || 0
 
   if (cargando) return (
-    <div className="flex items-center justify-center h-48 text-gray-500 dark:text-gray-400 text-sm font-bold">
+    <div className="flex items-center justify-center h-48 text-text-muted text-sm font-bold">
       Cargando dashboard...
     </div>
   )
@@ -73,11 +73,11 @@ export default function Dashboard() {
 
       {/* Alerta de margen */}
       {alertasMargen.length > 0 && (
-        <div className="flex gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-800/50 text-sm">
-          <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+        <div className="flex gap-3 p-3 rounded-lg bg-warn-light border border-amber-200 dark:bg-warn/10 dark:border-amber-800/50 text-sm">
+          <AlertTriangle size={18} className="text-status-warning flex-shrink-0 mt-0.5" />
           <div>
-            <div className="font-semibold text-amber-900 dark:text-amber-300">Productos con margen menos de 60%</div>
-            <div className="text-xs text-amber-700 dark:text-amber-400 mt-1">{alertasMargen.map(r => r.producto).join(', ')}</div>
+            <div className="font-semibold text-status-warning-fg">Productos con margen menos de 60%</div>
+            <div className="text-xs text-status-warning-fg mt-1">{alertasMargen.map(r => r.producto).join(', ')}</div>
           </div>
         </div>
       )}
@@ -92,10 +92,10 @@ export default function Dashboard() {
                 {topRentables.map(r => (
                   <MarginBar key={r.producto} label={r.producto} pct={parseFloat(r.margen.toFixed(1))} costo={r.cu.toFixed(2)} />
                 ))}
-                <div className="flex gap-4 mt-4 pt-3 border-t border-gray-100 dark:border-navy-800 text-[10px] font-medium">
-                  <span className="text-green-600 dark:text-green-400">Excelente más de 57%</span>
-                  <span className="text-amber-600 dark:text-amber-400">Aceptable 40-56%</span>
-                  <span className="text-red-600 dark:text-red-400">Crítico menos de 40%</span>
+                <div className="flex gap-4 mt-4 pt-3 border-t border-border-default text-[10px] font-medium">
+                  <span className="text-status-success">Excelente más de 57%</span>
+                  <span className="text-status-warning">Aceptable 40-56%</span>
+                  <span className="text-status-danger">Crítico menos de 40%</span>
                 </div>
               </>
           }
@@ -104,10 +104,10 @@ export default function Dashboard() {
           <CardTitle icon={Package}>Stock crítico — Reabastecer</CardTitle>
           {stockCritico.length === 0
             ? <EmptyState icon={Package} title='Stock en buen estado' sub='Todos los insumos tienen existencia' />
-            : <div className="divide-y divide-gray-100 dark:divide-navy-800/80">
+            : <div className="divide-y divide-border-default">
                 {stockCritico.map(i => (
                   <div key={i.id} className="flex justify-between items-center py-2">
-                    <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-200">{i.nombre}</span>
+                    <span className="text-xs font-semibold text-text-default">{i.nombre}</span>
                     <StatusBadge status='danger'>{i.existencia || 0} {i.unidad}</StatusBadge>
                   </div>
                 ))}
@@ -123,10 +123,10 @@ export default function Dashboard() {
           {Object.entries(catCount).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([cat, cnt]) => (
             <div key={cat} className="mb-2.5">
               <div className="flex justify-between text-[11px] mb-1">
-                <span className="font-semibold text-[#1B2A4A] dark:text-gray-300">{cat}</span>
-                <span className="text-gray-400 dark:text-gray-500">{cnt}</span>
+                <span className="font-semibold text-text-default">{cat}</span>
+                <span className="text-text-muted">{cnt}</span>
               </div>
-              <div className="h-1 bg-gray-100 dark:bg-navy-800 rounded-full overflow-hidden">
+              <div className="h-1 bg-border-default rounded-full overflow-hidden">
                 <div className="h-full bg-brand-400 rounded-full" style={{ width: `${(cnt / productos.length) * 100}%` }} />
               </div>
             </div>
@@ -134,12 +134,12 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardTitle icon={ChefHat}>Estado de recetas</CardTitle>
-          <div className="divide-y divide-gray-100 dark:divide-navy-800/80">
+          <div className="divide-y divide-border-default">
             {productos.slice(0, 8).map(p => {
               const tiene = !!recetas[p.nombre]
               return (
                 <div key={p.nombre} className="flex justify-between items-center py-1.5">
-                  <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-200 truncate max-w-[120px]">{p.nombre}</span>
+                  <span className="text-xs font-semibold text-text-default truncate max-w-[120px]">{p.nombre}</span>
                   <StatusBadge status={tiene ? 'success' : 'danger'}>
                     {tiene ? 'Con receta' : 'Sin receta'}
                   </StatusBadge>
@@ -148,7 +148,7 @@ export default function Dashboard() {
             })}
           </div>
           {productos.length > 8 && (
-            <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
+            <div className="text-[10px] text-text-muted mt-2">
               +{productos.length - 8} productos más
             </div>
           )}
@@ -157,7 +157,7 @@ export default function Dashboard() {
           <CardTitle icon={ShoppingCart}>Últimas ventas</CardTitle>
           {ventasHoy === 0
             ? <EmptyState icon={ShoppingCart} title='Sin ventas hoy' sub='Las ventas aparecerán aquí' />
-            : <div className="text-sm font-bold text-[#1B2A4A] dark:text-gray-200">
+            : <div className="text-sm font-bold text-text-default">
                 {ventasHoy} ventas — {fmt(ingresosHoy)}
               </div>
           }

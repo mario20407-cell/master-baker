@@ -30,6 +30,28 @@ export default {
         danger:  { light: '#FCEBEB', DEFAULT: '#A32D2D', dark: '#791F1F' },
         warn:    { light: '#FBF6EC', DEFAULT: '#A8813E', dark: '#7A5E2C' },
         info:    { light: '#E6F1FB', DEFAULT: '#185FA5', dark: '#0C447C' },
+
+        // ── Tokens semanticos — usar estos en componentes, no la paleta cruda ──
+        // Definidos como CSS custom properties en index.css (:root / .dark)
+        // para que cambien de valor automaticamente segun el tema.
+        'brand-primary':       'var(--color-brand-primary)',
+        'brand-primary-hover': 'var(--color-brand-primary-hover)',
+        'brand-ink':           'var(--color-brand-ink)',
+
+        'text-default': 'var(--color-text-default)',
+        'text-subtle':  'var(--color-text-subtle)',
+        'text-muted':   'var(--color-text-muted)',
+
+        surface:       'var(--color-surface)',
+        'surface-muted': 'var(--color-surface-muted)',
+        'border-default': 'var(--color-border-default)',
+
+        status: {
+          success: { DEFAULT: 'var(--color-status-success)', fg: 'var(--color-status-success-fg)' },
+          warning: { DEFAULT: 'var(--color-status-warning)', fg: 'var(--color-status-warning-fg)' },
+          danger:  { DEFAULT: 'var(--color-status-danger)',  fg: 'var(--color-status-danger-fg)' },
+          info:    { DEFAULT: 'var(--color-status-info)',    fg: 'var(--color-status-info-fg)' },
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

@@ -27,10 +27,10 @@ import Configuracion from './pages/Configuracion'
 function RutaProtegida({ children }) {
   const { usuario, cargando } = useAuth()
   if (cargando) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#FAF8F4' }}>
+    <div className="min-h-screen flex items-center justify-center bg-brand-50">
       <div className="text-center">
         <div className="text-3xl mb-3">🥐</div>
-        <p className="text-sm text-gray-400">Cargando...</p>
+        <p className="text-sm text-text-muted">Cargando...</p>
       </div>
     </div>
   )

@@ -11,16 +11,16 @@ const kpiColorClasses = {
 }
 
 const statusBadgeClasses = {
-  success: 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400',
-  danger:  'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400',
-  warning: 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400',
-  info:    'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400',
-  neutral: 'bg-gray-50 dark:bg-navy-800 text-gray-600 dark:text-gray-300',
+  success: 'bg-success-light dark:bg-success/10 text-status-success-fg',
+  danger:  'bg-danger-light dark:bg-danger/10 text-status-danger-fg',
+  warning: 'bg-warn-light dark:bg-warn/10 text-status-warning-fg',
+  info:    'bg-info-light dark:bg-info/10 text-status-info-fg',
+  neutral: 'bg-surface-muted text-text-subtle',
 }
 
 export function Card({ children, className = '' }) {
   return (
-    <div className={`bg-white dark:bg-navy-900 border border-gray-100 dark:border-navy-800 rounded-card shadow-card p-4 transition-colors duration-200 ${className}`}>
+    <div className={`bg-white dark:bg-navy-900 border border-border-default rounded-card shadow-card p-4 transition-colors duration-200 ${className}`}>
       {children}
     </div>
   )
@@ -29,19 +29,19 @@ export function Card({ children, className = '' }) {
 export function KpiCard({ label, value, sub, color = 'navy' }) {
   const borderAndTextColor = kpiColorClasses[color] || 'border-t-brand-400 text-brand-400'
   return (
-    <div className={`bg-white dark:bg-navy-900 border border-gray-100 dark:border-navy-800 rounded-lg border-t-4 ${borderAndTextColor} p-3.5 shadow-card transition-colors duration-200`}>
-      <div className="text-gray-400 dark:text-navy-200 text-[10px] uppercase font-bold tracking-wider mb-1">{label}</div>
+    <div className={`bg-white dark:bg-navy-900 border border-border-default rounded-lg border-t-4 ${borderAndTextColor} p-3.5 shadow-card transition-colors duration-200`}>
+      <div className="text-text-muted text-[10px] uppercase font-bold tracking-wider mb-1">{label}</div>
       <div className="text-2xl font-bold tracking-tight leading-none">{value}</div>
-      {sub && <div className="text-gray-400 dark:text-gray-500 text-[10px] mt-1.5 leading-none">{sub}</div>}
+      {sub && <div className="text-text-muted text-[10px] mt-1.5 leading-none">{sub}</div>}
     </div>
   )
 }
 
 export function CardTitle({ children, icon: Icon }) {
   return (
-    <div className="flex items-center gap-2 mb-4 border-b border-gray-50 dark:border-navy-800 pb-2">
+    <div className="flex items-center gap-2 mb-4 border-b border-border-default pb-2">
       {Icon && <Icon size={16} className="text-brand-400 flex-shrink-0" />}
-      <span className="text-xs font-semibold text-[#1B2A4A] dark:text-gray-200 uppercase tracking-wider">{children}</span>
+      <span className="text-xs font-semibold text-text-default uppercase tracking-wider">{children}</span>
     </div>
   )
 }
@@ -58,23 +58,23 @@ export function StatusBadge({ children, status = 'neutral' }) {
 export function EmptyState({ icon: Icon, title, sub, action }) {
   return (
     <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
-      {Icon && <Icon size={32} className="text-gray-300 dark:text-navy-600 mb-2" />}
-      <div className="text-sm font-semibold text-[#1B2A4A] dark:text-gray-200 mb-1">{title}</div>
-      {sub && <div className="text-xs text-gray-400 dark:text-gray-500 mb-3">{sub}</div>}
+      {Icon && <Icon size={32} className="text-text-muted mb-2" />}
+      <div className="text-sm font-semibold text-text-default mb-1">{title}</div>
+      {sub && <div className="text-xs text-text-muted mb-3">{sub}</div>}
       {action}
     </div>
   )
 }
 
 export function MarginBar({ label, pct, costo }) {
-  const color = pct >= 57 ? 'bg-green-600 dark:bg-green-500' : pct >= 40 ? 'bg-amber-500 dark:bg-amber-400' : 'bg-red-600 dark:bg-red-500'
-  const textColor = pct >= 57 ? 'text-green-600 dark:text-green-400' : pct >= 40 ? 'text-amber-500 dark:text-amber-400' : 'text-red-600 dark:text-red-400'
+  const color = pct >= 57 ? 'bg-status-success' : pct >= 40 ? 'bg-status-warning' : 'bg-status-danger'
+  const textColor = pct >= 57 ? 'text-status-success' : pct >= 40 ? 'text-status-warning' : 'text-status-danger'
   
   return (
     <div className="flex items-center gap-2 mb-3">
-      <span className="text-[#1B2A4A] dark:text-gray-300 text-xs font-semibold w-24 truncate">{label}</span>
-      {costo && <span className="text-gray-400 dark:text-gray-500 text-[10px] w-16">C$ {costo}</span>}
-      <div className="flex-1 h-2 bg-gray-100 dark:bg-navy-800 rounded-full overflow-hidden">
+      <span className="text-text-default text-xs font-semibold w-24 truncate">{label}</span>
+      {costo && <span className="text-text-muted text-[10px] w-16">C$ {costo}</span>}
+      <div className="flex-1 h-2 bg-border-default rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
       <span className={`text-xs font-bold w-10 text-right ${textColor}`}>{pct}%</span>
