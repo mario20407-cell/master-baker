@@ -244,7 +244,7 @@ export function Catalogo() {
   if (loading) return <div className="text-sm text-gray-400 dark:text-gray-500 py-8 text-center">Cargando catálogo…</div>
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full">
       <div className="flex gap-3 mb-4 items-start flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

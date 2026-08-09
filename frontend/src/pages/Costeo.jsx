@@ -104,7 +104,7 @@ export default function Costeo() {
   const r = resultado
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="w-full space-y-4">
       <div className="card">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Costeo automático desde receta</h3>
 

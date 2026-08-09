@@ -88,7 +88,7 @@ export default function IAChat() {
   const sugs = SUGERENCIAS[modeloSel] || []
 
   return (
-    <div className="max-w-3xl flex flex-col" style={{ height: 'calc(100vh - 120px)' }}>
+    <div className="w-full flex flex-col" style={{ height: 'calc(100vh - 120px)' }}>
 
       {/* Selector de modelo */}
       <div className="flex gap-2 mb-3 flex-wrap">

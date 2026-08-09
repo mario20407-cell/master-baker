@@ -192,7 +192,7 @@ export default function Ayuda() {
   const toggle = (key) => setAbierto(prev => prev === key ? null : key)
 
   return (
-    <div className="max-w-3xl">
+    <div className="w-full">
 
       {/* Header — oculto al imprimir, se reemplaza por uno simple */}
       <div className="flex items-center gap-3 mb-4 print:hidden">

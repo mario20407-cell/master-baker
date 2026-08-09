@@ -89,7 +89,7 @@ export default function MiCuenta() {
   }
 
   return (
-    <div className="max-w-md space-y-6">
+    <div className="w-full space-y-6">
       <div className="card">
         <h3 className="text-sm font-semibold text-text-subtle mb-1 flex items-center gap-2">
           <KeyRound size={16} className="text-brand-primary" /> Mi Cuenta
