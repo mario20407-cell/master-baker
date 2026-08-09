@@ -354,7 +354,7 @@ export default function Reportes() {
         .reporte-footer { margin-top: 16px; padding-top: 8px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; font-size: 10px; color: #999; }
       `}</style>
 
-      <div className="max-w-4xl no-print">
+      <div className="w-full no-print">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-text-default flex items-center gap-2">
             <FileText size={18} /> Reportes

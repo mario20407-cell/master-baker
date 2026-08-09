@@ -36,7 +36,7 @@ export default function Exportar() {
   }
 
   return (
-    <div className="max-w-2xl space-y-3">
+    <div className="w-full space-y-3">
       <div className="alert-info">
         <FileText size={17} className="text-blue-600 flex-shrink-0 mt-0.5" />
         <div>

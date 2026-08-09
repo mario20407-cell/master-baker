@@ -485,7 +485,7 @@ export default function Recetas() {
   )
 
   return (
-    <div className="max-w-4xl">
+    <div className="w-full">
       <div className="flex justify-between items-center mb-4">
         {/* Tabs */}
         <div className="flex gap-1 bg-border-default rounded-xl p-1 w-fit">

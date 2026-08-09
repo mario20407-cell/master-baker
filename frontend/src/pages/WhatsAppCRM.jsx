@@ -42,7 +42,7 @@ export default function WhatsAppCRM() {
   const [tab, setTab] = useState('pedidos')
 
   return (
-    <div className="max-w-5xl space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex items-center gap-2">
         <MessageCircle size={20} className="text-status-success" />
         <h2 className="text-lg font-semibold text-text-default">WhatsApp — CRM</h2>

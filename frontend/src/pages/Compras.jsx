@@ -111,7 +111,7 @@ export function Compras() {
   }
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="w-full space-y-4">
       <div className="card">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Registrar factura de compra</h3>
 

@@ -104,7 +104,7 @@ export default function Produccion() {
   const recetaSeleccionada = recetas.find(r => r.producto === producto)
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="w-full space-y-4">
 
       {/* FORMULARIO NUEVA ORDEN */}
       <div className="card">
