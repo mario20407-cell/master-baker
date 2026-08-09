@@ -165,7 +165,7 @@ export default function Configuracion() {
   })
   const [loadingCosteo, setLoadingCosteo] = useState(false)
   const [guardandoCosteo, setGuardandoCosteo] = useState(false)
-  
+
   const [manoObraSugerida, setManoObraSugerida] = useState({ sugerido: null, motivo: null })
   const [loadingSugerencia, setLoadingSugerencia] = useState(false)
 
@@ -252,17 +252,17 @@ export default function Configuracion() {
     <div className="max-w-4xl space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-navy-900" style={{ background: '#263D4F' }}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-brand-ink">
           <Settings size={20} className="text-white" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Ajustes & Configuración</h2>
-          <p className="text-xs text-gray-400">Consolidado general de tu panadería y cuenta administrativa.</p>
+          <h2 className="text-lg font-bold text-text-default">Ajustes & Configuración</h2>
+          <p className="text-xs text-text-muted">Consolidado general de tu panadería y cuenta administrativa.</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 dark:border-navy-800">
+      <div className="flex border-b border-border-default">
         {[
           { id: 'negocio', label: 'Negocio & Cuenta', icon: Building },
           { id: 'fiscal', label: 'Dossier Fiscal', icon: Shield },
@@ -276,8 +276,8 @@ export default function Configuracion() {
               onClick={() => setActiveTab(tab.id)}
               className={`py-2.5 px-4 font-medium text-xs border-b-2 transition-all flex items-center gap-2 ${
                 activeTab === tab.id
-                  ? 'border-[#C29C53] text-[#C29C53]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                  ? 'border-brand-primary text-brand-primary'
+                  : 'border-transparent text-text-muted hover:text-text-subtle'
               }`}
             >
               <Icon size={14} />
@@ -292,8 +292,8 @@ export default function Configuracion() {
         {/* TAB 1: Negocio & Admin */}
         {activeTab === 'negocio' && (
           <div className="card space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-              <Building size={16} className="text-[#C29C53]" /> Información del Negocio y Administrador
+            <h3 className="text-sm font-semibold text-text-subtle flex items-center gap-2">
+              <Building size={16} className="text-brand-primary" /> Información del Negocio y Administrador
             </h3>
             <form onSubmit={handleGuardarNegocio} className="space-y-4 max-w-md">
               <div className="form-group">
@@ -345,16 +345,16 @@ export default function Configuracion() {
         {activeTab === 'fiscal' && (
           <div className="space-y-4">
             {/* Aviso legal */}
-            <div className="rounded-xl p-3 flex gap-2.5 text-xs bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/50 dark:border-amber-900/30">
-              <Info size={14} className="flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-500" />
-              <span className="text-amber-800 dark:text-amber-400">
+            <div className="rounded-xl p-3 flex gap-2.5 text-xs bg-warn-light border border-amber-200/50 dark:border-amber-900/30">
+              <Info size={14} className="flex-shrink-0 mt-0.5 text-status-warning" />
+              <span className="text-status-warning-fg">
                 Esta configuración es orientativa para el cálculo interno de márgenes. Para declaraciones ante la DGI consulta a un contador colegiado (CCPN Nicaragua).
               </span>
             </div>
 
             <div className="card space-y-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                <Shield size={16} className="text-[#C29C53]" /> Régimen Fiscal (DGI Nicaragua)
+              <h3 className="text-sm font-semibold text-text-subtle flex items-center gap-2">
+                <Shield size={16} className="text-brand-primary" /> Régimen Fiscal (DGI Nicaragua)
               </h3>
 
               <div className="grid grid-cols-2 gap-3 max-w-md">
@@ -365,15 +365,15 @@ export default function Configuracion() {
                   <button
                     key={r.id}
                     onClick={() => setFiscalForm(p => ({ ...p, regimen: r.id }))}
-                    className="text-left p-3 rounded-xl border transition-all"
-                    style={{
-                      borderColor: fiscalForm.regimen === r.id ? '#C29C53' : '#e5e7eb',
-                      background: fiscalForm.regimen === r.id ? '#FBF6EC' : 'white'
-                    }}
+                    className={`text-left p-3 rounded-xl border transition-all ${
+                      fiscalForm.regimen === r.id
+                        ? 'border-brand-primary bg-brand-50'
+                        : 'border-border-default bg-white'
+                    }`}
                     type="button"
                   >
-                    <span className="text-xs font-semibold text-gray-800 block">{r.label}</span>
-                    <span className="text-[10px] text-gray-400 mt-1 block">{r.desc}</span>
+                    <span className="text-xs font-semibold text-text-default block">{r.label}</span>
+                    <span className="text-[10px] text-text-muted mt-1 block">{r.desc}</span>
                   </button>
                 ))}
               </div>
@@ -412,11 +412,11 @@ export default function Configuracion() {
                     placeholder="Ej. 10000"
                     className="text-xs"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">Este dato se usará como denominador para sugerir el costo por mano de obra.</p>
+                  <p className="text-[10px] text-text-muted mt-1">Este dato se usará como denominador para sugerir el costo por mano de obra.</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 max-w-lg border-t border-gray-100 pt-4">
+              <div className="grid grid-cols-2 gap-3 max-w-lg border-t border-border-default pt-4">
                 <div className="form-group">
                   <label className="form-label text-xs">RUC del negocio (opcional)</label>
                   <input
@@ -456,14 +456,14 @@ export default function Configuracion() {
         {activeTab === 'nomina' && (
           <div className="space-y-4">
             <div className="card space-y-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                <Wallet size={16} className="text-[#C29C53]" /> Gestión de Nómina y Colaboradores
+              <h3 className="text-sm font-semibold text-text-subtle flex items-center gap-2">
+                <Wallet size={16} className="text-brand-primary" /> Gestión de Nómina y Colaboradores
               </h3>
-              
+
               {loadingDossier ? (
-                <div className="text-sm text-gray-400 py-6 text-center">Calculando pasivos y cargando nómina...</div>
+                <div className="text-sm text-text-muted py-6 text-center">Calculando pasivos y cargando nómina...</div>
               ) : !dossier || dossier.colaboradoresTotal === 0 ? (
-                <div className="text-sm text-gray-400 py-6 text-center">No hay colaboradores configurados en el sistema.</div>
+                <div className="text-sm text-text-muted py-6 text-center">No hay colaboradores configurados en el sistema.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="table-base">
@@ -479,13 +479,13 @@ export default function Configuracion() {
                     <tbody>
                       {dossier.detalle.map(c => (
                         <tr key={c.usuario_id}>
-                          <td className="font-medium text-gray-800 dark:text-gray-200">{c.nombre}</td>
+                          <td className="font-medium text-text-default">{c.nombre}</td>
                           <td>
                             <span className="badge-gray text-[10px]">
                               {c.tipo_pago === 'variable' ? 'Variable' : 'Fijo'}
                             </span>
                           </td>
-                          <td className="text-xs text-gray-500">
+                          <td className="text-xs text-text-muted">
                             {c.fecha_ingreso ? String(c.fecha_ingreso).slice(0, 10) : '—'}
                           </td>
                           <td className="text-right text-xs font-semibold">
@@ -494,7 +494,7 @@ export default function Configuracion() {
                           <td className="text-right">
                             <button
                               onClick={() => handleAbrirPerfilLaboral(c)}
-                              className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-[#C29C53] transition-colors"
+                              className="p-1.5 rounded hover:bg-border-default text-text-muted hover:text-brand-primary transition-colors"
                               title="Editar Perfil"
                             >
                               <Pencil size={14} />
@@ -503,15 +503,15 @@ export default function Configuracion() {
                         </tr>
                       ))}
                       {perfilesSinFecha.map(p => (
-                        <tr key={p.id} className="opacity-70 bg-amber-50/20">
-                          <td className="font-medium text-gray-800 dark:text-gray-200">{p.nombre}</td>
-                          <td colSpan={3} className="text-xs text-amber-600">
+                        <tr key={p.id} className="opacity-70 bg-warn-light/40">
+                          <td className="font-medium text-text-default">{p.nombre}</td>
+                          <td colSpan={3} className="text-xs text-status-warning">
                             Falta fecha de ingreso o salario base.
                           </td>
                           <td className="text-right">
                             <button
                               onClick={() => handleAbrirPerfilLaboral(p)}
-                              className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-[#C29C53] transition-colors"
+                              className="p-1.5 rounded hover:bg-border-default text-text-muted hover:text-brand-primary transition-colors"
                               title="Completar Perfil"
                             >
                               <Pencil size={14} />
@@ -530,10 +530,10 @@ export default function Configuracion() {
               <div className="fixed inset-0 bg-black/45 flex items-center justify-center z-50 p-4" onClick={() => setEditPerfilUser(null)}>
                 <div className="card max-w-md w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                      <Wallet size={16} className="text-[#C29C53]" /> Perfil Laboral: {editPerfilUser.nombre}
+                    <h3 className="text-sm font-semibold text-text-subtle flex items-center gap-2">
+                      <Wallet size={16} className="text-brand-primary" /> Perfil Laboral: {editPerfilUser.nombre}
                     </h3>
-                    <button onClick={() => setEditPerfilUser(null)} className="text-gray-400 hover:text-red-500">
+                    <button onClick={() => setEditPerfilUser(null)} className="text-text-muted hover:text-status-danger">
                       <X size={16} />
                     </button>
                   </div>
@@ -575,8 +575,8 @@ export default function Configuracion() {
                         />
                       </div>
                     ) : (
-                      <div className="space-y-3 border-t border-gray-100 pt-3">
-                        <p className="text-[11px] text-gray-500">
+                      <div className="space-y-3 border-t border-border-default pt-3">
+                        <p className="text-[11px] text-text-muted">
                           Anota lo que realmente se le pagó cada mes.
                         </p>
 
@@ -613,15 +613,15 @@ export default function Configuracion() {
                         </div>
 
                         {loadingPagos ? (
-                          <p className="text-xs text-gray-400">Cargando historial...</p>
+                          <p className="text-xs text-text-muted">Cargando historial...</p>
                         ) : pagosVariables.length === 0 ? (
-                          <p className="text-xs text-gray-400">Sin pagos registrados todavía.</p>
+                          <p className="text-xs text-text-muted">Sin pagos registrados todavía.</p>
                         ) : (
                           <div className="max-h-32 overflow-y-auto space-y-1">
                             {pagosVariables.map(p => {
                               const d = new Date(p.mes)
                               return (
-                                <div key={p.mes} className="flex justify-between text-xs text-gray-600 py-0.5">
+                                <div key={p.mes} className="flex justify-between text-xs text-text-subtle py-0.5">
                                   <span>{MESES_NOMBRE[d.getUTCMonth()]} {d.getUTCFullYear()}</span>
                                   <span className="font-medium">{formatoCordobas(p.monto)}</span>
                                 </div>
@@ -658,12 +658,12 @@ export default function Configuracion() {
         {/* TAB 4: Costeo e Indirectos (Mano de obra sugerida) */}
         {activeTab === 'costeo' && (
           <div className="card space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-              <Calculator size={16} className="text-[#C29C53]" /> Ajustes de Costeo & Gastos Indirectos
+            <h3 className="text-sm font-semibold text-text-subtle flex items-center gap-2">
+              <Calculator size={16} className="text-brand-primary" /> Ajustes de Costeo & Gastos Indirectos
             </h3>
 
             {loadingCosteo ? (
-              <div className="text-sm text-gray-400 py-6 text-center">Cargando configuración...</div>
+              <div className="text-sm text-text-muted py-6 text-center">Cargando configuración...</div>
             ) : (
               <div className="space-y-4 max-w-lg">
                 <div className="grid grid-cols-2 gap-3">
@@ -702,7 +702,7 @@ export default function Configuracion() {
                   />
                 </div>
 
-                <div className="border-t border-gray-100 pt-4">
+                <div className="border-t border-border-default pt-4">
                   <label className="flex items-start gap-2.5 cursor-pointer">
                     <input
                       type="checkbox"
@@ -711,8 +711,8 @@ export default function Configuracion() {
                       className="mt-0.5"
                     />
                     <span>
-                      <span className="text-xs font-semibold text-gray-800 block">Este negocio cotiza al INSS/INATEC</span>
-                      <span className="text-[10px] text-gray-400 block mt-0.5">
+                      <span className="text-xs font-semibold text-text-default block">Este negocio cotiza al INSS/INATEC</span>
+                      <span className="text-[10px] text-text-muted block mt-0.5">
                         Desmarcá esto si el negocio no está afiliado al INSS — la Planilla y el dossier de Pasivo Laboral
                         van a dejar de calcular retenciones y cargas patronales que en realidad no se pagan (el salario
                         bruto se paga completo, sin deducción).
@@ -721,7 +721,7 @@ export default function Configuracion() {
                   </label>
                 </div>
 
-                <div className="border-t border-gray-100 pt-4">
+                <div className="border-t border-border-default pt-4">
                   <label className="form-label text-xs">Frecuencia de pago del negocio</label>
                   <select
                     value={costeoForm.frecuencia_pago}
@@ -732,25 +732,25 @@ export default function Configuracion() {
                     <option value="quincenal">Quincenal</option>
                     <option value="mensual">Mensual</option>
                   </select>
-                  <p className="text-[10px] text-gray-400 mt-1">
+                  <p className="text-[10px] text-text-muted mt-1">
                     Con qué frecuencia se le paga a todo el equipo. Precarga el selector al generar una Planilla
                     (Mi Equipo → Nómina → Planilla) — se puede cambiar puntualmente ahí si hace falta.
                   </p>
                 </div>
 
-                <div className="border-t border-gray-100 pt-4 space-y-3">
-                  <h4 className="text-xs font-semibold text-gray-800">Costo de Mano de Obra</h4>
+                <div className="border-t border-border-default pt-4 space-y-3">
+                  <h4 className="text-xs font-semibold text-text-default">Costo de Mano de Obra</h4>
 
                   {loadingSugerencia ? (
-                    <div className="text-xs text-gray-400">Calculando mano de obra sugerida...</div>
+                    <div className="text-xs text-text-muted">Calculando mano de obra sugerida...</div>
                   ) : manoObraSugerida.sugerido !== null ? (
-                    <div className="rounded-xl p-3 bg-green-50/50 border border-green-200/50">
-                      <span className="text-[10px] uppercase font-bold text-green-700 tracking-wider">Mano de Obra — sincronización automática</span>
-                      <p className="text-base font-bold text-green-800">{formatoCordobas(manoObraSugerida.sugerido)} <span className="text-[10px] font-normal text-green-600">por pieza</span></p>
-                      <p className="text-[9px] text-green-600">Calculado con nómina activa y producción mensual ({configFiscal?.produccion_mensual || 0} piezas). Este valor se aplica solo al costeo de recetas cada vez que actualizás un colaborador, un pago variable, o la producción mensual — no hace falta guardarlo a mano.</p>
+                    <div className="rounded-xl p-3 bg-success-light border border-status-success/30">
+                      <span className="text-[10px] uppercase font-bold text-status-success-fg tracking-wider">Mano de Obra — sincronización automática</span>
+                      <p className="text-base font-bold text-status-success-fg">{formatoCordobas(manoObraSugerida.sugerido)} <span className="text-[10px] font-normal text-status-success">por pieza</span></p>
+                      <p className="text-[9px] text-status-success">Calculado con nómina activa y producción mensual ({configFiscal?.produccion_mensual || 0} piezas). Este valor se aplica solo al costeo de recetas cada vez que actualizás un colaborador, un pago variable, o la producción mensual — no hace falta guardarlo a mano.</p>
                     </div>
                   ) : (
-                    <div className="rounded-xl p-3 bg-gray-50 border border-gray-200 text-xs text-gray-500">
+                    <div className="rounded-xl p-3 bg-surface-muted border border-border-default text-xs text-text-muted">
                       ⚠️ Todavía no hay suficientes datos de nómina o producción mensual para sugerir un costo. Mientras tanto, podés fijar un valor manual abajo.
                     </div>
                   )}
@@ -765,7 +765,7 @@ export default function Configuracion() {
                       placeholder="0.00"
                       className="text-xs"
                     />
-                    <p className="text-[10px] text-gray-400 mt-1">
+                    <p className="text-[10px] text-text-muted mt-1">
                       {manoObraSugerida.sugerido !== null
                         ? 'Se mantiene sincronizado automáticamente con la nómina. Si lo cambiás aquí a mano, la próxima actualización de nómina o producción mensual lo va a volver a calcular.'
                         : 'Sin datos de nómina todavía, este valor no se actualiza solo — ajustalo a mano según corresponda.'}

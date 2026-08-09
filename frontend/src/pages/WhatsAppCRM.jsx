@@ -19,12 +19,12 @@ const ESTADO_LABEL = {
 }
 
 const ESTADO_COLOR = {
-  pendiente: '#C29C53',
-  confirmado: '#3B6D11',
-  en_preparacion: '#263D4F',
-  listo: '#27500A',
+  pendiente: 'var(--color-brand-primary)',
+  confirmado: 'var(--color-status-success)',
+  en_preparacion: 'var(--color-brand-ink)',
+  listo: 'var(--color-status-success-fg)',
   entregado: '#6B7280',
-  cancelado: '#B91C1C',
+  cancelado: 'var(--color-status-danger)',
 }
 
 function formatoCordobas(n) {
@@ -44,18 +44,18 @@ export default function WhatsAppCRM() {
   return (
     <div className="max-w-5xl space-y-4">
       <div className="flex items-center gap-2">
-        <MessageCircle size={20} className="text-[#3B6D11]" />
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">WhatsApp — CRM</h2>
+        <MessageCircle size={20} className="text-status-success" />
+        <h2 className="text-lg font-semibold text-text-default">WhatsApp — CRM</h2>
       </div>
-      <p className="text-xs text-gray-500 dark:text-gray-400 -mt-3">
+      <p className="text-xs text-text-muted -mt-3">
         Pedidos y clientes que llegan por el bot de WhatsApp. Marcá un pedido como &quot;listo&quot; para avisarle al cliente automáticamente.
       </p>
 
-      <div className="flex gap-1 border-b border-gray-200 dark:border-navy-800">
+      <div className="flex gap-1 border-b border-border-default">
         <button
           onClick={() => setTab('pedidos')}
           className={`px-4 py-2 text-xs font-semibold border-b-2 transition-colors ${
-            tab === 'pedidos' ? 'border-[#C29C53] text-[#263D4F] dark:text-gray-100' : 'border-transparent text-gray-400'
+            tab === 'pedidos' ? 'border-brand-primary text-brand-ink' : 'border-transparent text-text-muted'
           }`}
         >
           <Package size={13} className="inline mr-1 -mt-0.5" /> Pedidos
@@ -63,7 +63,7 @@ export default function WhatsAppCRM() {
         <button
           onClick={() => setTab('clientes')}
           className={`px-4 py-2 text-xs font-semibold border-b-2 transition-colors ${
-            tab === 'clientes' ? 'border-[#C29C53] text-[#263D4F] dark:text-gray-100' : 'border-transparent text-gray-400'
+            tab === 'clientes' ? 'border-brand-primary text-brand-ink' : 'border-transparent text-text-muted'
           }`}
         >
           <Users size={13} className="inline mr-1 -mt-0.5" /> Clientes
@@ -125,7 +125,7 @@ function TabPedidos() {
     return p.estado === filtro
   })
 
-  if (loading) return <div className="text-xs text-gray-400 py-8 text-center">Cargando pedidos…</div>
+  if (loading) return <div className="text-xs text-text-muted py-8 text-center">Cargando pedidos…</div>
 
   return (
     <div className="space-y-3">
@@ -141,8 +141,8 @@ function TabPedidos() {
             onClick={() => setFiltro(f.id)}
             className={`px-3 py-1 text-[11px] rounded-full font-medium transition-colors ${
               filtro === f.id
-                ? 'bg-[#263D4F] text-white'
-                : 'bg-gray-100 dark:bg-navy-800 text-gray-600 dark:text-gray-300'
+                ? 'bg-brand-ink text-white'
+                : 'bg-border-default text-text-subtle'
             }`}
           >
             {f.label}
@@ -151,7 +151,7 @@ function TabPedidos() {
       </div>
 
       {pedidosFiltrados.length === 0 && (
-        <div className="card text-center py-8 text-xs text-gray-400">No hay pedidos en esta vista.</div>
+        <div className="card text-center py-8 text-xs text-text-muted">No hay pedidos en esta vista.</div>
       )}
 
       {pedidosFiltrados.map(p => (
@@ -177,7 +177,7 @@ function PedidoCard({ pedido, marcando, onMarcarListo, onCambiarEstado }) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+            <span className="text-sm font-semibold text-text-default">
               {pedido.nombre || pedido.telefono}
             </span>
             <span
@@ -187,35 +187,35 @@ function PedidoCard({ pedido, marcando, onMarcarListo, onCambiarEstado }) {
               {ESTADO_LABEL[pedido.estado] || pedido.estado}
             </span>
             {pedido.tipo_entrega === 'agendado' && (
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full text-white bg-[#C29C53] flex items-center gap-1">
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full text-white bg-brand-primary flex items-center gap-1">
                 <CalendarClock size={10} /> Agendado
               </span>
             )}
           </div>
-          <p className="text-[11px] text-gray-400 mt-0.5">{pedido.telefono}</p>
+          <p className="text-[11px] text-text-muted mt-0.5">{pedido.telefono}</p>
 
           {pedido.tipo_entrega === 'agendado' && pedido.fecha_programada && (
-            <p className="text-xs text-[#263D4F] dark:text-gray-200 font-medium mt-1 flex items-center gap-1">
+            <p className="text-xs text-brand-ink font-medium mt-1 flex items-center gap-1">
               <Clock size={12} /> Para: {formatoFecha(pedido.fecha_programada)}
             </p>
           )}
 
           {pedido.direccion && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1">
+            <p className="text-xs text-text-muted mt-1 flex items-center gap-1">
               <MapPin size={12} /> {pedido.direccion}
             </p>
           )}
 
           <button
             onClick={() => setAbierto(o => !o)}
-            className="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 flex items-center gap-1 mt-2"
+            className="text-[11px] text-text-muted hover:text-text-subtle flex items-center gap-1 mt-2"
           >
             {items.length} producto{items.length !== 1 ? 's' : ''} — {formatoCordobas(pedido.total)}
             {abierto ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
 
           {abierto && (
-            <ul className="mt-2 space-y-1 text-xs text-gray-600 dark:text-gray-300 border-t border-gray-100 dark:border-navy-800 pt-2">
+            <ul className="mt-2 space-y-1 text-xs text-text-subtle border-t border-border-default pt-2">
               {items.map((it, i) => (
                 <li key={i} className="flex justify-between">
                   <span>{it.cantidad}x {it.producto}</span>
@@ -240,7 +240,7 @@ function PedidoCard({ pedido, marcando, onMarcarListo, onCambiarEstado }) {
           {pedido.estado === 'listo' && (
             <button
               onClick={() => onCambiarEstado('entregado')}
-              className="text-[11px] py-1.5 px-3 rounded-lg border border-gray-200 dark:border-navy-800 text-gray-600 dark:text-gray-300 flex items-center gap-1"
+              className="text-[11px] py-1.5 px-3 rounded-lg border border-border-default text-text-subtle flex items-center gap-1"
             >
               <CheckCircle2 size={12} /> Entregado
             </button>
@@ -287,8 +287,8 @@ function TabClientes() {
     }
   }
 
-  if (loading) return <div className="text-xs text-gray-400 py-8 text-center">Cargando clientes…</div>
-  if (clientes.length === 0) return <div className="card text-center py-8 text-xs text-gray-400">Todavía no hay clientes registrados por el bot.</div>
+  if (loading) return <div className="text-xs text-text-muted py-8 text-center">Cargando clientes…</div>
+  if (clientes.length === 0) return <div className="card text-center py-8 text-xs text-text-muted">Todavía no hay clientes registrados por el bot.</div>
 
   return (
     <div className="space-y-2">
@@ -296,28 +296,28 @@ function TabClientes() {
         <div key={c.id} className="card">
           <button onClick={() => toggleExpandir(c)} className="w-full flex items-center justify-between text-left">
             <div>
-              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{c.nombre || c.telefono}</p>
-              <p className="text-[11px] text-gray-400">{c.telefono} — última vez {formatoFecha(c.ultima_interaccion)}</p>
+              <p className="text-sm font-semibold text-text-default">{c.nombre || c.telefono}</p>
+              <p className="text-[11px] text-text-muted">{c.telefono} — última vez {formatoFecha(c.ultima_interaccion)}</p>
             </div>
             <div className="text-right flex items-center gap-3">
               <div>
-                <p className="text-xs font-semibold text-[#263D4F] dark:text-gray-100">{formatoCordobas(c.total_gastado)}</p>
-                <p className="text-[10px] text-gray-400">{c.total_pedidos} pedido{c.total_pedidos != 1 ? 's' : ''}</p>
+                <p className="text-xs font-semibold text-brand-ink">{formatoCordobas(c.total_gastado)}</p>
+                <p className="text-[10px] text-text-muted">{c.total_pedidos} pedido{c.total_pedidos != 1 ? 's' : ''}</p>
               </div>
-              {expandido === c.telefono ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+              {expandido === c.telefono ? <ChevronUp size={14} className="text-text-muted" /> : <ChevronDown size={14} className="text-text-muted" />}
             </div>
           </button>
 
           {expandido === c.telefono && (
-            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-navy-800 space-y-1.5 max-h-64 overflow-y-auto">
+            <div className="mt-3 pt-3 border-t border-border-default space-y-1.5 max-h-64 overflow-y-auto">
               {(mensajes[c.telefono] || []).length === 0 && (
-                <p className="text-[11px] text-gray-400">Sin mensajes registrados.</p>
+                <p className="text-[11px] text-text-muted">Sin mensajes registrados.</p>
               )}
               {(mensajes[c.telefono] || []).map((m, i) => (
                 <div key={i} className={`text-xs px-3 py-1.5 rounded-lg max-w-[85%] ${
                   m.rol === 'user'
-                    ? 'bg-gray-100 dark:bg-navy-800 text-gray-700 dark:text-gray-200'
-                    : 'bg-[#EAF3DE] dark:bg-navy-900 text-[#27500A] dark:text-gray-200 ml-auto'
+                    ? 'bg-border-default text-text-subtle'
+                    : 'bg-success-light text-status-success-fg ml-auto'
                 }`}>
                   {m.contenido}
                 </div>

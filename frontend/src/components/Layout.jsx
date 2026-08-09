@@ -122,10 +122,10 @@ export default function Layout() {
     <div className="flex flex-col h-screen bg-surface-muted overflow-hidden text-text-default transition-colors duration-200">
 
       {/* Top Navbar */}
-      <header className="bg-white dark:bg-navy-900 border-b border-border-default px-6 py-3.5 flex items-center justify-between flex-shrink-0 transition-colors duration-200 z-40 relative">
+      <header className="bg-brand-ink border-b border-white/10 px-6 py-3.5 flex items-center justify-between flex-shrink-0 transition-colors duration-200 z-40 relative">
         <div className="flex items-center gap-6">
           {/* Mobile Hamburger menu Button */}
-          <button className="lg:hidden text-text-muted hover:text-text-subtle dark:hover:text-gray-200" onClick={() => setSidebarOpen(true)}>
+          <button className="lg:hidden text-white/70 hover:text-white" onClick={() => setSidebarOpen(true)}>
             <Menu size={20} />
           </button>
 
@@ -135,8 +135,8 @@ export default function Layout() {
               <img src="/branding/logo-emblema.png" alt="Master Baker" className="w-6 h-6 object-contain" />
             </div>
             <div>
-              <div className="text-xs font-semibold leading-tight tracking-wide text-brand-primary">MASTER BAKER</div>
-              <div className="text-[8px] text-text-muted leading-tight">Gestión Panadería</div>
+              <div className="text-xs font-semibold leading-tight tracking-wide text-brand-accent">MASTER BAKER</div>
+              <div className="text-[8px] text-white/50 leading-tight">Gestión Panadería</div>
             </div>
           </Link>
 
@@ -144,9 +144,9 @@ export default function Layout() {
           <nav className="hidden lg:flex items-center gap-1 ml-4">
             {filteredNavGroups.map((group, idx) => (
               <div key={idx} className="relative group px-2 py-1">
-                <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-text-subtle hover:text-brand-600 dark:hover:text-brand-400 rounded-lg hover:bg-surface-muted dark:hover:bg-navy-800 transition-all cursor-pointer">
+                <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition-all cursor-pointer">
                   {group.title}
-                  <ChevronDown size={12} className="text-text-muted group-hover:text-brand-400 transition-transform duration-200 group-hover:rotate-180" />
+                  <ChevronDown size={12} className="text-white/50 group-hover:text-white transition-transform duration-200 group-hover:rotate-180" />
                 </button>
 
                 {/* Cascade Dropdown Card */}
@@ -180,7 +180,7 @@ export default function Layout() {
 
         {/* Right Header Panel */}
         <div className="flex items-center gap-3">
-          <span className="hidden sm:inline-flex text-[10px] px-2.5 py-1 rounded-md font-medium bg-success-light text-status-success-fg">
+          <span className="hidden sm:inline-flex text-[10px] px-2.5 py-1 rounded-md font-medium bg-brand-primary text-white">
             Margen objetivo: ≥57%
           </span>
 
@@ -189,7 +189,7 @@ export default function Layout() {
             <div className="relative">
               <button
                 onClick={() => setNotifOpen(o => !o)}
-                className="relative p-1.5 rounded-lg border border-border-default text-text-muted hover:bg-surface-muted dark:hover:bg-navy-800 transition-colors cursor-pointer"
+                className="relative p-1.5 rounded-lg border border-white/20 text-white/70 hover:bg-white/10 transition-colors cursor-pointer"
                 title="Notificaciones de WhatsApp"
               >
                 <Bell size={15} />
@@ -238,7 +238,7 @@ export default function Layout() {
           {/* Theme switcher */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-1.5 rounded-lg border border-border-default text-text-muted hover:bg-surface-muted dark:hover:bg-navy-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg border border-white/20 text-white/70 hover:bg-white/10 transition-colors cursor-pointer"
             title="Alternar tema"
           >
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
@@ -248,11 +248,11 @@ export default function Layout() {
           {usuario && (
             <div className="relative group px-1 py-1">
               <button
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-text-subtle hover:text-brand-600 dark:hover:text-brand-400 rounded-lg hover:bg-surface-muted dark:hover:bg-navy-800 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition-all cursor-pointer"
                 onClick={() => setUserMenuOpen(o => !o)}
               >
                 {usuario.nombre || usuario.email}
-                <ChevronDown size={12} className="text-text-muted group-hover:text-brand-400 transition-transform duration-200 group-hover:rotate-180" />
+                <ChevronDown size={12} className="text-white/50 group-hover:text-white transition-transform duration-200 group-hover:rotate-180" />
               </button>
 
               <div className={`absolute right-0 mt-1 w-44 bg-white dark:bg-navy-900 border border-border-default rounded-xl shadow-xl py-1.5 z-50 transition-all duration-200 transform

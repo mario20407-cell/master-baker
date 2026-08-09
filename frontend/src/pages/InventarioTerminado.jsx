@@ -81,12 +81,12 @@ export default function InventarioTerminado() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-lg font-semibold text-gray-800">Inventario Terminado</h1>
-          <p className="text-xs text-gray-500">Stock de producto por sucursal</p>
+          <h1 className="text-lg font-semibold text-text-default">Inventario Terminado</h1>
+          <p className="text-xs text-text-muted">Stock de producto por sucursal</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setModalSucursal(true)}
-            className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600">
+            className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-border-default hover:bg-surface-muted text-text-subtle">
             <Plus size={14} /> Sucursal
           </button>
           <button onClick={abrirDistribuir}
@@ -98,9 +98,9 @@ export default function InventarioTerminado() {
 
       {/* Alertas bajo mínimo */}
       {bajoMinimo.length > 0 && (
-        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
-          <AlertTriangle size={15} className="text-amber-500 mt-0.5 shrink-0" />
-          <div className="text-xs text-amber-700">
+        <div className="flex items-start gap-2 bg-warn-light border border-amber-200 rounded-xl p-3">
+          <AlertTriangle size={15} className="text-status-warning mt-0.5 shrink-0" />
+          <div className="text-xs text-status-warning-fg">
             <strong>Stock bajo:</strong> {bajoMinimo.map(i => `${i.producto} (${i.sucursal_nombre})`).join(', ')}
           </div>
         </div>
@@ -109,12 +109,12 @@ export default function InventarioTerminado() {
       {/* Filtro por sucursal */}
       <div className="flex gap-2 flex-wrap">
         <button onClick={() => setFiltro('')}
-          className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${!filtroSucursal ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+          className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${!filtroSucursal ? 'bg-brand-ink text-white border-brand-ink' : 'border-border-default text-text-muted hover:bg-surface-muted'}`}>
           Todas
         </button>
         {sucursales.map(s => (
           <button key={s.id} onClick={() => setFiltro(s.id)}
-            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${filtroSucursal === s.id ? 'bg-gray-800 text-white border-gray-800' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${filtroSucursal === s.id ? 'bg-brand-ink text-white border-brand-ink' : 'border-border-default text-text-muted hover:bg-surface-muted'}`}>
             {s.nombre}
           </button>
         ))}
@@ -122,18 +122,18 @@ export default function InventarioTerminado() {
 
       {/* Tabla */}
       {cargando ? (
-        <p className="text-sm text-gray-400">Cargando...</p>
+        <p className="text-sm text-text-muted">Cargando...</p>
       ) : invFiltrado.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-text-muted">
           <Package size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm">Sin stock registrado</p>
           <p className="text-xs mt-1">Distribuye un lote para agregar productos al inventario</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl border border-border-default overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase">
+              <tr className="border-b border-border-default text-xs text-text-muted uppercase">
                 <th className="text-left px-4 py-3">Producto</th>
                 <th className="text-left px-4 py-3">Sucursal</th>
                 <th className="text-right px-4 py-3">Stock</th>
@@ -155,8 +155,8 @@ export default function InventarioTerminado() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-800">Distribuir lote</h2>
-              <button onClick={() => setModalDist(false)}><X size={18} className="text-gray-400" /></button>
+              <h2 className="font-semibold text-text-default">Distribuir lote</h2>
+              <button onClick={() => setModalDist(false)}><X size={18} className="text-text-muted" /></button>
             </div>
             <form onSubmit={distribuir} className="space-y-4">
               <div className="form-group">
@@ -175,13 +175,13 @@ export default function InventarioTerminado() {
                 <div className="space-y-2">
                   {dist.distribuciones.map((d, i) => (
                     <div key={d.sucursal_id} className="flex items-center gap-3">
-                      <span className="text-sm text-gray-600 flex-1">{d.nombre}</span>
+                      <span className="text-sm text-text-subtle flex-1">{d.nombre}</span>
                       <input type="number" min="0" value={d.cantidad}
                         onChange={e => setDist(prev => ({
                           ...prev,
                           distribuciones: prev.distribuciones.map((x, xi) => xi === i ? {...x, cantidad: e.target.value} : x)
                         }))}
-                        className="w-24 text-sm border border-gray-200 rounded-lg px-2 py-1.5 text-right"
+                        className="w-24 text-sm border border-border-default rounded-lg px-2 py-1.5 text-right"
                         placeholder="0" />
                     </div>
                   ))}
@@ -198,8 +198,8 @@ export default function InventarioTerminado() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-800">Nueva sucursal</h2>
-              <button onClick={() => setModalSucursal(false)}><X size={18} className="text-gray-400" /></button>
+              <h2 className="font-semibold text-text-default">Nueva sucursal</h2>
+              <button onClick={() => setModalSucursal(false)}><X size={18} className="text-text-muted" /></button>
             </div>
             <form onSubmit={crearSucursal} className="space-y-3">
               <div className="form-group">
@@ -228,33 +228,33 @@ function FilaInventario({ item, onActualizar }) {
   const agotado = Number(item.stock) === 0
 
   return (
-    <tr className="border-b border-gray-50 hover:bg-gray-50/50">
-      <td className="px-4 py-3 font-medium text-gray-800">{item.producto}</td>
-      <td className="px-4 py-3 text-gray-500">{item.sucursal_nombre}</td>
+    <tr className="border-b border-border-default hover:bg-surface-muted">
+      <td className="px-4 py-3 font-medium text-text-default">{item.producto}</td>
+      <td className="px-4 py-3 text-text-muted">{item.sucursal_nombre}</td>
       <td className="px-4 py-3 text-right font-semibold">
-        <span className={agotado ? 'text-red-500' : bajo ? 'text-amber-500' : 'text-gray-800'}>
+        <span className={agotado ? 'text-status-danger' : bajo ? 'text-status-warning' : 'text-text-default'}>
           {item.stock} {item.unidad}
         </span>
       </td>
       <td className="px-4 py-3 text-right">
         {editMin ? (
           <input type="number" min="0" value={minVal}
-            className="w-16 text-sm border border-gray-200 rounded px-1.5 py-0.5 text-right"
+            className="w-16 text-sm border border-border-default rounded px-1.5 py-0.5 text-right"
             onBlur={() => { onActualizar(item.id, minVal); setEditMin(false) }}
             onChange={e => setMinVal(e.target.value)}
             autoFocus />
         ) : (
-          <button onClick={() => setEditMin(true)} className="text-gray-400 hover:text-gray-700 flex items-center gap-1 ml-auto">
+          <button onClick={() => setEditMin(true)} className="text-text-muted hover:text-text-subtle flex items-center gap-1 ml-auto">
             {item.stock_minimo} <ChevronDown size={11} />
           </button>
         )}
       </td>
       <td className="px-4 py-3 text-right">
         {agotado
-          ? <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Agotado</span>
+          ? <span className="text-xs px-2 py-0.5 rounded-full bg-danger-light text-status-danger">Agotado</span>
           : bajo
-          ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-600">Bajo</span>
-          : <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-600">OK</span>
+          ? <span className="text-xs px-2 py-0.5 rounded-full bg-warn-light text-status-warning">Bajo</span>
+          : <span className="text-xs px-2 py-0.5 rounded-full bg-success-light text-status-success">OK</span>
         }
       </td>
     </tr>
