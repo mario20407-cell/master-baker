@@ -5,13 +5,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Dorado — identidad principal Master Baker (del logo: trigo + nodo)
+        // Azul — identidad principal Master Baker (paleta aprobada 2026-08)
         brand: {
-          50:  '#FBF6EC',
+          50:  '#E0EAFA',
           100: '#F3E4C4',
           200: '#E5CB94',
-          400: '#C29C53',
-          600: '#A8813E',
+          400: '#0474C4',
+          600: '#06457F',
           800: '#7A5E2C',
           900: '#4F3C1C',
         },
@@ -36,7 +36,9 @@ export default {
         // para que cambien de valor automaticamente segun el tema.
         'brand-primary':       'var(--color-brand-primary)',
         'brand-primary-hover': 'var(--color-brand-primary-hover)',
+        'brand-secondary':     'var(--color-brand-secondary)',
         'brand-ink':           'var(--color-brand-ink)',
+        'brand-accent':        'var(--color-brand-accent)', // acento puro — logo, KPI destacado
 
         'text-default': 'var(--color-text-default)',
         'text-subtle':  'var(--color-text-subtle)',

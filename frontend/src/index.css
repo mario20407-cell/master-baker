@@ -4,25 +4,27 @@
 
 @layer base {
   :root {
-    --brand: #C29C53;
-    --brand-light: #FBF6EC;
-    --brand-dark: #A8813E;
-    --navy: #263D4F;
+    --brand: #0474C4;
+    --brand-light: #E0EAFA;
+    --brand-dark: #06457F;
+    --navy: #262B40;
     --navy-light: #EEF1F3;
     --navy-dark: #1B2C39;
 
     /* ── Tokens semanticos — usar via clases text-, bg- y border- en componentes ── */
-    --color-brand-primary:       #C29C53;
-    --color-brand-primary-hover: #A8813E;
-    --color-brand-ink:           #263D4F;
+    --color-brand-primary:       #0474C4;
+    --color-brand-primary-hover: #06457F;
+    --color-brand-secondary:     #5379AE;
+    --color-brand-ink:           #262B40;
+    --color-brand-accent:        #F3E308;
 
-    --color-text-default: #111827;
-    --color-text-subtle:  #4B5563;
-    --color-text-muted:   #9CA3AF;
+    --color-text-default: #262B40;
+    --color-text-subtle:  #6C8494;
+    --color-text-muted:   #B8BFC1;
 
     --color-surface:       #FFFFFF;
-    --color-surface-muted: #F9FAFB;
-    --color-border-default: #F3F4F6;
+    --color-surface-muted: #F2F4F8;
+    --color-border-default: #E0E4EA;
 
     --color-status-success:    #3B6D11;
     --color-status-success-fg: #27500A;
@@ -35,9 +37,11 @@
   }
 
   .dark {
-    --color-brand-primary:       #C29C53;
-    --color-brand-primary-hover: #A8813E;
+    --color-brand-primary:       #0474C4;
+    --color-brand-primary-hover: #06457F;
+    --color-brand-secondary:     #5379AE;
     --color-brand-ink:           #A9B8C4;
+    --color-brand-accent:        #F3E308;
 
     --color-text-default: #F3F4F6;
     --color-text-subtle:  #D1D5DB;
