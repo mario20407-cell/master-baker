@@ -1,23 +1,192 @@
 // pages/Dashboard.jsx — v2.0 rediseño con modo oscuro y componentes UI
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useRecetas } from '../hooks/useRecetas'
 import { useCatalogo } from '../hooks/useCatalogo'
 import { useFiscalConfig } from '../hooks/useFiscalConfig'
 import { useConfiguracionCosteo } from '../hooks/useConfiguracionCosteo'
+import { useAuth } from '../context/AuthContext'
+import { useWhatsappNotifications } from '../hooks/useWhatsappNotifications'
+import { usePlanilla } from '../hooks/usePlanilla'
 import { getInventario, getVentaResumen } from '../lib/api'
 import { calcularCosteoReceta } from '../lib/costeo'
-import { TrendingUp, Package, ChefHat, ShoppingCart, AlertTriangle, LayoutDashboard } from 'lucide-react'
+import {
+  TrendingUp, Package, ChefHat, ShoppingCart, AlertTriangle, LayoutDashboard,
+  ListChecks, MessageCircle, ArrowRight,
+} from 'lucide-react'
 import { Card, CardTitle, KpiCard, KpiGrid, Grid, MarginBar, EmptyState, StatusBadge } from '../components/UI'
+
+const WHATSAPP_GREEN = '#25D366'
 
 function fmt(n) { return 'C$ ' + (parseFloat(n) || 0).toFixed(2) }
 
+function formatoCordobas(n) {
+  return 'C$' + (Number(n) || 0).toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// Formato relativo simple para timestamps recientes — solo presentación,
+// no hay ninguna librería de fechas en el proyecto para esto.
+function tiempoRelativo(fecha) {
+  const diffMin = Math.floor((Date.now() - new Date(fecha).getTime()) / 60000)
+  if (diffMin < 1) return 'ahora'
+  if (diffMin < 60) return `hace ${diffMin} min`
+  const horas = Math.floor(diffMin / 60)
+  if (horas < 24) return `hace ${horas} h`
+  return `hace ${Math.floor(horas / 24)} d`
+}
+
+function AccionesRapidas() {
+  const navigate = useNavigate()
+  return (
+    <Card>
+      <CardTitle>Acciones rápidas</CardTitle>
+      <div className="space-y-2">
+        <button
+          onClick={() => navigate('/ventas')}
+          className="w-full flex items-center gap-2.5 px-4 py-3.5 rounded-lg bg-brand-primary text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+        >
+          <ShoppingCart size={18} /> Registrar venta
+        </button>
+        <button
+          onClick={() => navigate('/produccion')}
+          className="w-full flex items-center gap-2.5 px-4 py-3.5 rounded-lg bg-surface-muted text-text-default font-medium text-sm hover:bg-border-default transition-colors"
+        >
+          <TrendingUp size={18} /> Nueva producción
+        </button>
+        <button
+          onClick={() => navigate('/inventario')}
+          className="w-full flex items-center gap-2.5 px-4 py-3.5 rounded-lg bg-surface-muted text-text-default font-medium text-sm hover:bg-border-default transition-colors"
+        >
+          <Package size={18} /> Actualizar inventario
+        </button>
+      </div>
+    </Card>
+  )
+}
+
+function PanelWhatsapp({ activo }) {
+  const navigate = useNavigate()
+  const { unreadCount, ultimosNuevos } = useWhatsappNotifications(activo)
+
+  if (!activo) return null
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-4 border-b border-border-default pb-2">
+        <div className="flex items-center gap-2">
+          <MessageCircle size={16} className="text-brand-400 flex-shrink-0" />
+          <span className="text-xs font-semibold text-text-default uppercase tracking-wider">Mensajes de WhatsApp</span>
+        </div>
+        {unreadCount > 0 && (
+          <span
+            className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full flex-shrink-0"
+            style={{ background: WHATSAPP_GREEN }}
+          >
+            {unreadCount} nuevo{unreadCount !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+
+      {ultimosNuevos.length === 0 ? (
+        <p className="text-xs text-text-muted py-2">Sin pedidos nuevos por ahora.</p>
+      ) : (
+        <div className="space-y-3 mb-3">
+          {ultimosNuevos.slice(0, 3).map(p => (
+            <div key={p.id} className="flex items-start gap-2.5">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                style={{ background: WHATSAPP_GREEN }}
+              >
+                {(p.nombre || p.telefono || '?').charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-text-default truncate">{p.nombre || p.telefono}</span>
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: WHATSAPP_GREEN }} />
+                </div>
+                <p className="text-[11px] text-text-muted truncate">
+                  {(p.items?.length || 0)} producto{(p.items?.length || 0) !== 1 ? 's' : ''} — {formatoCordobas(p.total)}
+                </p>
+                <p className="text-[10px] text-text-muted mt-0.5">{tiempoRelativo(p.creado_en)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={() => navigate('/whatsapp-crm')}
+        className="text-xs font-semibold text-brand-primary hover:underline flex items-center gap-1"
+      >
+        Ver todos los mensajes <ArrowRight size={12} />
+      </button>
+    </Card>
+  )
+}
+
+function PendientesDelDia({ sinReceta, ventasHoy, activo }) {
+  const { historial, cargarHistorial } = usePlanilla()
+  const [historialCargado, setHistorialCargado] = useState(false)
+
+  useEffect(() => {
+    if (!activo) return
+    cargarHistorial().finally(() => setHistorialCargado(true))
+  }, [activo, cargarHistorial])
+
+  // Heurística simple: si el fin del último período de planilla generado ya
+  // pasó, hay un período nuevo pendiente de generar. Mismos datos que usa
+  // Equipo.jsx (historial de planillas), sin recalcular reglas de nómina.
+  const hoy = new Date().toISOString().split('T')[0]
+  const planillaPendiente = activo && historialCargado &&
+    (historial.length === 0 || historial[0].periodo_fin < hoy)
+
+  const pendientes = [
+    sinReceta > 0 && {
+      color: 'bg-status-danger',
+      texto: `${sinReceta} producto${sinReceta !== 1 ? 's' : ''} sin receta`,
+    },
+    planillaPendiente && {
+      color: 'bg-status-warning',
+      texto: 'Planilla del período sin generar',
+    },
+    ventasHoy === 0 && {
+      color: 'bg-status-info',
+      texto: 'Sin ventas registradas hoy',
+    },
+  ].filter(Boolean)
+
+  return (
+    <Card>
+      <CardTitle icon={ListChecks}>Pendientes del día</CardTitle>
+      {pendientes.length === 0 ? (
+        <p className="text-xs text-text-muted py-2">Todo al día — sin pendientes.</p>
+      ) : (
+        <ul className="space-y-2.5">
+          {pendientes.map((p, i) => (
+            <li key={i} className="flex items-center gap-2.5">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${p.color}`} />
+              <span className="text-xs text-text-subtle">{p.texto}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
 export default function Dashboard() {
+  const { usuario } = useAuth()
   const { recetas } = useRecetas()
   const { productos, cargando } = useCatalogo()
   const { config: configFiscal } = useFiscalConfig()
   const { costoIndirectoGlobal, margenObjetivo } = useConfiguracionCosteo()
   const [inventario, setInventario] = useState([])
   const [resumenVentas, setResumenVentas] = useState(null)
+
+  // Mismo gating que el ítem de navegación "WhatsApp" y "Mi Equipo" en
+  // Layout.jsx (role: 'admin') — el panel derecho reusa esos mismos datos,
+  // así que respeta el mismo control de acceso.
+  const esAdmin = usuario?.rol === 'admin'
 
   useEffect(() => {
     getInventario().then(r => setInventario(r.data || [])).catch(() => {})
@@ -54,7 +223,8 @@ export default function Dashboard() {
   )
 
   return (
-    <div className="space-y-4 max-w-6xl">
+    <div className="grid grid-cols-[1fr_280px] gap-3 max-w-6xl">
+    <div className="space-y-4 min-w-0">
 
       {/* FILA 1 — KPIs principales (4 columnas) */}
       <KpiGrid cols={4}>
@@ -164,6 +334,14 @@ export default function Dashboard() {
         </Card>
       </Grid>
 
+    </div>
+
+    {/* Panel derecho — acciones rápidas, WhatsApp y pendientes del día */}
+    <div className="space-y-3 min-w-0">
+      <AccionesRapidas />
+      <PanelWhatsapp activo={esAdmin} />
+      <PendientesDelDia sinReceta={sinReceta} ventasHoy={ventasHoy} activo={esAdmin} />
+    </div>
     </div>
   )
 }
