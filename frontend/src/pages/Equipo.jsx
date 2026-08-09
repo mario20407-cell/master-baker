@@ -357,13 +357,13 @@ export default function Equipo() {
   return (
     <div className="max-w-6xl space-y-6">
       {/* Selector de Pestañas */}
-      <div className="flex border-b border-gray-200 dark:border-navy-800">
+      <div className="flex border-b border-border-default">
         <button
           onClick={() => setActiveTab('colaboradores')}
           className={`py-3 px-6 font-medium text-sm border-b-2 transition-all flex items-center gap-2 ${
             activeTab === 'colaboradores'
-              ? 'border-[#C29C53] text-[#C29C53]'
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              ? 'border-brand-primary text-brand-primary'
+              : 'border-transparent text-text-muted hover:text-text-subtle'
           }`}
         >
           <Users size={16} /> Colaboradores & Equipo
@@ -372,8 +372,8 @@ export default function Equipo() {
           onClick={() => setActiveTab('bitacora')}
           className={`py-3 px-6 font-medium text-sm border-b-2 transition-all flex items-center gap-2 ${
             activeTab === 'bitacora'
-              ? 'border-[#C29C53] text-[#C29C53]'
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              ? 'border-brand-primary text-brand-primary'
+              : 'border-transparent text-text-muted hover:text-text-subtle'
           }`}
         >
           <Activity size={16} /> Bitácora de Actividades (Auditoría)
@@ -382,8 +382,8 @@ export default function Equipo() {
           onClick={() => setActiveTab('pasivos-laborales')}
           className={`py-3 px-6 font-medium text-sm border-b-2 transition-all flex items-center gap-2 ${
             activeTab === 'pasivos-laborales'
-              ? 'border-[#C29C53] text-[#C29C53]'
-              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              ? 'border-brand-primary text-brand-primary'
+              : 'border-transparent text-text-muted hover:text-text-subtle'
           }`}
         >
           <Wallet size={16} /> Nómina
@@ -398,36 +398,36 @@ export default function Equipo() {
 
             {/* Formulario Permisos */}
             {editPermisosUser ? (
-              <div className="card border border-[#C29C53]/40 bg-[#FBF6EC]/30 dark:bg-navy-900/40">
+              <div className="card border border-brand-primary/40 bg-brand-50/40">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                    <Shield size={16} className="text-[#C29C53]" /> Permisos: {editPermisosUser.nombre}
+                  <h3 className="text-sm font-semibold text-text-subtle flex items-center gap-2">
+                    <Shield size={16} className="text-brand-primary" /> Permisos: {editPermisosUser.nombre}
                   </h3>
-                  <button onClick={() => setEditPermisosUser(null)} className="text-gray-400 hover:text-red-500">
+                  <button onClick={() => setEditPermisosUser(null)} className="text-text-muted hover:text-status-danger">
                     <X size={16} />
                   </button>
                 </div>
 
                 <form onSubmit={handleGuardarPermisos} className="space-y-4">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-text-muted">
                     Activa o desactiva las secciones a las que este operario tendrá acceso en la aplicación.
                   </p>
 
-                  <div className="max-h-[350px] overflow-y-auto pr-2 space-y-3 divide-y divide-gray-100 dark:divide-navy-800">
+                  <div className="max-h-[350px] overflow-y-auto pr-2 space-y-3 divide-y divide-border-default">
                     {/* Agrupados por módulo */}
                     {Array.from(new Set(PERMISOS_DISPONIBLES.map(p => p.modulo))).map(mod => (
                       <div key={mod} className="pt-2 first:pt-0">
-                        <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-400 dark:text-gray-500 block mb-1">
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block mb-1">
                           {mod}
                         </span>
                         <div className="space-y-1.5">
                           {PERMISOS_DISPONIBLES.filter(p => p.modulo === mod).map(perm => (
-                            <label key={perm.id} className="flex items-start gap-2.5 text-xs text-gray-600 dark:text-gray-300 cursor-pointer hover:text-gray-900 dark:hover:text-white">
+                            <label key={perm.id} className="flex items-start gap-2.5 text-xs text-text-subtle cursor-pointer hover:text-text-default">
                               <input
                                 type="checkbox"
                                 checked={selectedPermisos.includes(perm.id)}
                                 onChange={() => handleTogglePermiso(perm.id)}
-                                className="mt-0.5 rounded text-[#C29C53] focus:ring-[#C29C53]"
+                                className="mt-0.5 rounded text-brand-primary focus:ring-brand-primary"
                               />
                               <span>{perm.label}</span>
                             </label>
@@ -457,12 +457,12 @@ export default function Equipo() {
               </div>
             ) : resetUserId ? (
               /* Restablecer Contraseña */
-              <div className="card border border-[#C29C53]/40 bg-[#FBF6EC]/30 dark:bg-navy-900/40">
+              <div className="card border border-brand-primary/40 bg-brand-50/40">
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                    <Key size={15} className="text-[#C29C53]" /> Restablecer Contraseña
+                  <h3 className="text-sm font-semibold text-text-subtle flex items-center gap-2">
+                    <Key size={15} className="text-brand-primary" /> Restablecer Contraseña
                   </h3>
-                  <button onClick={() => setResetUserId(null)} className="text-gray-400 hover:text-red-500">
+                  <button onClick={() => setResetUserId(null)} className="text-text-muted hover:text-status-danger">
                     <X size={15} />
                   </button>
                 </div>
@@ -481,7 +481,7 @@ export default function Equipo() {
                       <button
                         type="button"
                         onClick={() => setShowNewPass(!showNewPass)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted"
                       >
                         {showNewPass ? <EyeOff size={14} /> : <Eye size={14} />}
                       </button>
@@ -509,8 +509,8 @@ export default function Equipo() {
             ) : (
               /* Registrar Colaborador */
               <div className="card">
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-2">
-                  <UserPlus size={16} className="text-[#C29C53]" /> Registrar Colaborador
+                <h3 className="text-sm font-semibold text-text-subtle mb-4 flex items-center gap-2">
+                  <UserPlus size={16} className="text-brand-primary" /> Registrar Colaborador
                 </h3>
 
                 <form onSubmit={handleCrearColaborador} className="space-y-4">
@@ -547,7 +547,7 @@ export default function Equipo() {
                       <button
                         type="button"
                         onClick={() => setShowPass(!showPass)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-subtle"
                       >
                         {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
@@ -568,8 +568,8 @@ export default function Equipo() {
                   {/* Salario a devengar — opcional, pero se pide de una vez para
                       que la mano de obra se costee bien desde el primer momento
                       en vez de depender de un segundo paso en Nómina. */}
-                  <div className="border-t border-gray-100 dark:border-navy-800 pt-3 space-y-3">
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500">
+                  <div className="border-t border-border-default pt-3 space-y-3">
+                    <p className="text-[10px] text-text-muted">
                       Opcional — podés completarlo también después en Nómina → Pasivo Laboral.
                     </p>
 
@@ -625,14 +625,14 @@ export default function Equipo() {
 
           {/* Listado de Equipo */}
           <div className="md:col-span-2 card">
-            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-4 flex items-center gap-2">
-              <Users size={16} className="text-[#C29C53]" /> Colaboradores de tu Panadería
+            <h3 className="text-sm font-semibold text-text-subtle mb-4 flex items-center gap-2">
+              <Users size={16} className="text-brand-primary" /> Colaboradores de tu Panadería
             </h3>
 
             {loading ? (
-              <div className="text-sm text-gray-400 py-6 text-center">Cargando equipo...</div>
+              <div className="text-sm text-text-muted py-6 text-center">Cargando equipo...</div>
             ) : colaboradores.length === 0 ? (
-              <div className="text-sm text-gray-400 py-6 text-center">No hay otros colaboradores registrados.</div>
+              <div className="text-sm text-text-muted py-6 text-center">No hay otros colaboradores registrados.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="table-base">
@@ -647,16 +647,16 @@ export default function Equipo() {
                   </thead>
                   <tbody>
                     {colaboradores.map(user => (
-                      <tr key={user.id} className={editPermisosUser?.id === user.id ? 'bg-[#C29C53]/5' : ''}>
-                        <td className="font-medium text-gray-800 dark:text-gray-200">{user.nombre}</td>
-                        <td className="text-gray-500 dark:text-gray-400 text-xs">{user.email}</td>
+                      <tr key={user.id} className={editPermisosUser?.id === user.id ? 'bg-brand-primary/5' : ''}>
+                        <td className="font-medium text-text-default">{user.nombre}</td>
+                        <td className="text-text-muted text-xs">{user.email}</td>
                         <td>
-                          <span className={`badge-gray inline-flex items-center gap-1 text-[10px] ${user.rol === 'admin' ? 'border border-[#C29C53]/35 text-[#8B6914] dark:text-[#C29C53] bg-[#8B6914]/5' : ''}`}>
+                          <span className={`badge-gray inline-flex items-center gap-1 text-[10px] ${user.rol === 'admin' ? 'border border-brand-primary/35 text-brand-primary-hover bg-brand-primary/5' : ''}`}>
                             {user.rol === 'admin' && <Shield size={10} />}
                             {user.rol === 'admin' ? 'Administrador' : 'Operario'}
                           </span>
                         </td>
-                        <td className="text-gray-400 text-[11px]">
+                        <td className="text-text-muted text-[11px]">
                           {user.ultimo_login
                             ? new Date(user.ultimo_login).toLocaleString('es-NI', { dateStyle: 'short', timeStyle: 'short' })
                             : 'Nunca'
@@ -667,7 +667,7 @@ export default function Equipo() {
                             {user.rol === 'operario' && (
                               <button
                                 onClick={() => handleAbrirPermisos(user)}
-                                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-400 hover:text-[#C29C53] transition-colors"
+                                className="p-1.5 rounded hover:bg-border-default text-text-muted hover:text-brand-primary transition-colors"
                                 title="Configurar Permisos del Operario"
                               >
                                 <Shield size={14} />
@@ -679,14 +679,14 @@ export default function Equipo() {
                                 setNuevoPassword('')
                                 setEditPermisosUser(null)
                               }}
-                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-400 hover:text-[#C29C53] transition-colors"
+                              className="p-1.5 rounded hover:bg-border-default text-text-muted hover:text-brand-primary transition-colors"
                               title="Restablecer Contraseña"
                             >
                               <Key size={14} />
                             </button>
                             <button
                               onClick={() => handleEliminar(user.id, user.nombre)}
-                              className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-950/20 text-gray-400 hover:text-red-500 transition-colors"
+                              className="p-1.5 rounded hover:bg-danger-light text-text-muted hover:text-status-danger transition-colors"
                               title="Eliminar del Equipo"
                             >
                               <Trash2 size={14} />
@@ -707,10 +707,10 @@ export default function Equipo() {
         <div className="card space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                <ClipboardList size={16} className="text-[#C29C53]" /> Historial de Actividad Reciente
+              <h3 className="text-sm font-semibold text-text-subtle flex items-center gap-2">
+                <ClipboardList size={16} className="text-brand-primary" /> Historial de Actividad Reciente
               </h3>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-text-muted mt-1">
                 Registro cronológico de quién ha hecho qué, cuándo y desde dónde en el sistema.
               </p>
             </div>
@@ -723,11 +723,11 @@ export default function Equipo() {
           </div>
 
           {loadingBitacora ? (
-            <div className="text-center py-10 text-sm text-gray-400">Cargando registros de auditoría...</div>
+            <div className="text-center py-10 text-sm text-text-muted">Cargando registros de auditoría...</div>
           ) : bitacora.length === 0 ? (
-            <div className="text-center py-10 text-sm text-gray-400">No se registran actividades recientes en la plataforma.</div>
+            <div className="text-center py-10 text-sm text-text-muted">No se registran actividades recientes en la plataforma.</div>
           ) : (
-            <div className="relative border-l border-gray-200 dark:border-navy-800 ml-4 space-y-6 py-2">
+            <div className="relative border-l border-border-default ml-4 space-y-6 py-2">
               {bitacora.map((log) => {
                 const isCollapsed = collapsedLogs[log.id] ?? true
                 const dateObj = new Date(log.creado_en)
@@ -743,34 +743,34 @@ export default function Equipo() {
                 return (
                   <div key={log.id} className="relative pl-6">
                     {/* Punto indicador */}
-                    <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-[#C29C53] border-2 border-white dark:border-navy-950"></div>
+                    <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-brand-primary border-2 border-white dark:border-navy-950"></div>
 
                     <div className="flex items-start md:items-center justify-between flex-col md:flex-row gap-2">
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                          <span className="text-xs font-semibold text-text-subtle">
                             {log.usuario_nombre}
                           </span>
-                          <span className="text-[10px] text-gray-400">
+                          <span className="text-[10px] text-text-muted">
                             ({log.usuario_email})
                           </span>
                           <span className={`text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded border font-semibold ${badgeColor}`}>
                             {log.modulo}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">
+                        <p className="text-xs text-text-subtle font-medium">
                           {log.descripcion}
                         </p>
                       </div>
 
                       <div className="flex items-center gap-3 self-end md:self-center">
-                        <span className="text-[10px] text-gray-400 flex items-center gap-1" title={dateObj.toString()}>
+                        <span className="text-[10px] text-text-muted flex items-center gap-1" title={dateObj.toString()}>
                           <Clock size={10} />
                           {dateObj.toLocaleDateString('es-NI', { month: 'short', day: 'numeric' })} a las {dateObj.toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' })}
                         </span>
 
                         {log.ip_origen && (
-                          <span className="text-[10px] bg-gray-100 dark:bg-navy-900 text-gray-500 font-mono px-1 rounded">
+                          <span className="text-[10px] bg-border-default text-text-muted font-mono px-1 rounded">
                             {log.ip_origen}
                           </span>
                         )}
@@ -778,7 +778,7 @@ export default function Equipo() {
                         {log.detalles && Object.keys(log.detalles).length > 0 && (
                           <button
                             onClick={() => toggleCollapseLog(log.id)}
-                            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                            className="p-1 rounded hover:bg-border-default text-text-muted hover:text-text-subtle"
                             title="Ver detalles JSON"
                           >
                             {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
@@ -789,8 +789,8 @@ export default function Equipo() {
 
                     {/* Detalles JSON desplegables */}
                     {!isCollapsed && log.detalles && (
-                      <div className="mt-2 p-3 bg-gray-50 dark:bg-navy-900 border border-gray-100 dark:border-navy-800 rounded-md text-[10px] font-mono text-gray-600 dark:text-gray-300 overflow-x-auto leading-relaxed">
-                        <div className="flex items-center gap-1.5 text-gray-400 mb-1 border-b border-gray-200 dark:border-navy-800 pb-1">
+                      <div className="mt-2 p-3 bg-surface-muted border border-border-default rounded-md text-[10px] font-mono text-text-subtle overflow-x-auto leading-relaxed">
+                        <div className="flex items-center gap-1.5 text-text-muted mb-1 border-b border-border-default pb-1">
                           <Info size={10} /> Detalle Técnico de la Operación:
                         </div>
                         <pre>{JSON.stringify(log.detalles, null, 2)}</pre>
@@ -806,13 +806,13 @@ export default function Equipo() {
         /* PESTAÑA: Nómina — Planilla (pago periódico real) y Pasivo Laboral (provisiones acumuladas) */
         <div className="space-y-6">
           {/* Sub-pestañas */}
-          <div className="flex gap-1 bg-gray-100 dark:bg-navy-900 rounded-lg p-1 w-fit">
+          <div className="flex gap-1 bg-border-default rounded-lg p-1 w-fit">
             <button
               onClick={() => setSubTabNomina('planilla')}
               className={`py-1.5 px-4 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
                 subTabNomina === 'planilla'
-                  ? 'bg-white dark:bg-navy-800 text-[#C29C53] shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  ? 'bg-white text-brand-primary shadow-sm'
+                  : 'text-text-muted hover:text-text-subtle'
               }`}
             >
               <Receipt size={13} /> Planilla
@@ -821,8 +821,8 @@ export default function Equipo() {
               onClick={() => setSubTabNomina('pasivo')}
               className={`py-1.5 px-4 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
                 subTabNomina === 'pasivo'
-                  ? 'bg-white dark:bg-navy-800 text-[#C29C53] shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  ? 'bg-white text-brand-primary shadow-sm'
+                  : 'text-text-muted hover:text-text-subtle'
               }`}
             >
               <Wallet size={13} /> Pasivo Laboral
@@ -831,9 +831,9 @@ export default function Equipo() {
 
           {subTabNomina === 'planilla' && (
             <div className="space-y-6">
-              <div className="card bg-[#FBF6EC]/50 dark:bg-navy-900/40 border border-[#C29C53]/30 flex gap-3 items-start">
-                <Info size={16} className="text-[#C29C53] mt-0.5 shrink-0" />
-                <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+              <div className="card bg-brand-50/50 border border-brand-primary/30 flex gap-3 items-start">
+                <Info size={16} className="text-brand-primary mt-0.5 shrink-0" />
+                <p className="text-xs text-text-subtle leading-relaxed">
                   Calculá y guardá la planilla de un período: salario bruto, INSS laboral (7%, se le retiene al
                   colaborador), neto a pagar, e INSS patronal + INATEC (lo que el negocio le debe al INSS por ese
                   período). Colaboradores de pago variable usan el pago registrado ese mes, prorrateado igual que el
@@ -844,8 +844,8 @@ export default function Equipo() {
 
               {/* Generar planilla */}
               <div className="card">
-                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2 mb-4">
-                  <Receipt size={16} className="text-[#C29C53]" /> Generar Planilla
+                <h3 className="text-sm font-semibold text-text-subtle flex items-center gap-2 mb-4">
+                  <Receipt size={16} className="text-brand-primary" /> Generar Planilla
                 </h3>
                 <div className="flex flex-wrap gap-3 items-end">
                   <div className="form-group mb-0">
@@ -889,9 +889,9 @@ export default function Equipo() {
                   const p = planillaActual || vistaPrevia
                   const esGuardada = !!planillaActual
                   return (
-                    <div className="mt-5 border-t border-gray-100 dark:border-navy-800 pt-4">
+                    <div className="mt-5 border-t border-border-default pt-4">
                       <div className="flex justify-between items-center mb-3">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                        <div className="text-xs text-text-muted">
                           {p.periodoInicio || p.periodo_inicio} a {p.periodoFin || p.periodo_fin} · {p.frecuencia}
                           {esGuardada ? <span className="ml-2 badge-green text-[10px]">Guardada</span> : <span className="ml-2 badge-gray text-[10px]">Vista previa (sin guardar)</span>}
                         </div>
@@ -916,13 +916,13 @@ export default function Equipo() {
                       </div>
 
                       {(p.aplicaInss === false || p.aplica_inss === false) && (
-                        <p className="text-[11px] text-gray-400 mb-2">
+                        <p className="text-[11px] text-text-muted mb-2">
                           Negocio marcado como que no cotiza al INSS — bruto = neto, sin retenciones ni cargas patronales.
                         </p>
                       )}
 
                       {(p.detalle || []).length === 0 ? (
-                        <p className="text-xs text-gray-400">Ningún colaborador tiene datos suficientes (salario o pago variable) para este período.</p>
+                        <p className="text-xs text-text-muted">Ningún colaborador tiene datos suficientes (salario o pago variable) para este período.</p>
                       ) : (
                         <div className="overflow-x-auto">
                           <table className="table-base">
@@ -940,7 +940,7 @@ export default function Equipo() {
                             <tbody>
                               {p.detalle.map((d, i) => (
                                 <tr key={d.usuario_id || i}>
-                                  <td className="font-medium text-gray-800 dark:text-gray-200">{d.nombre}</td>
+                                  <td className="font-medium text-text-default">{d.nombre}</td>
                                   <td><span className="badge-gray text-[10px]">{d.tipo_pago === 'variable' ? 'Variable' : 'Fijo'}</span></td>
                                   <td className="text-right text-xs">{formatoCordobas(d.salario_bruto)}</td>
                                   <td className="text-right text-xs">{formatoCordobas(d.inss_laboral)}</td>
@@ -971,32 +971,32 @@ export default function Equipo() {
               {/* Historial */}
               <div className="card">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2">
-                    <History size={16} className="text-[#C29C53]" /> Historial de Planillas
+                  <h3 className="text-sm font-semibold text-text-subtle flex items-center gap-2">
+                    <History size={16} className="text-brand-primary" /> Historial de Planillas
                   </h3>
                   <button onClick={cargarHistorial} className="btn-secondary py-1 px-3 text-xs">Actualizar</button>
                 </div>
                 {loadingHistorial ? (
-                  <p className="text-xs text-gray-400 text-center py-6">Cargando historial...</p>
+                  <p className="text-xs text-text-muted text-center py-6">Cargando historial...</p>
                 ) : historial.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-6">Todavía no generaste ninguna planilla.</p>
+                  <p className="text-xs text-text-muted text-center py-6">Todavía no generaste ninguna planilla.</p>
                 ) : (
-                  <div className="divide-y divide-gray-100 dark:divide-navy-800/80">
+                  <div className="divide-y divide-border-default">
                     {historial.map(h => (
                       <div key={h.id} className="flex justify-between items-center py-2.5">
                         <div>
-                          <div className="text-xs font-medium text-gray-800 dark:text-gray-200">
+                          <div className="text-xs font-medium text-text-default">
                             {h.periodo_inicio} a {h.periodo_fin}
                             <span className="badge-gray text-[10px] ml-2">{h.frecuencia}</span>
                           </div>
-                          <div className="text-[10px] text-gray-400 mt-0.5">Neto total: {formatoCordobas(h.total_neto)}</div>
+                          <div className="text-[10px] text-text-muted mt-0.5">Neto total: {formatoCordobas(h.total_neto)}</div>
                         </div>
                         <div className="flex gap-2 items-center">
                           <button onClick={() => cargarPlanilla(h.id)} className="btn-secondary py-1 px-2.5 text-[11px]">Ver</button>
                           <button
                             onClick={() => handleDescargarPlanilla(h.id, 'excel')}
                             disabled={descargando === `${h.id}-excel`}
-                            className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-400 hover:text-[#C29C53] transition-colors"
+                            className="p-1.5 rounded hover:bg-border-default text-text-muted hover:text-brand-primary transition-colors"
                             title="Descargar Excel"
                           >
                             <Download size={13} />
@@ -1012,9 +1012,9 @@ export default function Equipo() {
 
           {subTabNomina === 'pasivo' && (
           <>
-          <div className="card bg-[#FBF6EC]/50 dark:bg-navy-900/40 border border-[#C29C53]/30 flex gap-3 items-start">
-            <Info size={16} className="text-[#C29C53] mt-0.5 shrink-0" />
-            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+          <div className="card bg-brand-50/50 border border-brand-primary/30 flex gap-3 items-start">
+            <Info size={16} className="text-brand-primary mt-0.5 shrink-0" />
+            <p className="text-xs text-text-subtle leading-relaxed">
               Estimación del pasivo laboral acumulado según el Código del Trabajo de Nicaragua (Ley 185) y la Ley de
               Seguridad Social (Ley 539), tasas vigentes 2026. Es una herramienta informativa para dimensionar
               obligaciones que ya se generaron pero aún no se han pagado (INSS patronal 21.5% + 2% INATEC, aguinaldo,
@@ -1025,15 +1025,15 @@ export default function Equipo() {
           </div>
 
           {loadingDossier ? (
-            <div className="card text-center py-10 text-sm text-gray-400">Calculando pasivo laboral...</div>
+            <div className="card text-center py-10 text-sm text-text-muted">Calculando pasivo laboral...</div>
           ) : !dossier || dossier.colaboradoresTotal === 0 ? (
-            <div className="card text-center py-10 text-sm text-gray-400">No hay colaboradores registrados todavía.</div>
+            <div className="card text-center py-10 text-sm text-text-muted">No hay colaboradores registrados todavía.</div>
           ) : (
             <>
               {dossier.aplicaInss === false && (
-                <div className="card bg-gray-50 dark:bg-navy-900/40 border border-gray-200 dark:border-navy-800 flex gap-3 items-start">
-                  <Info size={15} className="text-gray-400 mt-0.5 shrink-0" />
-                  <p className="text-xs text-gray-600 dark:text-gray-300">
+                <div className="card bg-surface-muted border border-border-default flex gap-3 items-start">
+                  <Info size={15} className="text-text-muted mt-0.5 shrink-0" />
+                  <p className="text-xs text-text-subtle">
                     Este negocio está marcado como que no cotiza al INSS (Configuración → Costeo e Indirectos) — el
                     INSS Patronal/mes de abajo sale en C$0 a propósito, no es un dato faltante.
                   </p>
@@ -1043,32 +1043,32 @@ export default function Equipo() {
               {/* Resumen */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="card">
-                  <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">Pasivo Acumulado</p>
-                  <p className="text-xl font-bold text-gray-800 dark:text-gray-100">{formatoCordobas(dossier.totales.pasivoAcumulado)}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Aguinaldo + vacaciones</p>
+                  <p className="text-[11px] uppercase tracking-wide text-text-muted mb-1">Pasivo Acumulado</p>
+                  <p className="text-xl font-bold text-text-default">{formatoCordobas(dossier.totales.pasivoAcumulado)}</p>
+                  <p className="text-[10px] text-text-muted mt-0.5">Aguinaldo + vacaciones</p>
                 </div>
                 <div className="card">
-                  <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">Aguinaldo</p>
-                  <p className="text-xl font-bold text-gray-800 dark:text-gray-100">{formatoCordobas(dossier.totales.aguinaldo)}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Acumulado a la fecha</p>
+                  <p className="text-[11px] uppercase tracking-wide text-text-muted mb-1">Aguinaldo</p>
+                  <p className="text-xl font-bold text-text-default">{formatoCordobas(dossier.totales.aguinaldo)}</p>
+                  <p className="text-[10px] text-text-muted mt-0.5">Acumulado a la fecha</p>
                 </div>
                 <div className="card">
-                  <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">Vacaciones</p>
-                  <p className="text-xl font-bold text-gray-800 dark:text-gray-100">{formatoCordobas(dossier.totales.vacaciones)}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Provisión acumulada</p>
+                  <p className="text-[11px] uppercase tracking-wide text-text-muted mb-1">Vacaciones</p>
+                  <p className="text-xl font-bold text-text-default">{formatoCordobas(dossier.totales.vacaciones)}</p>
+                  <p className="text-[10px] text-text-muted mt-0.5">Provisión acumulada</p>
                 </div>
                 <div className="card">
-                  <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">INSS Patronal / mes</p>
-                  <p className="text-xl font-bold text-gray-800 dark:text-gray-100">{formatoCordobas(dossier.totales.inssPatronalMensual)}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">
+                  <p className="text-[11px] uppercase tracking-wide text-text-muted mb-1">INSS Patronal / mes</p>
+                  <p className="text-xl font-bold text-text-default">{formatoCordobas(dossier.totales.inssPatronalMensual)}</p>
+                  <p className="text-[10px] text-text-muted mt-0.5">
                     {dossier.aplicaInss === false ? 'No aplica (negocio no cotiza INSS)' : `21.5% + 2% INATEC${dossier.empresaGrande ? ' (22.5% patronal, 50+ empleados)' : ''}`}
                   </p>
                 </div>
               </div>
 
-              <div className="card bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/60 dark:border-amber-900/30 flex gap-3 items-start">
-                <AlertTriangle size={15} className="text-amber-600 dark:text-amber-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-amber-800 dark:text-amber-400">
+              <div className="card bg-warn-light border border-amber-200/60 dark:border-amber-900/30 flex gap-3 items-start">
+                <AlertTriangle size={15} className="text-status-warning mt-0.5 shrink-0" />
+                <p className="text-xs text-status-warning-fg">
                   Indemnización potencial por despido sin justa causa (Art. 45), si hoy se despidiera a todo el equipo:{' '}
                   <strong>{formatoCordobas(dossier.totales.indemnizacionPotencial)}</strong>. No es un pasivo actual —
                   solo aplica si ocurre un despido injustificado.
@@ -1078,8 +1078,8 @@ export default function Equipo() {
               {/* Tabla por colaborador */}
               <div className="card">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-2">
-                    <Wallet size={16} className="text-[#C29C53]" /> Detalle por Colaborador
+                  <h3 className="text-sm font-semibold text-text-subtle flex items-center gap-2">
+                    <Wallet size={16} className="text-brand-primary" /> Detalle por Colaborador
                   </h3>
                   <button onClick={cargarDossier} className="btn-secondary py-1 px-3 text-xs">Actualizar</button>
                 </div>
@@ -1101,16 +1101,16 @@ export default function Equipo() {
                     <tbody>
                       {dossier.detalle.map(c => (
                         <tr key={c.usuario_id}>
-                          <td className="font-medium text-gray-800 dark:text-gray-200">{c.nombre}</td>
+                          <td className="font-medium text-text-default">{c.nombre}</td>
                           <td>
                             <span className="badge-gray text-[10px]">
                               {c.tipo_pago === 'variable' ? 'Variable / destajo' : 'Fijo'}
                             </span>
                             {c.base.sinDatos && (
-                              <span className="block text-[10px] text-amber-600 mt-0.5">Sin datos suficientes</span>
+                              <span className="block text-[10px] text-status-warning mt-0.5">Sin datos suficientes</span>
                             )}
                           </td>
-                          <td className="text-gray-500 dark:text-gray-400 text-xs">
+                          <td className="text-text-muted text-xs">
                             {c.mesesAntiguedad >= 12
                               ? `${(c.mesesAntiguedad / 12).toFixed(1)} años`
                               : `${c.mesesAntiguedad} meses`}
@@ -1119,16 +1119,16 @@ export default function Equipo() {
                           <td className="text-right text-xs">{formatoCordobas(c.aguinaldo.monto)}</td>
                           <td className="text-right text-xs">
                             {formatoCordobas(c.vacaciones.monto)}
-                            <div className="text-[10px] text-gray-400">{c.vacaciones.dias} días</div>
+                            <div className="text-[10px] text-text-muted">{c.vacaciones.dias} días</div>
                           </td>
                           <td className="text-right text-xs">
                             {formatoCordobas(c.indemnizacionPotencial.monto)}
-                            <div className="text-[10px] text-gray-400">{c.indemnizacionPotencial.meses} mes(es)</div>
+                            <div className="text-[10px] text-text-muted">{c.indemnizacionPotencial.meses} mes(es)</div>
                           </td>
                           <td className="text-right">
                             <button
                               onClick={() => handleAbrirPerfilLaboral(c)}
-                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-400 hover:text-[#C29C53] transition-colors"
+                              className="p-1.5 rounded hover:bg-border-default text-text-muted hover:text-brand-primary transition-colors"
                               title="Editar Perfil Laboral"
                             >
                               <Pencil size={14} />
@@ -1138,14 +1138,14 @@ export default function Equipo() {
                       ))}
                       {perfilesSinFecha.map(p => (
                         <tr key={p.id} className="opacity-70">
-                          <td className="font-medium text-gray-800 dark:text-gray-200">{p.nombre}</td>
-                          <td colSpan={5} className="text-xs text-amber-600 dark:text-amber-500">
+                          <td className="font-medium text-text-default">{p.nombre}</td>
+                          <td colSpan={5} className="text-xs text-status-warning">
                             Falta fecha de ingreso — completá el perfil laboral para calcular su pasivo.
                           </td>
                           <td className="text-right">
                             <button
                               onClick={() => handleAbrirPerfilLaboral(p)}
-                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-navy-800 text-gray-400 hover:text-[#C29C53] transition-colors"
+                              className="p-1.5 rounded hover:bg-border-default text-text-muted hover:text-brand-primary transition-colors"
                               title="Completar Perfil Laboral"
                             >
                               <Pencil size={14} />
@@ -1158,7 +1158,7 @@ export default function Equipo() {
                 </div>
 
                 {dossier.colaboradoresConDatos < dossier.colaboradoresTotal && (
-                  <p className="text-xs text-gray-400 mt-3">
+                  <p className="text-xs text-text-muted mt-3">
                     {dossier.colaboradoresTotal - dossier.colaboradoresConDatos} colaborador(es) sin fecha de ingreso
                     registrada — usá el lápiz en su fila para completar su perfil laboral.
                   </p>
@@ -1174,10 +1174,10 @@ export default function Equipo() {
             <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setEditPerfilUser(null)}>
               <div className="card max-w-md w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                    <Wallet size={16} className="text-[#C29C53]" /> Perfil Laboral: {editPerfilUser.nombre}
+                  <h3 className="text-sm font-semibold text-text-subtle flex items-center gap-2">
+                    <Wallet size={16} className="text-brand-primary" /> Perfil Laboral: {editPerfilUser.nombre}
                   </h3>
-                  <button onClick={() => setEditPerfilUser(null)} className="text-gray-400 hover:text-red-500">
+                  <button onClick={() => setEditPerfilUser(null)} className="text-text-muted hover:text-status-danger">
                     <X size={16} />
                   </button>
                 </div>
@@ -1219,8 +1219,8 @@ export default function Equipo() {
                       />
                     </div>
                   ) : (
-                    <div className="space-y-3 border-t border-gray-100 dark:border-navy-800 pt-3">
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    <div className="space-y-3 border-t border-border-default pt-3">
+                      <p className="text-[11px] text-text-muted">
                         Anotá lo que realmente se le pagó cada mes. El aguinaldo usa el mes más alto de los últimos 6;
                         vacaciones e indemnización usan el promedio; el INSS patronal usa el mes más reciente.
                       </p>
@@ -1258,15 +1258,15 @@ export default function Equipo() {
                       </div>
 
                       {loadingPagos ? (
-                        <p className="text-xs text-gray-400">Cargando historial...</p>
+                        <p className="text-xs text-text-muted">Cargando historial...</p>
                       ) : pagosVariables.length === 0 ? (
-                        <p className="text-xs text-gray-400">Sin pagos registrados todavía.</p>
+                        <p className="text-xs text-text-muted">Sin pagos registrados todavía.</p>
                       ) : (
                         <div className="max-h-32 overflow-y-auto space-y-1">
                           {pagosVariables.map(p => {
                             const d = new Date(p.mes)
                             return (
-                              <div key={p.mes} className="flex justify-between text-xs text-gray-600 dark:text-gray-300 py-0.5">
+                              <div key={p.mes} className="flex justify-between text-xs text-text-subtle py-0.5">
                                 <span>{MESES_NOMBRE[d.getUTCMonth()]} {d.getUTCFullYear()}</span>
                                 <span className="font-medium">{formatoCordobas(p.monto)}</span>
                               </div>

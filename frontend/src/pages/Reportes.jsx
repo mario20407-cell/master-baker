@@ -331,7 +331,7 @@ export default function Reportes() {
     getVentas({ ...params, limit: 500 }).then(r => setVentas(r.data || [])).catch(() => {})
   }, [tab, desde, hasta, sucursalId, metodoPago, producto])
 
-  if (cargando) return <div className="text-gray-400 text-sm p-4">Cargando...</div>
+  if (cargando) return <div className="text-text-muted text-sm p-4">Cargando...</div>
 
   const sucursalNombre = sucursales.find(s => s.id === sucursalId)?.nombre || 'Todas'
   const filtros = { desde, hasta, sucursalNombre, metodoPago, producto }
@@ -356,17 +356,17 @@ export default function Reportes() {
 
       <div className="max-w-4xl no-print">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-text-default flex items-center gap-2">
             <FileText size={18} /> Reportes
           </h2>
           <button onClick={() => window.print()} className="btn-primary flex items-center gap-2">
             <Printer size={14} /> {tab === 'ventas' ? 'Exportar PDF' : 'Imprimir / Guardar PDF'}
           </button>
         </div>
-        <div className="flex gap-1 mb-4 bg-gray-100 rounded-xl p-1 w-fit">
+        <div className="flex gap-1 mb-4 bg-border-default rounded-xl p-1 w-fit">
           {[['costeo', TrendingUp, 'Rentabilidad'], ['inventario', Package, 'Inventario'], ['ventas', ShoppingCart, 'Ventas']].map(([id, Icon, label]) => (
             <button key={id} onClick={() => setTab(id)}
-              className={`px-4 py-1.5 text-sm rounded-lg transition-all flex items-center gap-1.5 ${tab === id ? 'bg-white font-medium shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`px-4 py-1.5 text-sm rounded-lg transition-all flex items-center gap-1.5 ${tab === id ? 'bg-white font-medium shadow-sm text-text-default' : 'text-text-muted hover:text-text-subtle'}`}>
               <Icon size={13} /> {label}
             </button>
           ))}
@@ -393,7 +393,7 @@ export default function Reportes() {
               <div className="form-group">
                 <label className="form-label">Producto</label>
                 <div className="relative">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
                   <input className="pl-7" value={productoInput} onChange={e => setProductoInput(e.target.value)} placeholder="Buscar..." />
                 </div>
               </div>
@@ -402,9 +402,8 @@ export default function Reportes() {
               {METODOS.map(m => (
                 <button key={m.id} onClick={() => setMetodoPago(m.id)}
                   className={`px-3 py-1 text-xs rounded-lg border transition-all ${metodoPago === m.id
-                    ? 'border-brand-400 text-white font-medium'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}
-                  style={metodoPago === m.id ? { background: '#C29C53' } : {}}>
+                    ? 'border-brand-primary bg-brand-primary text-white font-medium'
+                    : 'border-border-default text-text-subtle hover:border-text-muted'}`}>
                   {m.label}
                 </button>
               ))}

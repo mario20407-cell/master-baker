@@ -91,10 +91,10 @@ export default function MiCuenta() {
   return (
     <div className="max-w-md space-y-6">
       <div className="card">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 flex items-center gap-2">
-          <KeyRound size={16} className="text-[#C29C53]" /> Mi Cuenta
+        <h3 className="text-sm font-semibold text-text-subtle mb-1 flex items-center gap-2">
+          <KeyRound size={16} className="text-brand-primary" /> Mi Cuenta
         </h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+        <p className="text-xs text-text-muted mb-4">
           {usuario?.nombre} — {usuario?.email}
         </p>
 
@@ -112,7 +112,7 @@ export default function MiCuenta() {
               <button
                 type="button"
                 onClick={() => setShowActual(!showActual)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted"
               >
                 {showActual ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -132,7 +132,7 @@ export default function MiCuenta() {
               <button
                 type="button"
                 onClick={() => setShowNueva(!showNueva)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted"
               >
                 {showNueva ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -152,7 +152,7 @@ export default function MiCuenta() {
               <button
                 type="button"
                 onClick={() => setShowConfirmar(!showConfirmar)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted"
               >
                 {showConfirmar ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -171,14 +171,14 @@ export default function MiCuenta() {
 
       {usuario?.rol === 'admin' && (
         <div className="card">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1 flex items-center gap-2">
-            <Shield size={16} className="text-[#C29C53]" /> PIN de Administrador
+          <h3 className="text-sm font-semibold text-text-subtle mb-1 flex items-center gap-2">
+            <Shield size={16} className="text-brand-primary" /> PIN de Administrador
           </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+          <p className="text-xs text-text-muted mb-4">
             Se pide para confirmar cambios de precio en Catálogo e Inventario. Es propio de tu negocio —
             no lo comparten otros negocios en Master Baker.
             {pinConfigurado === false && (
-              <span className="block mt-1 text-amber-600 dark:text-amber-500 font-medium">
+              <span className="block mt-1 text-status-warning font-medium">
                 Todavía no configuraste un PIN — hacelo acá para poder editar precios.
               </span>
             )}
