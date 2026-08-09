@@ -223,7 +223,7 @@ export default function Dashboard() {
   )
 
   return (
-    <div className="grid grid-cols-[1fr_280px] gap-3 max-w-6xl">
+    <div className="grid grid-cols-[1fr_280px] gap-3">
     <div className="space-y-4 min-w-0">
 
       {/* FILA 1 — KPIs principales (4 columnas) */}
